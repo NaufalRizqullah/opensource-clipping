@@ -111,8 +111,9 @@ python main.py --help
 | `--no-bgm` | — | Disable background music |
 | `--no-karaoke` | — | Use clean text instead of karaoke highlight |
 | `--advanced-text` | `False` | Enable kinetic typography (word scaling & animation) |
-| `--whisper-model` | `large-v3` | Whisper model size |
+| `--whisper-model` | `large-v3` | Whisper model size ([see here](https://github.com/SYSTRAN/faster-whisper?tab=readme-ov-file#whisper) for options) |
 | `--whisper-device` | `cuda` | Whisper device (`cuda`, `cpu`, `auto`) |
+| `--whisper-compute-type` | `float16` | Compute type for Whisper (`float16`, `int8`, etc.) |
 | `--gemini-model` | `gemini-3-flash-preview` | Gemini model name |
 
 ## 📂 Project Structure

@@ -111,8 +111,9 @@ python main.py --help
 | `--no-bgm` | — | Nonaktifkan musik latar |
 | `--no-karaoke` | — | Gunakan teks biasa tanpa highlight karaoke |
 | `--advanced-text` | `False` | Aktifkan kinetic typography (scaling & animasi kata) |
-| `--whisper-model` | `large-v3` | Ukuran model Whisper |
+| `--whisper-model` | `large-v3` | Ukuran model Whisper ([lihat opsi di sini](https://github.com/SYSTRAN/faster-whisper?tab=readme-ov-file#whisper)) |
 | `--whisper-device` | `cuda` | Device Whisper (`cuda`, `cpu`, `auto`) |
+| `--whisper-compute-type` | `float16` | Tipe komputasi Whisper (`float16`, `int8`, dll) |
 | `--gemini-model` | `gemini-3-flash-preview` | Nama model Gemini |
 
 ## 📂 Struktur Proyek
