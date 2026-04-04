@@ -1,4 +1,4 @@
-# 🎬 OpenSource Clipping v0.3.0
+# 🎬 OpenSource Clipping
 
 **Ultimate AI Auto-Clipper & Teaser Generator** — proyek open-source yang mengubah video panjang menjadi highlight pendek bergaya sinematik, lengkap dengan hook teaser, subtitle karaoke, dan thumbnail otomatis.
 

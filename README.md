@@ -1,4 +1,4 @@
-# 🎬 OpenSource Clipping v0.3.0
+# 🎬 OpenSource Clipping
 
 **Ultimate AI Auto-Clipper & Teaser Generator** — an open-source content factory that transforms long-form videos into cinematic short-form highlights with hook teasers, karaoke subtitles, and auto-thumbnails.
 

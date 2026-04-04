@@ -2,6 +2,21 @@
 
 All notable changes to the **OpenSource Clipping** project will be documented in this file.
 
+## [v0.4.0] - 2026-04-05
+
+### Added
+- **Standalone YouTube Auto-Uploader**: Created a dedicated CLI (`run_upload.py`) with a `youtube_uploader` package for automated background uploading and scheduling without interrupting the rendering pipeline.
+
+### Changed
+- **Centralized Outputs Directory**: Refactored the engine (`config.py`, `studio.py`, `runner.py`) so all generated media, thumbnails, and manifests are now neatly sandboxed inside an `outputs/` folder.
+- **MediaPipe Tracking Upgrade**: Upgraded the smart auto-framing AI from the basic short-range model to the more robust `BlazeFace (Full-Range)` model. This resolves face-loss issues on wide-shot inputs and podcast frames.
+- **Typographic Sweet Spots**: Fine-tuned default subtitles margins and CSS scaling (adjustable in `config.py`).
+
+### Removed
+- Deprecated and removed the obsolete `v2-youtube-clipping.ipynb` legacy notebook.
+
+---
+
 ## [v0.3.0] - 2026-04-04
 
 ### Added
