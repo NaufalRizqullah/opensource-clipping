@@ -1,0 +1,8 @@
+yt-dlp
+faster-whisper
+google-genai
+mediapipe
+opencv-python
+Pillow
+requests
+python-dotenv
