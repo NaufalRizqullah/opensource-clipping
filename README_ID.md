@@ -54,15 +54,26 @@ env_text = f"GOOGLE_API_KEY={GOOGLE_API_KEY}\n"
 Path(".env").write_text(env_text, encoding="utf-8")
 ```
 
-**Cell 3: Eksekusi**
+**Cell 3: Eksekusi (Contoh termasuk fallback Kaggle untuk float32)**
 ```python
-URL_YOUTUBE = "https://www.youtube.com/watch?v=Ip6pCjWp4lk"
+URL_YOUTUBE = "https://www.youtube.com/watch?v=Dc4_aBFAYWE&pp=0gcJCdkKAYcqIYzv"
+JUMLAH_CLIP = 10
+RASIO = "9:16"
+FONT_STYLE = "DEFAULT"
+GEMINI_MODEL = "gemini-3-flash-preview"
+# Gunakan 'float32' untuk limitasi hardware Kaggle, atau 'float16' untuk standar Colab T4
+WHISPER_COMPUTE_TYPE = "float32"
 
 !python main.py \
   --url "{URL_YOUTUBE}" \
-  --clips 5 \
-  --ratio "9:16" \
-  --font-style "HORMOZI"
+  --clips {JUMLAH_CLIP} \
+  --ratio "{RASIO}" \
+  --font-style "{FONT_STYLE}" \
+  --hook-duration 3 \
+  --words-per-sub 5 \
+  --gemini-model "{GEMINI_MODEL}" \
+  --whisper-compute-type "{WHISPER_COMPUTE_TYPE}" \
+  --no-bgm
 ```
 
 *(Catatan: Kami juga telah menyertakan file `notebooks/Lib_OpenSource_Clipping.ipynb` di repositori ini sebagai template praktis).*
@@ -88,8 +99,17 @@ cp .env.sample .env
 python main.py
 # uv run main.py                        # jika pakai uv
 
-# 5. Atau kustomisasi
+# 5. Contoh Eksekusi
+
+# Mode Standar (Default untuk 5 klip)
 python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --clips 5 --ratio 16:9
+
+# Mode Advanced (YOLOv8 GPU Face Tracking & Font Khusus)
+python main.py --url "https://youtube.com/watch?v=VIDEO_ID" \
+  --clips 7 \
+  --face-detector yolo \
+  --yolo-size 8m \
+  --font-style STORYTELLER
 ```
 
 ## ⚙️ Opsi CLI
@@ -110,8 +130,10 @@ python main.py --help
 | `--no-hook` | — | Nonaktifkan hook glitch teaser |
 | `--no-bgm` | — | Nonaktifkan musik latar |
 | `--no-karaoke` | — | Gunakan teks biasa tanpa highlight karaoke |
-| `--advanced-text` | `False` | Aktifkan kinetic typography (scaling & animasi kata) |
-| `--whisper-model` | `large-v3` | Ukuran model Whisper ([lihat opsi di sini](https://github.com/SYSTRAN/faster-whisper?tab=readme-ov-file#whisper)) |
+| `--advanced-text` | `False` | Aktifkan typografi kinetik (skala kata & animasi pop) |
+| `--face-detector` | `mediapipe` | Model AI untuk crop wajah (`mediapipe` atau `yolo`) |
+| `--yolo-size` | `8m` | Parameter model YOLO ADetailer (`8n`, `8s`, `8m`, `8n_v2`, `9c`) |
+| `--whisper-model` | `large-v3` | Ukuran model Whisper ([lihat daftar model](https://github.com/SYSTRAN/faster-whisper?tab=readme-ov-file#whisper)) |
 | `--whisper-device` | `cuda` | Device Whisper (`cuda`, `cpu`, `auto`) |
 | `--whisper-compute-type` | `float16` | Tipe komputasi Whisper (`float16`, `int8`, dll) |
 | `--gemini-model` | `gemini-3-flash-preview` | Nama model Gemini |

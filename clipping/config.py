@@ -194,7 +194,11 @@ def _build_parser() -> argparse.ArgumentParser:
                     help="Compute type for Whisper (float16, int8, etc.)")
 
     # --- Gemini ---
-    p.add_argument("--gemini-model", default=GEMINI_MODEL,
+    p.add_argument("--face-detector", choices=["mediapipe", "yolo"], default="mediapipe",
+                   help="AI model for face tracking (mediapipe is CPU, yolo uses GPU if available)")
+    p.add_argument("--yolo-size", choices=["8n", "8s", "8m", "8n_v2", "9c"], default="8m",
+                   help="YOLO face model version/size (8n, 8s, 8m, 8n_v2, 9c). Only active if --face-detector yolo")
+    p.add_argument("--gemini-model", default="gemini-3-flash-preview",
                     help="Gemini model name")
 
     return p
@@ -219,6 +223,12 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         file_video_asli=os.path.abspath(os.path.join(base_dir, "video_asli.mp4")),
         file_font_thumbnail=os.path.abspath(os.path.join(base_dir, NAMA_FONT_THUMBNAIL)),
         file_mediapipe_model=os.path.abspath(os.path.join(base_dir, "blaze_face_full_range.tflite")),
+        
+        # YOLO configs
+        face_detector=args.face_detector,
+        yolo_size=args.yolo_size,
+        url_yolo_model=f"https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov{args.yolo_size}.pt",
+        file_yolo_model=os.path.abspath(os.path.join(base_dir, f"face_yolov{args.yolo_size}.pt")),
 
         # API keys (from env)
         api_key_gemini=os.environ.get("GOOGLE_API_KEY", ""),

@@ -549,7 +549,18 @@ def buat_video_hybrid(input_video, output_video, start_clip, end_clip, rasio, cf
     SNAP_THRESHOLD = 0.25
 
     video_encoder = detect_video_encoder()
-    detector = get_face_detector(cfg)
+    
+    yolo_model = None
+    detector = None
+    if cfg.face_detector == "yolo":
+        if not os.path.exists(cfg.file_yolo_model):
+            print(f"   📥 Mendownload YOLOv8 Face Model ({cfg.yolo_size})...")
+            import urllib.request
+            urllib.request.urlretrieve(cfg.url_yolo_model, cfg.file_yolo_model)
+        from ultralytics import YOLO
+        yolo_model = YOLO(cfg.file_yolo_model)
+    else:
+        detector = get_face_detector(cfg)
 
     cap = cv2.VideoCapture(input_video)
     orig_fps = cap.get(cv2.CAP_PROP_FPS)
@@ -585,19 +596,30 @@ def buat_video_hybrid(input_video, output_video, start_clip, end_clip, rasio, cf
             break
 
         best_x = default_x
-        results = detector.detect(
-            mp.Image(
-                image_format=mp.ImageFormat.SRGB,
-                data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+        
+        if cfg.face_detector == "yolo":
+            yolo_results = yolo_model(frame, verbose=False)
+            if yolo_results and len(yolo_results[0].boxes) > 0:
+                boxes = yolo_results[0].boxes.xyxy.cpu().numpy()
+                areas = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+                largest_idx = areas.argmax()
+                x1, y1, x2, y2 = boxes[largest_idx]
+                center_x = x1 + (x2 - x1) / 2
+                best_x = center_x - (crop_w / 2)
+        else:
+            results = detector.detect(
+                mp.Image(
+                    image_format=mp.ImageFormat.SRGB,
+                    data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+                )
             )
-        )
 
-        if results.detections:
-            largest_face = max(
-                results.detections,
-                key=lambda d: d.bounding_box.width * d.bounding_box.height,
-            ).bounding_box
-            best_x = (largest_face.origin_x + (largest_face.width / 2)) - (crop_w // 2)
+            if results.detections:
+                largest_face = max(
+                    results.detections,
+                    key=lambda d: d.bounding_box.width * d.bounding_box.height,
+                ).bounding_box
+                best_x = (largest_face.origin_x + (largest_face.width / 2)) - (crop_w // 2)
 
         raw_data.append({"time": current_time, "x": max(0, min(best_x, width - crop_w))})
 

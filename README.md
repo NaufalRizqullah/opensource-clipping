@@ -54,15 +54,26 @@ env_text = f"GOOGLE_API_KEY={GOOGLE_API_KEY}\n"
 Path(".env").write_text(env_text, encoding="utf-8")
 ```
 
-**Cell 3: Execute**
+**Cell 3: Execute (Example including Kaggle fallback for float32)**
 ```python
-URL_YOUTUBE = "https://www.youtube.com/watch?v=Ip6pCjWp4lk"
+URL_YOUTUBE = "https://www.youtube.com/watch?v=Dc4_aBFAYWE&pp=0gcJCdkKAYcqIYzv"
+JUMLAH_CLIP = 10
+RASIO = "9:16"
+FONT_STYLE = "DEFAULT"
+GEMINI_MODEL = "gemini-3-flash-preview"
+# Use 'float32' for Kaggle CPU/T4 limitations, or 'float16' for standard Colab T4 GPUs
+WHISPER_COMPUTE_TYPE = "float32"
 
 !python main.py \
   --url "{URL_YOUTUBE}" \
-  --clips 5 \
-  --ratio "9:16" \
-  --font-style "HORMOZI"
+  --clips {JUMLAH_CLIP} \
+  --ratio "{RASIO}" \
+  --font-style "{FONT_STYLE}" \
+  --hook-duration 3 \
+  --words-per-sub 5 \
+  --gemini-model "{GEMINI_MODEL}" \
+  --whisper-compute-type "{WHISPER_COMPUTE_TYPE}" \
+  --no-bgm
 ```
 
 *(Note: We have also included `notebooks/Lib_OpenSource_Clipping.ipynb` in the repo as a ready-to-use template).*
@@ -88,8 +99,17 @@ cp .env.sample .env
 python main.py
 # uv run main.py                        # if using uv
 
-# 5. Or customize
+# 5. Examples of Execution
+
+# Standard run (Default options with 5 clips)
 python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --clips 5 --ratio 16:9
+
+# Advanced run (Using YOLOv8 GPU Face Tracking & Custom Fonts)
+python main.py --url "https://youtube.com/watch?v=VIDEO_ID" \
+  --clips 7 \
+  --face-detector yolo \
+  --yolo-size 8m \
+  --font-style STORYTELLER
 ```
 
 ## ⚙️ CLI Options
@@ -111,6 +131,8 @@ python main.py --help
 | `--no-bgm` | — | Disable background music |
 | `--no-karaoke` | — | Use clean text instead of karaoke highlight |
 | `--advanced-text` | `False` | Enable kinetic typography (word scaling & animation) |
+| `--face-detector` | `mediapipe` | AI model for face tracking (`mediapipe` or `yolo`) |
+| `--yolo-size` | `8m` | YOLO face track model (`8n`, `8s`, `8m`, `8n_v2`, `9c`) |
 | `--whisper-model` | `large-v3` | Whisper model size ([see here](https://github.com/SYSTRAN/faster-whisper?tab=readme-ov-file#whisper) for options) |
 | `--whisper-device` | `cuda` | Whisper device (`cuda`, `cpu`, `auto`) |
 | `--whisper-compute-type` | `float16` | Compute type for Whisper (`float16`, `int8`, etc.) |

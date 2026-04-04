@@ -2,6 +2,13 @@
 
 All notable changes to the **OpenSource Clipping** project will be documented in this file.
 
+## [v0.4.1] - 2026-04-05
+
+### Added
+- **YOLOv8 GPU Face Tracking**: Integrated PyTorch-based YOLO tracking (via `ultralytics`) as a high-powered alternative for face cropping (`--face-detector yolo`). Features auto-downloading of models (`8n`, `8s`, `8m`, `8n_v2`, `9c`) from Hugging Face for dynamic GPU execution.
+
+---
+
 ## [v0.4.0] - 2026-04-05
 
 ### Added
