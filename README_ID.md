@@ -12,7 +12,7 @@
 |---|---|
 | **AI Transcriber** | Transkripsi per-kata dengan akurasi tinggi menggunakan **Faster-Whisper** (large-v3) |
 | **AI Content Curator** | **Google Gemini** menganalisis konteks, memilih momen paling viral, dan membuat metadata |
-| **Smart Auto-Framing** | Pelacakan wajah **MediaPipe** dengan algoritma Smooth Pan, Deadzone & anti-jitter |
+| **Smart Auto-Framing** | Pelacakan wajah via **[MediaPipe BlazeFace (Full-Range)](https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector)** dengan algoritma Smooth Pan, Deadzone & anti-jitter |
 | **Cinematic Teaser Hook** | Hook 3 detik dengan overlay gelap, cinematic bars, dan transisi **TV Glitch** |
 | **Karaoke Subtitles** | Subtitle `.ASS` yang menyala per-kata (gaya Alex Hormozi / Veed) |
 | **Kinetic Typography** | Penekanan kata otomatis dengan animasi bounce/stagger & sistem dual-font |

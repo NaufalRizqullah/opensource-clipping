@@ -12,7 +12,7 @@
 |---|---|
 | **AI Transcriber** | Word-level transcription using **Faster-Whisper** (large-v3) |
 | **AI Content Curator** | **Google Gemini** analyzes context, picks the most viral moments, and generates metadata |
-| **Smart Auto-Framing** | **MediaPipe** face-tracking with Smooth Pan, Deadzone & anti-jitter algorithms |
+| **Smart Auto-Framing** | Face-tracking via **[MediaPipe BlazeFace (Full-Range)](https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector)** with Smooth Pan, Deadzone & anti-jitter algorithms |
 | **Cinematic Teaser Hook** | 3-second hook with dark overlay, cinematic bars, and **TV Glitch** transition |
 | **Karaoke Subtitles** | Word-by-word highlighted `.ASS` subtitles (Alex Hormozi / Veed style) |
 | **Kinetic Typography** | AI-driven word emphasis with bounce/stagger animations & dual-font system |

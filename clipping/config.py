@@ -118,7 +118,7 @@ NAMA_FONT_THUMBNAIL = "Montserrat-Black.ttf"
 URL_FONT_THUMBNAIL  = "https://github.com/JulietaUla/Montserrat/raw/master/fonts/ttf/Montserrat-Black.ttf"
 
 URL_GLITCH_VIDEO    = "https://www.youtube.com/watch?v=5nBcNRYmjs0"
-URL_MEDIAPIPE_MODEL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite"
+URL_MEDIAPIPE_MODEL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_full_range/float16/latest/blaze_face_full_range.tflite"
 
 # 5. PENGATURAN Auto-BGM & Audio Ducking
 USE_AUTO_BGM      = True
@@ -218,7 +218,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         font_dir=font_dir,
         file_video_asli=os.path.abspath(os.path.join(base_dir, "video_asli.mp4")),
         file_font_thumbnail=os.path.abspath(os.path.join(base_dir, NAMA_FONT_THUMBNAIL)),
-        file_mediapipe_model=os.path.abspath(os.path.join(base_dir, "blaze_face_short_range.tflite")),
+        file_mediapipe_model=os.path.abspath(os.path.join(base_dir, "blaze_face_full_range.tflite")),
 
         # API keys (from env)
         api_key_gemini=os.environ.get("GOOGLE_API_KEY", ""),
