@@ -138,8 +138,8 @@ WHISPER_DEVICE = "cuda"
 WHISPER_COMPUTE_TYPE = "float16"
 
 # Gemini
-# GEMINI_MODEL = "gemini-3-flash-preview"
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-3-flash-preview"
+# GEMINI_MODEL = "gemini-2.5-flash"
 
 
 # ==============================================================================
