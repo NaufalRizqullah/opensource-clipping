@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.5.2] - 2026-04-05
+
+### Fixed
+- **JSON3 Word-Level Slicing**: Upgraded the YouTube `json3` subtitles parsing system to intelligently split broader subtitle sentences into isolated space-separated characters while distributing original timestamps evenly. This ensures kinetic karaoke annotations emphasize authentically, precisely matching `faster-whisper`'s per-word word tracking level.
+
+---
+
 ## [v0.5.1] - 2026-04-05
 
 ### Fixed

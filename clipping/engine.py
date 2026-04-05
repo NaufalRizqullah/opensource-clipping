@@ -71,32 +71,51 @@ def parse_youtube_json3_subs(json_path: str, max_words_per_subtitle: int = 5) ->
         for event in events:
             # YouTube timestamps are in ms
             t_start = event.get("tStartMs", 0) / 1000.0
+            d_duration = event.get("dDurationMs", 0) / 1000.0
+            event_end = t_start + d_duration
             
             segs = event.get("segs", [])
-            for seg in segs:
+            for i, seg in enumerate(segs):
                 text = seg.get("utf8", "")
                 if not text.strip() or text == "\n":
                     continue
                 
                 # tOffsetMs is offset from t_start
                 offset = seg.get("tOffsetMs", 0) / 1000.0
-                word_start = t_start + offset
-                # Approximate word end by giving it arbitrary small duration or just slightly after start
-                # or base it on next word/event duration.
+                seg_start = t_start + offset
+                
+                # Determine end of this segment
+                if i < len(segs) - 1:
+                    next_offset = segs[i+1].get("tOffsetMs", 0) / 1000.0
+                    seg_end = t_start + next_offset
+                else:
+                    seg_end = event_end
+                    
+                if seg_end <= seg_start:
+                    seg_end = seg_start + 1.0  # Fallback duration
                 
                 # Clean up word text
                 clean_text = text.replace('\n', ' ').replace('\u200b', '').strip()
-                # Remove common problematic unicode characters like music notes and ZWJ
-                # and essentially keep only basic latin and common punctuation just in case
                 import re
                 clean_text = re.sub(r'[^\x00-\x7F\u00C0-\u017F\u2018-\u201F\u2026]', '', clean_text)
                 
                 if clean_text:
-                    flat_words.append({
-                        "word": clean_text,
-                        "start": word_start,
-                        "end": word_start + 0.3  # Fallback duration if next doesn't exist
-                    })
+                    # Memecah teks menjadi kata tunggal (fitur wajib agar karaoke per-kata bekerja persis seperti whisper)
+                    words_in_seg = clean_text.split()
+                    if not words_in_seg:
+                        continue
+                        
+                    duration_per_word = (seg_end - seg_start) / len(words_in_seg)
+                    
+                    for w_idx, w_text in enumerate(words_in_seg):
+                        w_start = seg_start + (w_idx * duration_per_word)
+                        w_end = w_start + duration_per_word
+                        
+                        flat_words.append({
+                            "word": w_text,
+                            "start": w_start,
+                            "end": w_end
+                        })
                     
         # Adjust end times based on the start time of the next word to prevent overlaps
         for i in range(len(flat_words) - 1):
