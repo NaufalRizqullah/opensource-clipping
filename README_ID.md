@@ -20,6 +20,7 @@
 | **Auto-BGM & Ducking** | Musik latar otomatis dari Pixabay dengan sidechain ducking |
 | **Auto-Thumbnail** | Ekstraksi frame dengan overlay gelap dan teks judul besar |
 | **Metadata Lintas Platform** | Judul/deskripsi/tag YouTube + caption TikTok — semua dalam Bahasa Inggris |
+| **Auto YouTube Uploader** | Upload klip highlight beserta metadata ke YouTube secara otomatis dengan penjadwalan (opsional) |
 
 ## 📋 Prasyarat
 

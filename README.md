@@ -20,6 +20,7 @@
 | **Auto-BGM & Ducking** | AI-matched background music from Pixabay with sidechain ducking |
 | **Auto-Thumbnail** | Frame extraction with dark overlay and large title text |
 | **Cross-Platform Metadata** | YouTube title/description/tags + TikTok caption — all in English |
+| **Auto YouTube Uploader** | Automatically upload highlight clips to YouTube with scheduling support and full metadata (optional) |
 
 ## 📋 Prerequisites
 
