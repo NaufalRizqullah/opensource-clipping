@@ -7,6 +7,14 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.5.3] - 2026-04-05
+
+### Fixed / Added
+- **Resilient yt-dlp Subtitle Fallback**: Added a fail-safe `try/except` block enclosing the YouTube subtitle extraction phase. If YouTube blocks the download request due to strict IP rate limiting (`HTTP Error 429: Too Many Requests`), the pipeline dynamically recovers, downloads the video alone, and smoothly delegates word-tracking back to the active Whisper AI engine without fatal crashes.
+- **Multilingual DLP Parsing**: Enlarged `yt-dlp` target subtitle language configuration to prioritize Indonesian (`id`) alongside English (`en`). Modified `runner.py`'s parser logic using regex mapping (`*.json3`) dynamically grabbing any regional configuration file.
+
+---
+
 ## [v0.5.2] - 2026-04-05
 
 ### Fixed

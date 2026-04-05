@@ -34,13 +34,22 @@ def download_video(url: str, output_path: str, use_dlp_subs: bool = False) -> No
     }
 
     if use_dlp_subs:
-        print("      Menambahkan opsi download subtitle (English, JSON3)")
-        ydl_opts.update({
+        print("      Menambahkan opsi download subtitle (ID/EN, JSON3)")
+        ydl_opts_subs = ydl_opts.copy()
+        ydl_opts_subs.update({
             "writesubtitles": True,
             "writeautomaticsub": True,
-            "subtitleslangs": ["en"],
+            "subtitleslangs": ["id", "en"],
             "subtitlesformat": "json3"
         })
+        
+        try:
+            with YoutubeDL(ydl_opts_subs) as ydl:
+                ydl.download([url])
+            return
+        except Exception as e:
+            print(f"      ⚠️ Gagal download subtitle dari YouTube ({e}). Fallback ke Whisper...")
+            # Jatuh ke skema di bawah (video saja tanpa subs)
 
     with YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])

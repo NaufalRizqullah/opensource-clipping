@@ -40,14 +40,18 @@ def run_pipeline(cfg) -> list[dict]:
     transkrip_lengkap = ""
     data_segmen = []
     
-    file_json3 = cfg.file_video_asli.replace(".mp4", ".en.json3")
-    if getattr(cfg, "use_dlp_subs", False) and os.path.exists(file_json3):
+    import glob
+    # Mencari file json3 apapun (karena bahasanya bisa .id.json3 atau .en.json3)
+    json3_files = glob.glob(cfg.file_video_asli.replace(".mp4", ".*.json3"))
+    file_json3 = json3_files[0] if json3_files else None
+
+    if getattr(cfg, "use_dlp_subs", False) and file_json3 and os.path.exists(file_json3):
         transkrip_lengkap, data_segmen = engine.parse_youtube_json3_subs(
             file_json3,
             max_words_per_subtitle=cfg.max_kata_per_subtitle
         )
         if transkrip_lengkap and data_segmen:
-            print("✅ Berhasil menggunakan subtitle dari YouTube (DLP), melewati proses Whisper.")
+            print(f"✅ Berhasil memparsing subtitle dari YouTube ({os.path.basename(file_json3)}), melewati proses Whisper.")
 
     if not transkrip_lengkap or not data_segmen:
         transkrip_lengkap, data_segmen = engine.transcribe_video(
