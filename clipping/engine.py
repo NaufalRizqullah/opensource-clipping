@@ -134,8 +134,9 @@ def _is_retryable(exc: Exception) -> bool:
     return any(k in msg for k in keywords)
 
 
-def _generate_json_with_retry(client, model, contents, config):
+def _generate_json_with_retry(client, model, fallback_model, contents, config):
     last_exc = None
+    status_code = None
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
@@ -164,16 +165,35 @@ def _generate_json_with_retry(client, model, contents, config):
             )
 
             if (not retryable) or attempt == MAX_ATTEMPTS:
-                raise RuntimeError(
-                    f"Gagal memanggil Gemini setelah {attempt} percobaan. "
-                    f"status={status_code}, error={exc}"
-                ) from exc
+                break
 
             wait_seconds = INITIAL_WAIT_SECONDS + ((attempt - 1) * WAIT_INCREMENT_SECONDS)
             print(f"[Gemini] Retry lagi dalam {wait_seconds} detik...")
             time.sleep(wait_seconds)
 
-    raise RuntimeError(f"Gagal memanggil Gemini. Error terakhir: {last_exc}") from last_exc
+    print(f"[Gemini] Percobaan dengan model utama ({model}) gagal.")
+    if fallback_model:
+        print(f"[Gemini] Mencoba satu kali lagi dengan fallback model ({fallback_model})...")
+        try:
+            response = client.models.generate_content(
+                model=fallback_model,
+                contents=contents,
+                config=config,
+            )
+            text = getattr(response, "text", None)
+            if not text or not text.strip():
+                raise ValueError("Gemini fallback mengembalikan response.text kosong.")
+
+            return json.loads(text)
+        except Exception as exc_fallback:
+            print(f"[Gemini] Fallback model gagal | error={exc_fallback}")
+            raise RuntimeError(
+                f"Gagal memanggil Gemini utama & fallback. "
+                f"Laporan Utama status={status_code}, error={last_exc} | "
+                f"Laporan Fallback error={exc_fallback}"
+            ) from exc_fallback
+
+    raise RuntimeError(f"Gagal memanggil Gemini setelah {MAX_ATTEMPTS} percobaan. Error terakhir: {last_exc}") from last_exc
 
 
 def analyze_with_gemini(
@@ -435,6 +455,7 @@ Transkrip:
     hasil_json = _generate_json_with_retry(
         client=client,
         model=cfg.gemini_model,
+        fallback_model=getattr(cfg, "gemini_fallback_model", None),
         contents=prompt,
         config=gemini_config,
     )

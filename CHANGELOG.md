@@ -2,6 +2,18 @@
 
 All notable changes to the **OpenSource Clipping** project will be documented in this file.
 
+**The Standard Structure (SemVer)**
+- **Major (X.y.z)**: Incremented for incompatible API changes (breaking changes).
+- **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
+- **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
+
+## [v0.4.2] - 2026-04-05
+
+### Added
+- **Gemini Fallback Model**: Added robust automatic fallback mechanism to retry with a secondary AI model (`--gemini-fallback-model`) if the main Gemini content engine exhausts its retry limits.
+
+---
+
 ## [v0.4.1] - 2026-04-05
 
 ### Added

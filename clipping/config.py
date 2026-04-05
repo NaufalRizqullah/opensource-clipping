@@ -139,7 +139,7 @@ WHISPER_COMPUTE_TYPE = "float16"
 
 # Gemini
 GEMINI_MODEL = "gemini-3-flash-preview"
-# GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_FALLBACK_MODEL = "gemini-2.5-flash"
 
 
 # ==============================================================================
@@ -198,8 +198,10 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="AI model for face tracking (mediapipe is CPU, yolo uses GPU if available)")
     p.add_argument("--yolo-size", choices=["8n", "8s", "8m", "8n_v2", "9c"], default="8m",
                    help="YOLO face model version/size (8n, 8s, 8m, 8n_v2, 9c). Only active if --face-detector yolo")
-    p.add_argument("--gemini-model", default="gemini-3-flash-preview",
+    p.add_argument("--gemini-model", default=GEMINI_MODEL,
                     help="Gemini model name")
+    p.add_argument("--gemini-fallback-model", default=GEMINI_FALLBACK_MODEL,
+                    help="Gemini fallback model name if main model fails")
 
     return p
 
@@ -281,6 +283,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
 
         # Gemini
         gemini_model=args.gemini_model,
+        gemini_fallback_model=args.gemini_fallback_model,
     )
 
     return cfg

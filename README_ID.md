@@ -137,6 +137,7 @@ python main.py --help
 | `--whisper-device` | `cuda` | Device Whisper (`cuda`, `cpu`, `auto`) |
 | `--whisper-compute-type` | `float16` | Tipe komputasi Whisper (`float16`, `int8`, dll) |
 | `--gemini-model` | `gemini-3-flash-preview` | Nama model Gemini |
+| `--gemini-fallback-model` | `gemini-2.5-flash` | Nama model fallback Gemini jika model utama gagal |
 
 ## 📂 Struktur Proyek
 
