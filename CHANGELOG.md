@@ -10,8 +10,8 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 ## [v0.5.3] - 2026-04-05
 
 ### Fixed / Added
-- **Resilient yt-dlp Subtitle Fallback**: Added a fail-safe `try/except` block enclosing the YouTube subtitle extraction phase. If YouTube blocks the download request due to strict IP rate limiting (`HTTP Error 429: Too Many Requests`), the pipeline dynamically recovers, downloads the video alone, and smoothly delegates word-tracking back to the active Whisper AI engine without fatal crashes.
-- **Multilingual DLP Parsing**: Enlarged `yt-dlp` target subtitle language configuration to prioritize Indonesian (`id`) alongside English (`en`). Modified `runner.py`'s parser logic using regex mapping (`*.json3`) dynamically grabbing any regional configuration file.
+- **Decoupled Subtitle Fetching**: Completely separated the video downloader from the subtitle downloader in `yt-dlp`. Subtitles are now independently grabbed utilizing `skip_download: True`. This ensures that even if YouTube blocks the subtitle request (`HTTP Error 429: Too Many Requests`), the video will still be downloaded without interruption, falling back to Whisper flawlessly.
+- **Multilingual Priority Ladder**: Implemented a sequential priority loop that searches for English (`en`) subtitles first, followed by Indonesian (`id`) if unavailable. `runner.py` now supports automatic regional `.json3` mapping via glob regex matching.
 
 ---
 
