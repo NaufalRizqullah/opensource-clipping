@@ -121,16 +121,17 @@ def run_diarization(
     print("🎙️ Menjalankan speaker diarization...")
     diarization = pipeline(audio_path, num_speakers=num_speakers)
 
-    # Some versions of pyannote return a result object instead of directly the annotation
-    if not hasattr(diarization, "itertracks") and hasattr(diarization, "annotation"):
-        diarization = diarization.annotation
-
+    # Recent pyannote (3.1+) returns a DiarizeOutput dataclass or similar
     if not hasattr(diarization, "itertracks"):
-        # Last resort: try to cast or check what it is
-        print(f"   ⚠️ Diarization output type: {type(diarization)}")
-        # If it's a dict-like result from some pipeline versions
-        if isinstance(diarization, dict) and "annotation" in diarization:
+        if hasattr(diarization, "speaker_diarization"):
+            diarization = diarization.speaker_diarization
+        elif hasattr(diarization, "annotation"):
+            diarization = diarization.annotation
+        elif isinstance(diarization, dict) and "annotation" in diarization:
             diarization = diarization["annotation"]
+        else:
+            # Last resort: log what we got
+            print(f"   ⚠️ Diarization output type: {type(diarization)}")
 
     # Convert to list of dicts
     raw_segments = []
