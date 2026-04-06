@@ -31,6 +31,8 @@ MAX_KATA_PER_SUBTITLE = 5
 DURASI_HOOK           = 3
 USE_BROLL             = True
 USE_HOOK_GLITCH       = True
+USE_SPLIT_SCREEN      = False
+DIARIZATION_NUM_SPEAKERS = 2
 
 # 3. PENGATURAN SUBTITLE & TIPOGRAFI (ASS STYLE)
 USE_ADVANCED_TEXT          = False
@@ -174,6 +176,10 @@ def _build_parser() -> argparse.ArgumentParser:
                     help="Disable background music")
     p.add_argument("--no-karaoke", action="store_true",
                     help="Disable karaoke highlight effect (use clean text instead)")
+    p.add_argument("--split-screen", action="store_true", default=USE_SPLIT_SCREEN,
+                    help="Enable split-screen mode for podcast with 2 speakers (9:16 only, requires HF_TOKEN for Pyannote)")
+    p.add_argument("--diarization-speakers", type=int, default=DIARIZATION_NUM_SPEAKERS,
+                    help="Number of speakers for diarization (used with --split-screen)")
 
     # --- Subtitle & Tipografi ---
     p.add_argument("--font-style", default=GAYA_FONT_AKTIF,
@@ -251,6 +257,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         use_hook_glitch=not args.no_hook,
         use_auto_bgm=not args.no_bgm,
         use_karaoke_effect=not args.no_karaoke,
+        use_split_screen=args.split_screen,
+        diarization_num_speakers=args.diarization_speakers,
 
         # Subtitle & Tipografi
         gaya_font_aktif=args.font_style,

@@ -21,6 +21,7 @@
 | **Auto-Thumbnail** | Ekstraksi frame dengan overlay gelap dan teks judul besar |
 | **Metadata Lintas Platform** | Judul/deskripsi/tag YouTube + caption TikTok — semua dalam Bahasa Inggris |
 | **Auto YouTube Uploader** | Upload klip highlight beserta metadata ke YouTube secara otomatis dengan penjadwalan (opsional) |
+| **Podcast Split-Screen** | Diarization speaker otomatis via **Pyannote** dengan layout split-screen atas-bawah untuk podcast 2 orang (9:16) |
 
 ## 📋 Prasyarat
 
@@ -29,6 +30,7 @@
 - **GPU CUDA** disarankan (untuk Whisper; bisa fallback ke CPU)
 - **Google Gemini API Key** ([dapatkan di sini](https://aistudio.google.com/apikey))
 - **Pexels API Key** (opsional, untuk B-roll — [dapatkan di sini](https://www.pexels.com/api/))
+- **HuggingFace Token** (opsional, untuk split-screen — [dapatkan di sini](https://huggingface.co/settings/tokens), perlu accept [Pyannote model agreement](https://huggingface.co/pyannote/speaker-diarization-3.1))
 
 ## ☁️ Menjalankan di Google Colab (Direkomendasikan)
 
@@ -111,6 +113,12 @@ python main.py --url "https://youtube.com/watch?v=VIDEO_ID" \
   --face-detector yolo \
   --yolo-size 8m \
   --font-style STORYTELLER
+
+# Mode Podcast Split-Screen (2 speaker, 9:16)
+python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
+  --clips 3 \
+  --ratio "9:16" \
+  --split-screen
 ```
 
 ## ⚙️ Opsi CLI
@@ -140,24 +148,31 @@ python main.py --help
 | `--whisper-compute-type` | `float16` | Tipe komputasi Whisper (`float16`, `int8`, dll) |
 | `--gemini-model` | `gemini-3-flash-preview` | Nama model Gemini |
 | `--gemini-fallback-model` | `gemini-2.5-flash` | Nama model fallback Gemini jika model utama gagal |
+| `--split-screen` | `False` | Aktifkan mode split-screen untuk podcast 2 speaker (hanya 9:16, butuh `HF_TOKEN`) |
+| `--diarization-speakers` | `2` | Jumlah speaker untuk diarization (digunakan dengan `--split-screen`) |
 
 ## 📂 Struktur Proyek
 
 ```
 opensource-clipping/
 ├── main.py                  # Entry point CLI
+├── run_upload.py            # CLI auto-uploader YouTube
 ├── pyproject.toml           # Dependensi & metadata proyek
 ├── .env.sample              # Template API key
 ├── .gitignore
 ├── README.md                # Dokumentasi (English)
 ├── README_ID.md             # Dokumentasi (Indonesia)
-└── clipping/
+├── clipping/
+│   ├── __init__.py
+│   ├── config.py            # Konfigurasi master & argparse
+│   ├── engine.py            # Download → Transkripsi → Gemini AI
+│   ├── diarization.py       # Pyannote speaker diarization (split-screen)
+│   ├── metadata.py          # Normalisasi & QA metadata
+│   ├── studio.py            # Mesin render video (face-track, split-screen, subs, B-roll, BGM)
+│   └── runner.py            # Orkestrator pipeline
+└── youtube_uploader/
     ├── __init__.py
-    ├── config.py            # Konfigurasi master & argparse
-    ├── engine.py            # Download → Transkripsi → Gemini AI
-    ├── metadata.py          # Normalisasi & QA metadata
-    ├── studio.py            # Mesin render video (face-track, subs, B-roll, BGM)
-    └── runner.py            # Orkestrator pipeline
+    └── uploader.py          # Logika upload & penjadwalan YouTube
 ```
 
 ## 🔄 Alur Pipeline
@@ -216,6 +231,15 @@ Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 
 **⚙️ Pengaturan Engine Pendukung**
 - `--use-dlp-subs` : Aktifkan pengunduhan subtitle bawaan YouTube (jika tersedia) untuk bypass proses AI Whisper (sangat menghemat waktu komputasi).
+
+**🎙️ Pengaturan Split-Screen (Podcast)**
+- `--split-screen` : Aktifkan mode split-screen atas-bawah untuk video podcast dengan 2 speaker. Menggunakan **Pyannote** untuk mendeteksi siapa yang berbicara.
+- `--diarization-speakers` : Jumlah speaker yang diharapkan (default: 2). Memerlukan `HF_TOKEN` di file `.env`.
+
+> ⚠️ **Catatan**: Untuk menggunakan split-screen, Anda perlu:
+> 1. Mendaftarkan akun di [HuggingFace](https://huggingface.co/) dan membuat token
+> 2. Accept [user agreement Pyannote](https://huggingface.co/pyannote/speaker-diarization-3.1)
+> 3. Menambahkan `HF_TOKEN=your-token` di file `.env`
 
 **🌐 Asset Eksternal**
 - Semua asset pendukung (Model AI, Glitch video, Font) akan diunduh **otomatis** saat pertama kali dijalankan

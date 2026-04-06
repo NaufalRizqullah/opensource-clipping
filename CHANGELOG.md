@@ -7,6 +7,21 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.6.0] - 2026-04-06
+
+> ⚠️ **Experimental**: The split-screen feature in this version is experimental and may be rolled back or undergo significant changes in future updates. Use with discretion.
+
+### Added
+- **Podcast Split-Screen Mode**: Introduced `--split-screen` flag that activates automatic **Pyannote speaker diarization** to detect 2 speakers in podcast-style videos. When enabled on `9:16` ratio, the renderer produces a **top-bottom split-screen** layout where each panel independently face-tracks a different speaker. The active speaker's panel is highlighted with a yellow border while the inactive speaker's panel is subtly darkened.
+- **Diarization Module**: New `clipping/diarization.py` module powered by `pyannote/speaker-diarization-3.1` with GPU acceleration support, automatic segment merging, and active speaker lookup.
+- **CLI Parameters**: Added `--split-screen` (enable split-screen mode) and `--diarization-speakers` (set expected number of speakers, default 2).
+- **Graceful Fallback**: If diarization fails (missing `HF_TOKEN`, model error, or only 1 speaker detected), the system automatically falls back to the standard single-panel renderer.
+
+### Dependencies
+- Added `pyannote.audio`, `torch`, `torchaudio` to `requirements.txt`.
+
+---
+
 ## [v0.5.3] - 2026-04-05
 
 ### Fixed / Added
@@ -83,6 +98,5 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 ## [Planned / Upcoming Features]
 
 - **[Planned] Wefluence Integration**: Building an automated batch clipping system that pulls source videos directly from Google Drive and YouTube, crafting compelling video compilations.
-- **[Planned] Auto-Split Screen for Podcasts**: Introducing intelligent face-tracking and framing for podcast styled videos:
-  - **9:16 (Vertical)**: Automatically splits the screen (Top/Bottom) to show both speakers or goes full-screen 9:16 with automatic camera switching based on the active speaker's voice.
-  - **16:9 (Horizontal)**: Automatic Active Speaker detection that performs full frame cuts/switches based on who is currently talking (Speaker A / Speaker B / Wide Shot).
+- **[Planned] Auto Camera Switch (Full 9:16)**: Automatic active speaker detection that goes full-frame 9:16 and switches between speakers based on who is currently talking (instead of split-screen).
+- **[Planned] 16:9 Speaker Switch**: Automatic Active Speaker detection for 16:9 that performs full frame cuts/switches (Speaker A / Speaker B / Wide Shot).

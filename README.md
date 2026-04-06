@@ -21,6 +21,7 @@
 | **Auto-Thumbnail** | Frame extraction with dark overlay and large title text |
 | **Cross-Platform Metadata** | YouTube title/description/tags + TikTok caption — all in English |
 | **Auto YouTube Uploader** | Automatically upload highlight clips to YouTube with scheduling support and full metadata (optional) |
+| **Podcast Split-Screen** | Auto speaker diarization via **Pyannote** with top-bottom split-screen layout for 2-speaker podcasts (9:16) |
 
 ## 📋 Prerequisites
 
@@ -29,6 +30,7 @@
 - **CUDA GPU** recommended (for Whisper; CPU fallback available)
 - **Google Gemini API Key** ([get one here](https://aistudio.google.com/apikey))
 - **Pexels API Key** (optional, for B-roll — [get one here](https://www.pexels.com/api/))
+- **HuggingFace Token** (optional, for split-screen — [get one here](https://huggingface.co/settings/tokens), requires accepting [Pyannote model agreement](https://huggingface.co/pyannote/speaker-diarization-3.1))
 
 ## ☁️ Running on Google Colab (Recommended)
 
@@ -111,6 +113,12 @@ python main.py --url "https://youtube.com/watch?v=VIDEO_ID" \
   --face-detector yolo \
   --yolo-size 8m \
   --font-style STORYTELLER
+
+# Podcast Split-Screen (2 speakers, 9:16)
+python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
+  --clips 3 \
+  --ratio "9:16" \
+  --split-screen
 ```
 
 ## ⚙️ CLI Options
@@ -140,24 +148,31 @@ python main.py --help
 | `--whisper-compute-type` | `float16` | Compute type for Whisper (`float16`, `int8`, etc.) |
 | `--gemini-model` | `gemini-3-flash-preview` | Gemini model name |
 | `--gemini-fallback-model` | `gemini-2.5-flash` | Gemini fallback model name if main model fails |
+| `--split-screen` | `False` | Enable split-screen mode for 2-speaker podcasts (9:16 only, requires `HF_TOKEN`) |
+| `--diarization-speakers` | `2` | Number of speakers for diarization (used with `--split-screen`) |
 
 ## 📂 Project Structure
 
 ```
 opensource-clipping/
 ├── main.py                  # CLI entry point
+├── run_upload.py            # YouTube auto-uploader CLI
 ├── pyproject.toml           # Dependencies & metadata
 ├── .env.sample              # API key template
 ├── .gitignore
 ├── README.md                # English docs
 ├── README_ID.md             # Indonesian docs
-└── clipping/
+├── clipping/
+│   ├── __init__.py
+│   ├── config.py            # Master configuration & argparse
+│   ├── engine.py            # Download → Transcribe → Gemini AI
+│   ├── diarization.py       # Pyannote speaker diarization (split-screen)
+│   ├── metadata.py          # QA metadata normalization
+│   ├── studio.py            # Video render engine (face-track, split-screen, subs, B-roll, BGM)
+│   └── runner.py            # Pipeline orchestrator
+└── youtube_uploader/
     ├── __init__.py
-    ├── config.py            # Master configuration & argparse
-    ├── engine.py            # Download → Transcribe → Gemini AI
-    ├── metadata.py          # QA metadata normalization
-    ├── studio.py            # Video render engine (face-track, subs, B-roll, BGM)
-    └── runner.py            # Pipeline orchestrator
+    └── uploader.py          # YouTube upload & scheduling logic
 ```
 
 ## 🔄 Pipeline Flow

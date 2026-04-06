@@ -9,6 +9,7 @@ import os
 import json
 
 from . import engine, metadata, studio
+from . import diarization as diarization_mod
 
 
 def run_pipeline(cfg) -> list[dict]:
@@ -72,7 +73,27 @@ def run_pipeline(cfg) -> list[dict]:
     metadata_path = os.path.join(cfg.outputs_dir, "metadata_preview.json")
     metadata.save_metadata_preview(hasil_json, path=metadata_path)
 
-    # Step 5 — Video encoder & glitch
+    # Step 5 — Diarization (split-screen)
+    diarization_data = None
+    if getattr(cfg, "use_split_screen", False) and cfg.pilihan_rasio == "9:16":
+        try:
+            print("\n🎙️ [Split-Screen] Menjalankan speaker diarization...")
+            audio_path = cfg.file_video_asli.replace(".mp4", "_audio.wav")
+            diarization_mod.extract_audio(cfg.file_video_asli, audio_path)
+            diarization_data = diarization_mod.run_diarization(
+                audio_path,
+                hf_token=cfg.hf_token,
+                num_speakers=getattr(cfg, "diarization_num_speakers", 2),
+            )
+            # Clean up temp audio
+            if os.path.exists(audio_path):
+                os.remove(audio_path)
+        except Exception as e:
+            print(f"⚠️ Diarization gagal: {e}")
+            print("   Fallback ke mode render biasa (tanpa split-screen).")
+            diarization_data = None
+
+    # Step 6 — Video encoder & glitch
     video_encoder = studio.detect_video_encoder()
 
     file_glitch_ts = None
@@ -92,6 +113,7 @@ def run_pipeline(cfg) -> list[dict]:
             data_segmen,
             cfg,
             video_encoder,
+            diarization_data=diarization_data,
         )
         if hasil_render:
             render_manifest.append(hasil_render)

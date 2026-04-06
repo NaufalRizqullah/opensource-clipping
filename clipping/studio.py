@@ -22,6 +22,7 @@ import urllib.parse
 import urllib.request
 
 import cv2
+import numpy as np
 import mediapipe as mp
 import requests
 from mediapipe.tasks import python as mp_python
@@ -1073,10 +1074,303 @@ def buat_thumbnail(video_path, output_image_path, teks, cfg):
 
 
 # ==============================================================================
+# SPLIT-SCREEN RENDERER (PODCAST 2 SPEAKER)
+# ==============================================================================
+
+def buat_video_split_screen(
+    input_video, output_video, start_clip, end_clip,
+    diarization_data, cfg, label="SplitScreen",
+):
+    """
+    Render a split-screen (top-bottom) 9:16 video for 2-speaker podcasts.
+
+    Each panel shows one speaker's face-tracked crop. The active speaker's
+    panel is brighter; the inactive speaker's panel has a subtle dark overlay.
+
+    Parameters
+    ----------
+    input_video : str
+        Path to the source video.
+    output_video : str
+        Output video path (silent, no audio).
+    start_clip, end_clip : float
+        Clip time range in seconds.
+    diarization_data : list[dict]
+        Speaker segments from diarization.run_diarization().
+    cfg : SimpleNamespace
+        Configuration object.
+    label : str
+        Label for progress logging.
+    """
+    from .diarization import get_active_speaker
+
+    STEP_DETEKSI = 0.5
+    DEADZONE_RATIO = 0.25
+    SMOOTH_FACTOR = 0.15
+    JITTER_THRESHOLD = 5
+    SNAP_THRESHOLD = 0.25
+    DIVIDER_HEIGHT = 4         # px, divider between panels
+    INACTIVE_ALPHA = 0.15      # darkening for inactive speaker panel
+    ACTIVE_BORDER = 3          # px, highlight border for active speaker
+
+    video_encoder = detect_video_encoder()
+
+    # Setup face detector
+    yolo_model = None
+    detector = None
+    if cfg.face_detector == "yolo":
+        if not os.path.exists(cfg.file_yolo_model):
+            print(f"   📥 Mendownload YOLOv8 Face Model ({cfg.yolo_size})...")
+            import urllib.request
+            urllib.request.urlretrieve(cfg.url_yolo_model, cfg.file_yolo_model)
+        from ultralytics import YOLO
+        yolo_model = YOLO(cfg.file_yolo_model)
+    else:
+        detector = get_face_detector(cfg)
+
+    cap = cv2.VideoCapture(input_video)
+    orig_fps = cap.get(cv2.CAP_PROP_FPS)
+    if math.isnan(orig_fps) or orig_fps == 0:
+        orig_fps = 30.0
+
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    duration = end_clip - start_clip
+
+    # Output dimensions: 1080x1920 for 9:16
+    out_w, out_h = 1080, 1920
+    panel_h = (out_h - DIVIDER_HEIGHT) // 2   # height per speaker panel
+    panel_w = out_w
+
+    # Crop dimensions for each panel from the source frame
+    # Each panel crops a region from the full frame suitable for the panel aspect ratio
+    panel_ratio = panel_w / panel_h
+    if (width / height) > panel_ratio:
+        # source is wider — crop width
+        crop_h = height
+        crop_w = int(height * panel_ratio)
+    else:
+        # source is taller — crop height
+        crop_w = width
+        crop_h = int(width / panel_ratio)
+
+    default_x = (width - crop_w) // 2
+    default_y = (height - crop_h) // 2
+
+    # Get unique speakers sorted
+    speakers = sorted(set(s["speaker"] for s in diarization_data))
+    if len(speakers) < 2:
+        speakers = [speakers[0], speakers[0]] if speakers else ["SPEAKER_00", "SPEAKER_01"]
+
+    speaker_top = speakers[0]
+    speaker_bottom = speakers[1]
+
+    # ---- FASE 1: DETECT ALL FACES & ASSIGN TO SPEAKERS ----
+    # We detect all faces per frame, then assign them to top/bottom speaker
+    # based on horizontal position (leftmost = speaker_top, rightmost = speaker_bottom)
+
+    print(f"🧠 {label} - Analisa wajah (split-screen) dimulai...", flush=True)
+
+    raw_data_top = []
+    raw_data_bottom = []
+    current_time = 0.0
+    last_detect_percent = -1
+
+    while current_time <= duration:
+        cap.set(cv2.CAP_PROP_POS_MSEC, (start_clip + current_time) * 1000)
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        face_centers = []   # list of (center_x, center_y)
+
+        if cfg.face_detector == "yolo":
+            yolo_results = yolo_model(frame, verbose=False)
+            if yolo_results and len(yolo_results[0].boxes) > 0:
+                boxes = yolo_results[0].boxes.xyxy.cpu().numpy()
+                for box in boxes:
+                    x1, y1, x2, y2 = box
+                    cx = (x1 + x2) / 2
+                    cy = (y1 + y2) / 2
+                    face_centers.append((cx, cy))
+        else:
+            results = detector.detect(
+                mp.Image(
+                    image_format=mp.ImageFormat.SRGB,
+                    data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+                )
+            )
+            if results.detections:
+                for d in results.detections:
+                    bb = d.bounding_box
+                    cx = bb.origin_x + bb.width / 2
+                    cy = bb.origin_y + bb.height / 2
+                    face_centers.append((cx, cy))
+
+        # Sort by horizontal position (left to right)
+        face_centers.sort(key=lambda fc: fc[0])
+
+        # Assign: leftmost face → speaker_top (panel atas), rightmost → speaker_bottom
+        if len(face_centers) >= 2:
+            top_cx = face_centers[0][0]
+            bottom_cx = face_centers[-1][0]
+        elif len(face_centers) == 1:
+            # Only one face detected — assign to whoever is speaking
+            active = get_active_speaker(diarization_data, start_clip + current_time)
+            if active == speaker_bottom:
+                top_cx = default_x + crop_w / 2   # default for top
+                bottom_cx = face_centers[0][0]
+            else:
+                top_cx = face_centers[0][0]
+                bottom_cx = default_x + crop_w / 2  # default for bottom
+        else:
+            # No face — use defaults
+            top_cx = default_x + crop_w / 2
+            bottom_cx = default_x + crop_w / 2
+
+        # Convert center_x to crop x position
+        top_x = max(0, min(int(top_cx - crop_w / 2), width - crop_w))
+        bottom_x = max(0, min(int(bottom_cx - crop_w / 2), width - crop_w))
+
+        raw_data_top.append({"time": current_time, "x": top_x})
+        raw_data_bottom.append({"time": current_time, "x": bottom_x})
+
+        detect_percent = min(100, int((current_time / duration) * 100)) if duration > 0 else 100
+        if detect_percent != last_detect_percent:
+            print(f"⏳ {label} - Analisa wajah: {detect_percent:3d}%", flush=True)
+            last_detect_percent = detect_percent
+
+        current_time += STEP_DETEKSI
+
+    # ---- FASE 2: SMOOTH CAMERA PER SPEAKER ----
+    def _smooth_positions(raw_data):
+        smooth = []
+        if not raw_data:
+            return smooth
+        cam_x = raw_data[0]["x"]
+        deadzone_px = crop_w * DEADZONE_RATIO
+        snap_px = width * SNAP_THRESHOLD
+
+        for d in raw_data:
+            face_x = d["x"]
+            if abs(face_x - cam_x) > snap_px:
+                cam_x = face_x
+            else:
+                if face_x > cam_x + deadzone_px:
+                    cam_x += (face_x - (cam_x + deadzone_px)) * SMOOTH_FACTOR
+                elif face_x < cam_x - deadzone_px:
+                    cam_x += (face_x - (cam_x - deadzone_px)) * SMOOTH_FACTOR
+
+            final_x = int(max(0, min(cam_x, width - crop_w)))
+            if smooth and abs(final_x - smooth[-1]["x"]) <= JITTER_THRESHOLD:
+                final_x = smooth[-1]["x"]
+            smooth.append({"time": d["time"], "x": final_x})
+        return smooth
+
+    smooth_top = _smooth_positions(raw_data_top)
+    smooth_bottom = _smooth_positions(raw_data_bottom)
+
+    def _get_x(smooth_data, t):
+        if not smooth_data:
+            return default_x
+        if t <= smooth_data[0]["time"]:
+            return smooth_data[0]["x"]
+        if t >= smooth_data[-1]["time"]:
+            return smooth_data[-1]["x"]
+        for i in range(len(smooth_data) - 1):
+            if smooth_data[i]["time"] <= t <= smooth_data[i + 1]["time"]:
+                t1, t2 = smooth_data[i]["time"], smooth_data[i + 1]["time"]
+                x1, x2 = smooth_data[i]["x"], smooth_data[i + 1]["x"]
+                if t1 == t2:
+                    return x1
+                return int(x1 + (x2 - x1) * (t - t1) / (t2 - t1))
+        return default_x
+
+    # ---- FASE 3: RENDER FRAMES ----
+    writer = open_ffmpeg_video_writer(output_video, out_w, out_h, orig_fps, video_encoder)
+
+    # Pre-create overlay for inactive speaker
+    dark_overlay = np.zeros((panel_h, panel_w, 3), dtype=np.uint8)
+
+    try:
+        cap.set(cv2.CAP_PROP_POS_MSEC, start_clip * 1000)
+        frame_count = 0
+        last_render_percent = -1
+
+        print(f"🎬 {label} - Render split-screen dimulai...", flush=True)
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            t = frame_count / orig_fps
+            if t > duration:
+                break
+
+            timestamp_abs = start_clip + t
+            active_speaker = get_active_speaker(diarization_data, timestamp_abs)
+
+            # Crop for top speaker
+            cx_top = _get_x(smooth_top, t)
+            panel_top = frame[0:crop_h, cx_top:cx_top + crop_w]
+            panel_top = cv2.resize(panel_top, (panel_w, panel_h))
+
+            # Crop for bottom speaker
+            cx_bottom = _get_x(smooth_bottom, t)
+            panel_bottom = frame[0:crop_h, cx_bottom:cx_bottom + crop_w]
+            panel_bottom = cv2.resize(panel_bottom, (panel_w, panel_h))
+
+            # Apply active/inactive styling
+            if active_speaker == speaker_bottom:
+                # Top is inactive — darken it
+                panel_top = cv2.addWeighted(panel_top, 1.0 - INACTIVE_ALPHA, dark_overlay, INACTIVE_ALPHA, 0)
+                # Bottom is active — add highlight border
+                cv2.rectangle(panel_bottom, (0, 0), (panel_w - 1, panel_h - 1), (0, 255, 255), ACTIVE_BORDER)
+            elif active_speaker == speaker_top:
+                # Bottom is inactive — darken it
+                panel_bottom = cv2.addWeighted(panel_bottom, 1.0 - INACTIVE_ALPHA, dark_overlay, INACTIVE_ALPHA, 0)
+                # Top is active — add highlight border
+                cv2.rectangle(panel_top, (0, 0), (panel_w - 1, panel_h - 1), (0, 255, 255), ACTIVE_BORDER)
+            # else: both panels equal (no one speaking or transition)
+
+            # Compose the final frame: top panel + divider + bottom panel
+            divider = np.full((DIVIDER_HEIGHT, panel_w, 3), 80, dtype=np.uint8)  # gray divider
+            final_frame = np.vstack([panel_top, divider, panel_bottom])
+
+            # Ensure exact output dimensions
+            if final_frame.shape[0] != out_h or final_frame.shape[1] != out_w:
+                final_frame = cv2.resize(final_frame, (out_w, out_h))
+
+            writer.stdin.write(final_frame.tobytes())
+            frame_count += 1
+
+            render_percent = min(100, int((t / duration) * 100)) if duration > 0 else 100
+            if render_percent != last_render_percent:
+                print(
+                    f"⏳ {label} - Render split-screen: {render_percent:3d}% | "
+                    f"{format_seconds(t)} / {format_seconds(duration)}", flush=True,
+                )
+                last_render_percent = render_percent
+
+        writer.stdin.close()
+        stderr_data = writer.stderr.read().decode("utf-8", errors="ignore")
+        return_code = writer.wait()
+
+        if return_code != 0:
+            raise RuntimeError(f"FFmpeg writer gagal: {stderr_data[-1000:]}")
+
+        print(f"✅ {label} selesai.", flush=True)
+
+    finally:
+        cap.release()
+
+
+# ==============================================================================
 # PROSES KLIP UTAMA
 # ==============================================================================
 
-def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder):
+def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, diarization_data=None):
     h_start = float(clip.get("hook_start_time", clip["start_time"]))
     h_end = float(clip.get("hook_end_time", clip.get("hook_start_time", clip["start_time"]) + cfg.durasi_hook))
     m_start = float(clip["start_time"])
@@ -1130,6 +1424,14 @@ def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder):
 
     aktif_hook = cfg.use_hook_glitch
 
+    # Determine if we should use split-screen mode
+    use_split = (
+        getattr(cfg, "use_split_screen", False)
+        and rasio == "9:16"
+        and diarization_data
+        and len(set(s["speaker"] for s in diarization_data)) >= 2
+    )
+
     broll_list = clip.get("broll_list", [])
     broll_aktif = []
     if cfg.use_broll and broll_list:
@@ -1147,11 +1449,19 @@ def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder):
     try:
         # HOOK
         if aktif_hook:
-            print("   📸 [Hook] Hybrid render...")
-            buat_video_hybrid(
-                cfg.file_video_asli, h_silent, h_start, h_end, rasio, cfg,
-                label=f"Rank {rank} Hook",
-            )
+            if use_split:
+                print("   📸 [Hook] Split-screen render...")
+                buat_video_split_screen(
+                    cfg.file_video_asli, h_silent, h_start, h_end,
+                    diarization_data, cfg,
+                    label=f"Rank {rank} Hook SplitScreen",
+                )
+            else:
+                print("   📸 [Hook] Hybrid render...")
+                buat_video_hybrid(
+                    cfg.file_video_asli, h_silent, h_start, h_end, rasio, cfg,
+                    label=f"Rank {rank} Hook",
+                )
 
             aktif_advanced_hook = cfg.use_advanced_text_on_hook
             buat_file_ass(
@@ -1182,11 +1492,19 @@ def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder):
                 raise RuntimeError("FFmpeg hook gagal:\n" + "\n".join(err_h))
 
         # MAIN
-        print("   📸 [Main] Hybrid render (Visual)...")
-        buat_video_hybrid(
-            cfg.file_video_asli, m_silent, m_start, m_end, rasio, cfg, broll_aktif,
-            label=f"Rank {rank} Main",
-        )
+        if use_split:
+            print("   📸 [Main] Split-screen render (Visual)...")
+            buat_video_split_screen(
+                cfg.file_video_asli, m_silent, m_start, m_end,
+                diarization_data, cfg,
+                label=f"Rank {rank} Main SplitScreen",
+            )
+        else:
+            print("   📸 [Main] Hybrid render (Visual)...")
+            buat_video_hybrid(
+                cfg.file_video_asli, m_silent, m_start, m_end, rasio, cfg, broll_aktif,
+                label=f"Rank {rank} Main",
+            )
 
         buat_file_ass(data_segmen, m_start, m_end, a_main, rasio, cfg, typography_plan=typography_plan, gunakan_advanced=True)
 
