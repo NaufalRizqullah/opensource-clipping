@@ -121,14 +121,31 @@ def run_diarization(
     print("🎙️ Menjalankan speaker diarization...")
     diarization = pipeline(audio_path, num_speakers=num_speakers)
 
+    # Some versions of pyannote return a result object instead of directly the annotation
+    if not hasattr(diarization, "itertracks") and hasattr(diarization, "annotation"):
+        diarization = diarization.annotation
+
+    if not hasattr(diarization, "itertracks"):
+        # Last resort: try to cast or check what it is
+        print(f"   ⚠️ Diarization output type: {type(diarization)}")
+        # If it's a dict-like result from some pipeline versions
+        if isinstance(diarization, dict) and "annotation" in diarization:
+            diarization = diarization["annotation"]
+
     # Convert to list of dicts
     raw_segments = []
-    for turn, _, speaker in diarization.itertracks(yield_label=True):
-        raw_segments.append({
-            "speaker": speaker,
-            "start": round(turn.start, 3),
-            "end": round(turn.end, 3),
-        })
+    try:
+        for turn, _, speaker in diarization.itertracks(yield_label=True):
+            raw_segments.append({
+                "speaker": speaker,
+                "start": round(turn.start, 3),
+                "end": round(turn.end, 3),
+            })
+    except AttributeError as e:
+        raise RuntimeError(
+            f"Gagal memproses hasil diarization ({type(diarization)}): {e}. "
+            "Pastikan model pyannote/speaker-diarization-3.1 terinstal dengan benar."
+        )
 
     if not raw_segments:
         raise RuntimeError("Diarization tidak menghasilkan segment apapun.")

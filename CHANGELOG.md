@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.6.2] - 2026-04-06
+
+### Fixed
+- **Diarization Robustness**: Fixed `'DiarizeOutput' object has no attribute 'itertracks'` by adding logic to handle wrapped annotation objects in newer Pyannote versions and adding debug diagnostic info.
+
+---
+
 ## [v0.6.1] - 2026-04-06
 
 ### Fixed
