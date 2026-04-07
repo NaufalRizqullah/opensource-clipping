@@ -3,7 +3,7 @@
 OpenSource Clipping — AI Auto-Clipper & Teaser Generator
 
 Usage:
-    python main.py                          # run with all defaults
+    python main.py --url "https://..."      # run with required URL
     python main.py --url "https://..." --clips 5 --ratio 16:9
     python main.py --help                   # show all available options
 """

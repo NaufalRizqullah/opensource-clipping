@@ -22,8 +22,8 @@ import urllib.parse
 import urllib.request
 
 import cv2
-import numpy as np
 import mediapipe as mp
+import numpy as np
 import requests
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision as mp_vision
@@ -31,14 +31,14 @@ from PIL import Image, ImageDraw, ImageFont
 from yt_dlp import YoutubeDL
 
 FIREFOX_UA = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) "
-    "Gecko/20100101 Firefox/148.0"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0"
 )
 
 
 # ==============================================================================
 # HELPER UMUM
 # ==============================================================================
+
 
 def format_seconds(seconds):
     seconds = max(0, int(seconds))
@@ -49,17 +49,13 @@ def format_seconds(seconds):
 
 
 def escape_ffmpeg_filter_value(value: str) -> str:
-    return (
-        str(value)
-        .replace("\\", r"\\")
-        .replace(":", r"\:")
-        .replace("'", r"\'")
-    )
+    return str(value).replace("\\", r"\\").replace(":", r"\:").replace("'", r"\'")
 
 
 # ==============================================================================
 # DETEKSI ENCODER GPU
 # ==============================================================================
+
 
 def _ffmpeg_has_encoder(name: str) -> bool:
     result = subprocess.run(
@@ -72,22 +68,48 @@ def _ffmpeg_has_encoder(name: str) -> bool:
 
 
 def _test_encoder_runtime(encoder_args):
-    cmd = [
-        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-        "-f", "lavfi",
-        "-i", "color=c=black:s=640x360:r=30:d=1",
-    ] + encoder_args + [
-        "-pix_fmt", "yuv420p",
-        "-an",
-        "-f", "null", "-"
-    ]
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    cmd = (
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=black:s=640x360:r=30:d=1",
+        ]
+        + encoder_args
+        + ["-pix_fmt", "yuv420p", "-an", "-f", "null", "-"]
+    )
+    result = subprocess.run(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+    )
     return result.returncode == 0, result.stderr[-1000:]
 
 
 def detect_video_encoder():
-    nvenc_args_fastest = ["-c:v", "h264_nvenc", "-preset", "p1", "-cq", "25", "-b:v", "0"]
-    nvenc_args_legacy = ["-c:v", "h264_nvenc", "-preset", "fast", "-cq", "25", "-b:v", "0"]
+    nvenc_args_fastest = [
+        "-c:v",
+        "h264_nvenc",
+        "-preset",
+        "p1",
+        "-cq",
+        "25",
+        "-b:v",
+        "0",
+    ]
+    nvenc_args_legacy = [
+        "-c:v",
+        "h264_nvenc",
+        "-preset",
+        "fast",
+        "-cq",
+        "25",
+        "-b:v",
+        "0",
+    ]
     cpu_args = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "25"]
 
     if _ffmpeg_has_encoder("h264_nvenc"):
@@ -107,35 +129,57 @@ def detect_video_encoder():
 
 def get_ts_encode_args(video_encoder, fps=30):
     return video_encoder["args"] + [
-        "-pix_fmt", "yuv420p",
-        "-r", str(fps),
-        "-c:a", "aac",
-        "-ar", "48000",
-        "-ac", "2",
-        "-f", "mpegts",
+        "-pix_fmt",
+        "yuv420p",
+        "-r",
+        str(fps),
+        "-c:a",
+        "aac",
+        "-ar",
+        "48000",
+        "-ac",
+        "2",
+        "-f",
+        "mpegts",
     ]
 
 
 def get_mp4_encode_args(video_encoder, fps):
     return video_encoder["args"] + [
-        "-pix_fmt", "yuv420p",
-        "-r", f"{fps:.06f}",
-        "-movflags", "+faststart",
+        "-pix_fmt",
+        "yuv420p",
+        "-r",
+        f"{fps:.06f}",
+        "-movflags",
+        "+faststart",
     ]
 
 
 def open_ffmpeg_video_writer(output_path, width, height, fps, video_encoder):
-    cmd = [
-        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-        "-f", "rawvideo",
-        "-pix_fmt", "bgr24",
-        "-s", f"{width}x{height}",
-        "-r", f"{fps:.06f}",
-        "-i", "-",
-    ] + get_mp4_encode_args(video_encoder, fps) + [
-        "-an",
-        output_path,
-    ]
+    cmd = (
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "bgr24",
+            "-s",
+            f"{width}x{height}",
+            "-r",
+            f"{fps:.06f}",
+            "-i",
+            "-",
+        ]
+        + get_mp4_encode_args(video_encoder, fps)
+        + [
+            "-an",
+            output_path,
+        ]
+    )
 
     return subprocess.Popen(
         cmd,
@@ -178,7 +222,11 @@ def run_ffmpeg_with_progress(ffmpeg_cmd, total_duration, label="Render"):
             try:
                 out_time_ms = int(line.split("=", 1)[1])
                 current_time = out_time_ms / 1_000_000
-                percent = min(100, int((current_time / total_duration) * 100)) if total_duration > 0 else 0
+                percent = (
+                    min(100, int((current_time / total_duration) * 100))
+                    if total_duration > 0
+                    else 0
+                )
 
                 if percent != last_percent:
                     print(
@@ -206,7 +254,9 @@ def get_face_detector(cfg):
 
     if _FACE_DETECTOR is None:
         if not os.path.exists(cfg.file_mediapipe_model):
-            urllib.request.urlretrieve(cfg.url_mediapipe_model, cfg.file_mediapipe_model)
+            urllib.request.urlretrieve(
+                cfg.url_mediapipe_model, cfg.file_mediapipe_model
+            )
 
         base_options = mp_python.BaseOptions(model_asset_path=cfg.file_mediapipe_model)
         _FACE_DETECTOR = mp_vision.FaceDetector.create_from_options(
@@ -223,7 +273,10 @@ def get_face_detector(cfg):
 # FONT DOWNLOADER & REGISTRATION
 # ==============================================================================
 
-def download_google_font(url, output_filename, font_dir, max_retry=10, min_valid_size=1000):
+
+def download_google_font(
+    url, output_filename, font_dir, max_retry=10, min_valid_size=1000
+):
     file_path = os.path.join(font_dir, output_filename)
     temp_path = file_path + ".part"
 
@@ -246,7 +299,9 @@ def download_google_font(url, output_filename, font_dir, max_retry=10, min_valid
 
     for percobaan in range(1, max_retry + 1):
         try:
-            print(f"   📥 Mendownload font '{output_filename}'... ({percobaan}/{max_retry})")
+            print(
+                f"   📥 Mendownload font '{output_filename}'... ({percobaan}/{max_retry})"
+            )
 
             for p in [temp_path, file_path]:
                 if os.path.exists(p) and not is_valid(p):
@@ -255,7 +310,9 @@ def download_google_font(url, output_filename, font_dir, max_retry=10, min_valid
                     except Exception:
                         pass
 
-            with requests.get(url, headers=headers, stream=True, timeout=45, allow_redirects=True) as r:
+            with requests.get(
+                url, headers=headers, stream=True, timeout=45, allow_redirects=True
+            ) as r:
                 r.raise_for_status()
                 with open(temp_path, "wb") as f:
                     for chunk in r.iter_content(chunk_size=8192):
@@ -269,13 +326,19 @@ def download_google_font(url, output_filename, font_dir, max_retry=10, min_valid
             os.replace(temp_path, file_path)
 
             if is_valid(file_path):
-                print(f"   ✅ Font '{output_filename}' berhasil diunduh dan terverifikasi.")
+                print(
+                    f"   ✅ Font '{output_filename}' berhasil diunduh dan terverifikasi."
+                )
                 return True
 
-            raise FileNotFoundError(f"File final '{output_filename}' tidak valid di {font_dir}")
+            raise FileNotFoundError(
+                f"File final '{output_filename}' tidak valid di {font_dir}"
+            )
 
         except Exception as e:
-            print(f"   ⚠️ Gagal download font '{output_filename}' percobaan {percobaan}: {e}")
+            print(
+                f"   ⚠️ Gagal download font '{output_filename}' percobaan {percobaan}: {e}"
+            )
 
             for p in [temp_path, file_path]:
                 if os.path.exists(p):
@@ -332,10 +395,16 @@ def siapkan_font_tipografi(cfg):
     path_utama = os.path.join(font_dir, f_utama["file"])
     path_khusus = os.path.join(font_dir, f_khusus["file"])
 
-    if not (ok_utama and os.path.exists(path_utama) and os.path.getsize(path_utama) > 1000):
+    if not (
+        ok_utama and os.path.exists(path_utama) and os.path.getsize(path_utama) > 1000
+    ):
         raise RuntimeError(f"Font utama gagal disiapkan: {path_utama}")
 
-    if not (ok_khusus and os.path.exists(path_khusus) and os.path.getsize(path_khusus) > 1000):
+    if not (
+        ok_khusus
+        and os.path.exists(path_khusus)
+        and os.path.getsize(path_khusus) > 1000
+    ):
         raise RuntimeError(f"Font khusus gagal disiapkan: {path_khusus}")
 
     register_fonts_for_libass(font_dir)
@@ -345,6 +414,7 @@ def siapkan_font_tipografi(cfg):
 # ==============================================================================
 # BGM (PIXABAY)
 # ==============================================================================
+
 
 def resolve_pixabay_audio_url(page_url, timeout=45):
     headers = {
@@ -379,7 +449,9 @@ def resolve_pixabay_audio_url(page_url, timeout=45):
     raise RuntimeError("MP3 URL tidak ketemu di halaman Pixabay")
 
 
-def download_bgm_from_pixabay_page(page_url, output_path, max_retry=4, min_valid_size=10_000):
+def download_bgm_from_pixabay_page(
+    page_url, output_path, max_retry=4, min_valid_size=10_000
+):
     headers = {
         "User-Agent": FIREFOX_UA,
         "Accept": "*/*",
@@ -411,7 +483,11 @@ def download_bgm_from_pixabay_page(page_url, output_path, max_retry=4, min_valid
                 r.raise_for_status()
 
                 content_type = (r.headers.get("Content-Type") or "").lower()
-                if "audio" not in content_type and "mpeg" not in content_type and "octet-stream" not in content_type:
+                if (
+                    "audio" not in content_type
+                    and "mpeg" not in content_type
+                    and "octet-stream" not in content_type
+                ):
                     raise ValueError(f"Respon bukan audio: {content_type}")
 
                 with open(temp_path, "wb") as f:
@@ -419,7 +495,10 @@ def download_bgm_from_pixabay_page(page_url, output_path, max_retry=4, min_valid
                         if chunk:
                             f.write(chunk)
 
-            if not os.path.exists(temp_path) or os.path.getsize(temp_path) < min_valid_size:
+            if (
+                not os.path.exists(temp_path)
+                or os.path.getsize(temp_path) < min_valid_size
+            ):
                 size = os.path.getsize(temp_path) if os.path.exists(temp_path) else 0
                 raise ValueError(f"File BGM tidak valid ({size} byte)")
 
@@ -455,13 +534,15 @@ def download_pexels_broll(query, rasio, output_filename, pexels_api_key):
 
     orientation = "portrait" if rasio == "9:16" else "landscape"
 
-    params = urllib.parse.urlencode({
-        "query": query,
-        "orientation": orientation,
-        "per_page": 30,
-        "size": "large",
-        "resolution_name": "1080p",
-    })
+    params = urllib.parse.urlencode(
+        {
+            "query": query,
+            "orientation": orientation,
+            "per_page": 30,
+            "size": "large",
+            "resolution_name": "1080p",
+        }
+    )
     search_url = f"https://api.pexels.com/videos/search?{params}"
 
     req = urllib.request.Request(
@@ -491,7 +572,11 @@ def download_pexels_broll(query, rasio, output_filename, pexels_api_key):
     video_data = random.choice(available_videos)
     USED_PEXELS_IDS.add(video_data["id"])
 
-    video_files = [vf for vf in video_data.get("video_files", []) if vf.get("file_type") == "video/mp4"]
+    video_files = [
+        vf
+        for vf in video_data.get("video_files", [])
+        if vf.get("file_type") == "video/mp4"
+    ]
     if not video_files:
         print(f"   ⚠️ Tidak ada file MP4 di dalam data video '{query}'.")
         return False
@@ -505,11 +590,16 @@ def download_pexels_broll(query, rasio, output_filename, pexels_api_key):
     )
 
     download_url = video_files[0]["link"]
-    download_req = urllib.request.Request(download_url, headers={"User-Agent": "Mozilla/5.0"})
+    download_req = urllib.request.Request(
+        download_url, headers={"User-Agent": "Mozilla/5.0"}
+    )
 
     try:
         temp_path = output_filename + ".part"
-        with urllib.request.urlopen(download_req) as response, open(temp_path, "wb") as f:
+        with (
+            urllib.request.urlopen(download_req) as response,
+            open(temp_path, "wb") as f,
+        ):
             shutil.copyfileobj(response, f)
         os.replace(temp_path, output_filename)
         return True
@@ -526,11 +616,11 @@ def crop_center_broll(img, target_w, target_h):
     if img_ratio > target_ratio:
         new_w = int(h * target_ratio)
         x = (w - new_w) // 2
-        img = img[:, x:x + new_w]
+        img = img[:, x : x + new_w]
     elif img_ratio < target_ratio:
         new_h = int(w / target_ratio)
         y = (h - new_h) // 2
-        img = img[y:y + new_h, :]
+        img = img[y : y + new_h, :]
 
     return cv2.resize(img, (target_w, target_h))
 
@@ -539,7 +629,17 @@ def crop_center_broll(img, target_w, target_h):
 # HYBRID VIDEO RENDERER
 # ==============================================================================
 
-def buat_video_hybrid(input_video, output_video, start_clip, end_clip, rasio, cfg, broll_data=None, label="Hybrid"):
+
+def buat_video_hybrid(
+    input_video,
+    output_video,
+    start_clip,
+    end_clip,
+    rasio,
+    cfg,
+    broll_data=None,
+    label="Hybrid",
+):
     if broll_data is None:
         broll_data = []
 
@@ -550,15 +650,17 @@ def buat_video_hybrid(input_video, output_video, start_clip, end_clip, rasio, cf
     SNAP_THRESHOLD = 0.25
 
     video_encoder = detect_video_encoder()
-    
+
     yolo_model = None
     detector = None
     if cfg.face_detector == "yolo":
         if not os.path.exists(cfg.file_yolo_model):
             print(f"   📥 Mendownload YOLOv8 Face Model ({cfg.yolo_size})...")
             import urllib.request
+
             urllib.request.urlretrieve(cfg.url_yolo_model, cfg.file_yolo_model)
         from ultralytics import YOLO
+
         yolo_model = YOLO(cfg.file_yolo_model)
     else:
         detector = get_face_detector(cfg)
@@ -578,11 +680,13 @@ def buat_video_hybrid(input_video, output_video, start_clip, end_clip, rasio, cf
     broll_caps = []
     for br in broll_data:
         if "filepath" in br and os.path.exists(br["filepath"]):
-            broll_caps.append({
-                "start": br["start_time"],
-                "end": br["end_time"],
-                "cap": cv2.VideoCapture(br["filepath"]),
-            })
+            broll_caps.append(
+                {
+                    "start": br["start_time"],
+                    "end": br["end_time"],
+                    "cap": cv2.VideoCapture(br["filepath"]),
+                }
+            )
 
     # FASE 1: DETEKSI WAJAH
     raw_data = []
@@ -597,7 +701,7 @@ def buat_video_hybrid(input_video, output_video, start_clip, end_clip, rasio, cf
             break
 
         best_x = default_x
-        
+
         if cfg.face_detector == "yolo":
             yolo_results = yolo_model(frame, verbose=False)
             if yolo_results and len(yolo_results[0].boxes) > 0:
@@ -620,11 +724,17 @@ def buat_video_hybrid(input_video, output_video, start_clip, end_clip, rasio, cf
                     results.detections,
                     key=lambda d: d.bounding_box.width * d.bounding_box.height,
                 ).bounding_box
-                best_x = (largest_face.origin_x + (largest_face.width / 2)) - (crop_w // 2)
+                best_x = (largest_face.origin_x + (largest_face.width / 2)) - (
+                    crop_w // 2
+                )
 
-        raw_data.append({"time": current_time, "x": max(0, min(best_x, width - crop_w))})
+        raw_data.append(
+            {"time": current_time, "x": max(0, min(best_x, width - crop_w))}
+        )
 
-        detect_percent = min(100, int((current_time / duration) * 100)) if duration > 0 else 100
+        detect_percent = (
+            min(100, int((current_time / duration) * 100)) if duration > 0 else 100
+        )
         if detect_percent != last_detect_percent:
             print(f"⏳ {label} - Analisa wajah: {detect_percent:3d}%", flush=True)
             last_detect_percent = detect_percent
@@ -675,7 +785,9 @@ def buat_video_hybrid(input_video, output_video, start_clip, end_clip, rasio, cf
 
     # FASE 3: RENDER FRAME
     out_w, out_h = (1080, 1920) if rasio == "9:16" else (1920, 1080)
-    writer = open_ffmpeg_video_writer(output_video, out_w, out_h, orig_fps, video_encoder)
+    writer = open_ffmpeg_video_writer(
+        output_video, out_w, out_h, orig_fps, video_encoder
+    )
 
     TRANSITION_DUR = 0.3
     MAX_ZOOM = 1.10
@@ -700,7 +812,7 @@ def buat_video_hybrid(input_video, output_video, start_clip, end_clip, rasio, cf
 
             if rasio == "9:16":
                 cx = get_x(t)
-                cropped = frame_utama[:, cx:cx + crop_w]
+                cropped = frame_utama[:, cx : cx + crop_w]
                 frame_utama_siap = cv2.resize(cropped, (out_w, out_h))
             else:
                 frame_utama_siap = cv2.resize(frame_utama, (out_w, out_h))
@@ -715,12 +827,18 @@ def buat_video_hybrid(input_video, output_video, start_clip, end_clip, rasio, cf
 
                     if ret_b:
                         durasi_total_broll = bc["end"] - bc["start"]
-                        progress_broll = elapsed_broll / durasi_total_broll if durasi_total_broll > 0 else 0
+                        progress_broll = (
+                            elapsed_broll / durasi_total_broll
+                            if durasi_total_broll > 0
+                            else 0
+                        )
                         zoom_factor = 1.0 + ((MAX_ZOOM - 1.0) * progress_broll)
 
                         frame_b_crop = crop_center_broll(frame_b, out_w, out_h)
                         center_x, center_y = out_w / 2, out_h / 2
-                        M = cv2.getRotationMatrix2D((center_x, center_y), 0, zoom_factor)
+                        M = cv2.getRotationMatrix2D(
+                            (center_x, center_y), 0, zoom_factor
+                        )
                         frame_b_zoomed = cv2.warpAffine(frame_b_crop, M, (out_w, out_h))
 
                         alpha = 1.0
@@ -732,18 +850,23 @@ def buat_video_hybrid(input_video, output_video, start_clip, end_clip, rasio, cf
                         if alpha >= 1.0:
                             frame_terpilih = frame_b_zoomed
                         else:
-                            frame_terpilih = cv2.addWeighted(frame_b_zoomed, alpha, frame_utama_siap, 1.0 - alpha, 0)
+                            frame_terpilih = cv2.addWeighted(
+                                frame_b_zoomed, alpha, frame_utama_siap, 1.0 - alpha, 0
+                            )
 
                     break
 
             writer.stdin.write(frame_terpilih.tobytes())
             frame_count += 1
 
-            render_percent = min(100, int((t / duration) * 100)) if duration > 0 else 100
+            render_percent = (
+                min(100, int((t / duration) * 100)) if duration > 0 else 100
+            )
             if render_percent != last_render_percent:
                 print(
                     f"⏳ {label} - Render frame: {render_percent:3d}% | "
-                    f"{format_seconds(t)} / {format_seconds(duration)}", flush=True,
+                    f"{format_seconds(t)} / {format_seconds(duration)}",
+                    flush=True,
                 )
                 last_render_percent = render_percent
 
@@ -766,7 +889,17 @@ def buat_video_hybrid(input_video, output_video, start_clip, end_clip, rasio, cf
 # PEMBUAT SUBTITLE ASS
 # ==============================================================================
 
-def buat_file_ass(data_segmen, start_clip, end_clip, nama_file_ass, rasio, cfg, typography_plan=None, gunakan_advanced=True):
+
+def buat_file_ass(
+    data_segmen,
+    start_clip,
+    end_clip,
+    nama_file_ass,
+    rasio,
+    cfg,
+    typography_plan=None,
+    gunakan_advanced=True,
+):
     if typography_plan is None:
         typography_plan = []
 
@@ -791,7 +924,9 @@ def buat_file_ass(data_segmen, start_clip, end_clip, nama_file_ass, rasio, cfg, 
     font_utama = font_utama_dict["nama"]
     font_khusus = font_khusus_dict["nama"]
 
-    scale_base_khusus = cfg.scale_kata_khusus_916 if rasio == "9:16" else cfg.scale_kata_khusus_169
+    scale_base_khusus = (
+        cfg.scale_kata_khusus_916 if rasio == "9:16" else cfg.scale_kata_khusus_169
+    )
     warna_khusus = cfg.warna_kata_khusus
 
     def get_scale_value(level):
@@ -841,7 +976,10 @@ def buat_file_ass(data_segmen, start_clip, end_clip, nama_file_ass, rasio, cfg, 
                 for i, w in enumerate(seg["words"]):
                     w_s = max(0, w["start"] - start_clip)
                     if i < len(seg["words"]) - 1:
-                        w_e = min(end_clip - start_clip, seg["words"][i + 1]["start"] - start_clip)
+                        w_e = min(
+                            end_clip - start_clip,
+                            seg["words"][i + 1]["start"] - start_clip,
+                        )
                     else:
                         w_e = min(end_clip - start_clip, w["end"] - start_clip)
 
@@ -850,16 +988,22 @@ def buat_file_ass(data_segmen, start_clip, end_clip, nama_file_ass, rasio, cfg, 
                         for j, x in enumerate(seg["words"]):
                             if pakai_karaoke:
                                 if j == i:
-                                    text_parts.append(f"{{\\c&H00FFFF&}}{x['word']}{{\\c&HFFFFFF&}}")
+                                    text_parts.append(
+                                        f"{{\\c&H00FFFF&}}{x['word']}{{\\c&HFFFFFF&}}"
+                                    )
                                 else:
                                     text_parts.append(x["word"])
                             else:
                                 if j <= i:
                                     text_parts.append(x["word"])
                                 else:
-                                    text_parts.append(f"{{\\alpha&HFF&}}{x['word']}{{\\alpha&H00&}}")
+                                    text_parts.append(
+                                        f"{{\\alpha&HFF&}}{x['word']}{{\\alpha&H00&}}"
+                                    )
 
-                        f.write(f"Dialogue: 0,{fmt_time(w_s)},{fmt_time(w_e)},Default,,0,0,0,,{' '.join(text_parts)}\n")
+                        f.write(
+                            f"Dialogue: 0,{fmt_time(w_s)},{fmt_time(w_e)},Default,,0,0,0,,{' '.join(text_parts)}\n"
+                        )
         return
 
     # Advanced typography mode
@@ -911,44 +1055,64 @@ def buat_file_ass(data_segmen, start_clip, end_clip, nama_file_ass, rasio, cfg, 
                 if plan:
                     w_style = plan.get("style", "khusus")
                     w_scale = get_scale_value(plan.get("scale_level", 2))
-                    is_khusus = (w_style == "khusus")
+                    is_khusus = w_style == "khusus"
 
                     pil_font = get_cached_font(is_khusus, w_scale)
-                    raw_w = pil_font.getlength(w_dict["word"]) if hasattr(pil_font, "getlength") else len(w_dict["word"]) * 20
+                    raw_w = (
+                        pil_font.getlength(w_dict["word"])
+                        if hasattr(pil_font, "getlength")
+                        else len(w_dict["word"]) * 20
+                    )
                     w_len = raw_w * TIGHTNESS
                     h_len = font_sz * (w_scale / 100.0)
                 else:
                     w_scale = 100
                     pil_font = get_cached_font(False, w_scale)
-                    raw_w = pil_font.getlength(w_dict["word"]) if hasattr(pil_font, "getlength") else len(w_dict["word"]) * 15
+                    raw_w = (
+                        pil_font.getlength(w_dict["word"])
+                        if hasattr(pil_font, "getlength")
+                        else len(w_dict["word"]) * 15
+                    )
                     w_len = raw_w * TIGHTNESS
                     h_len = font_sz
 
                 if current_line and (current_w + space_width + w_len > max_line_width):
-                    lines.append({"words": current_line, "width": current_w, "height": max_line_h})
+                    lines.append(
+                        {
+                            "words": current_line,
+                            "width": current_w,
+                            "height": max_line_h,
+                        }
+                    )
                     current_line = []
                     current_w = 0
                     max_line_h = 0
 
                 x_offset = current_w if not current_line else current_w + space_width
-                current_line.append({
-                    "text": w_dict["word"],
-                    "plan": plan,
-                    "w": w_len,
-                    "h": h_len,
-                    "x_offset": x_offset,
-                    "start": max(0, w_dict["start"] - start_clip),
-                    "end": min(end_clip - start_clip, w_dict["end"] - start_clip),
-                })
+                current_line.append(
+                    {
+                        "text": w_dict["word"],
+                        "plan": plan,
+                        "w": w_len,
+                        "h": h_len,
+                        "x_offset": x_offset,
+                        "start": max(0, w_dict["start"] - start_clip),
+                        "end": min(end_clip - start_clip, w_dict["end"] - start_clip),
+                    }
+                )
 
                 current_w = x_offset + w_len
                 max_line_h = max(max_line_h, h_len)
 
             if current_line:
-                lines.append({"words": current_line, "width": current_w, "height": max_line_h})
+                lines.append(
+                    {"words": current_line, "width": current_w, "height": max_line_h}
+                )
 
             line_spacing = 15
-            total_stack_h = sum(l["height"] for l in lines) + (len(lines) - 1) * line_spacing
+            total_stack_h = (
+                sum(l["height"] for l in lines) + (len(lines) - 1) * line_spacing
+            )
             current_y = play_res_y - margin_v - total_stack_h
 
             for line in lines:
@@ -963,8 +1127,12 @@ def buat_file_ass(data_segmen, start_clip, end_clip, nama_file_ass, rasio, cfg, 
                     if w_data["plan"]:
                         w_style = w_data["plan"].get("style", "khusus")
                         w_anim = w_data["plan"].get("animasi", "bounce_pop")
-                        target_scale = get_scale_value(w_data["plan"].get("scale_level", 2))
-                        font_info = font_khusus_dict if w_style == "khusus" else font_utama_dict
+                        target_scale = get_scale_value(
+                            w_data["plan"].get("scale_level", 2)
+                        )
+                        font_info = (
+                            font_khusus_dict if w_style == "khusus" else font_utama_dict
+                        )
                         f_tag = build_font_tag(font_info)
                         c_tag = f"\\c{warna_khusus}"
                     else:
@@ -1000,8 +1168,12 @@ def buat_file_ass(data_segmen, start_clip, end_clip, nama_file_ass, rasio, cfg, 
                             pos_tag = f"\\pos({int(word_x)},{int(line_y)})"
                             anim_tag = f"\\alpha&HFF&\\fscx{target_scale}\\fscy{target_scale}\\t({t_start},{t_start},\\alpha&H00&)"
 
-                    event_text = f"{{\\an2{pos_tag}{f_tag}{c_tag}{anim_tag}}}{w_data['text']}"
-                    f.write(f"Dialogue: 0,{fmt_time(seg_s)},{fmt_time(seg_e)},Default,,0,0,0,,{event_text}\n")
+                    event_text = (
+                        f"{{\\an2{pos_tag}{f_tag}{c_tag}{anim_tag}}}{w_data['text']}"
+                    )
+                    f.write(
+                        f"Dialogue: 0,{fmt_time(seg_s)},{fmt_time(seg_e)},Default,,0,0,0,,{event_text}\n"
+                    )
 
                 current_y += line["height"] + line_spacing
 
@@ -1010,17 +1182,20 @@ def buat_file_ass(data_segmen, start_clip, end_clip, nama_file_ass, rasio, cfg, 
 # GLITCH & THUMBNAIL
 # ==============================================================================
 
+
 def siapkan_glitch_video(rasio, cfg, video_encoder):
     glitch_ts = f"glitch_ready_{rasio.replace(':', '')}.ts"
     if os.path.exists(glitch_ts):
         return glitch_ts
 
     if not os.path.exists("glitch_raw.mp4"):
-        YoutubeDL({
-            "format": "best[ext=mp4]",
-            "outtmpl": "glitch_raw.mp4",
-            "quiet": True,
-        }).download([cfg.url_glitch_video])
+        YoutubeDL(
+            {
+                "format": "best[ext=mp4]",
+                "outtmpl": "glitch_raw.mp4",
+                "quiet": True,
+            }
+        ).download([cfg.url_glitch_video])
 
     filter_g = (
         "crop=ih*9/16:ih:(iw-ih*9/16)/2:0,scale=1080:1920,setsar=1"
@@ -1028,15 +1203,26 @@ def siapkan_glitch_video(rasio, cfg, video_encoder):
         else "scale=1920:1080,setsar=1"
     )
 
-    cmd = [
-        "ffmpeg", "-y",
-        "-ss", "0.2",
-        "-t", "1",
-        "-i", "glitch_raw.mp4",
-        "-vf", filter_g,
-    ] + get_ts_encode_args(video_encoder, fps=30) + [glitch_ts]
+    cmd = (
+        [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            "0.2",
+            "-t",
+            "1",
+            "-i",
+            "glitch_raw.mp4",
+            "-vf",
+            filter_g,
+        ]
+        + get_ts_encode_args(video_encoder, fps=30)
+        + [glitch_ts]
+    )
 
-    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(
+        cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
     return glitch_ts
 
 
@@ -1067,7 +1253,14 @@ def buat_thumbnail(video_path, output_image_path, teks, cfg):
         bbox = draw.textbbox((0, 0), line, font=font)
         line_w = bbox[2] - bbox[0]
         x_text = (img.size[0] - line_w) // 2
-        draw.text((x_text, y_text), line, font=font, fill="white", stroke_width=5, stroke_fill="black")
+        draw.text(
+            (x_text, y_text),
+            line,
+            font=font,
+            fill="white",
+            stroke_width=5,
+            stroke_fill="black",
+        )
         y_text += font_sz + 10
 
     img.save(output_image_path)
@@ -1077,9 +1270,15 @@ def buat_thumbnail(video_path, output_image_path, teks, cfg):
 # SPLIT-SCREEN RENDERER (PODCAST 2 SPEAKER)
 # ==============================================================================
 
+
 def buat_video_split_screen(
-    input_video, output_video, start_clip, end_clip,
-    diarization_data, cfg, label="SplitScreen",
+    input_video,
+    output_video,
+    start_clip,
+    end_clip,
+    diarization_data,
+    cfg,
+    label="SplitScreen",
 ):
     """
     Render a split-screen (top-bottom) 9:16 video for 2-speaker podcasts.
@@ -1109,9 +1308,9 @@ def buat_video_split_screen(
     SMOOTH_FACTOR = 0.15
     JITTER_THRESHOLD = 5
     SNAP_THRESHOLD = 0.25
-    DIVIDER_HEIGHT = 4         # px, divider between panels
-    INACTIVE_ALPHA = 0.15      # darkening for inactive speaker panel
-    ACTIVE_BORDER = 3          # px, highlight border for active speaker
+    DIVIDER_HEIGHT = 4  # px, divider between panels
+    INACTIVE_ALPHA = 0.15  # darkening for inactive speaker panel
+    ACTIVE_BORDER = 3  # px, highlight border for active speaker
 
     video_encoder = detect_video_encoder()
 
@@ -1122,8 +1321,10 @@ def buat_video_split_screen(
         if not os.path.exists(cfg.file_yolo_model):
             print(f"   📥 Mendownload YOLOv8 Face Model ({cfg.yolo_size})...")
             import urllib.request
+
             urllib.request.urlretrieve(cfg.url_yolo_model, cfg.file_yolo_model)
         from ultralytics import YOLO
+
         yolo_model = YOLO(cfg.file_yolo_model)
     else:
         detector = get_face_detector(cfg)
@@ -1139,7 +1340,7 @@ def buat_video_split_screen(
 
     # Output dimensions: 1080x1920 for 9:16
     out_w, out_h = 1080, 1920
-    panel_h = (out_h - DIVIDER_HEIGHT) // 2   # height per speaker panel
+    panel_h = (out_h - DIVIDER_HEIGHT) // 2  # height per speaker panel
     panel_w = out_w
 
     # Crop dimensions for each panel from the source frame
@@ -1160,7 +1361,9 @@ def buat_video_split_screen(
     # Get unique speakers sorted
     speakers = sorted(set(s["speaker"] for s in diarization_data))
     if len(speakers) < 2:
-        speakers = [speakers[0], speakers[0]] if speakers else ["SPEAKER_00", "SPEAKER_01"]
+        speakers = (
+            [speakers[0], speakers[0]] if speakers else ["SPEAKER_00", "SPEAKER_01"]
+        )
 
     speaker_top = speakers[0]
     speaker_bottom = speakers[1]
@@ -1182,7 +1385,7 @@ def buat_video_split_screen(
         if not ret:
             break
 
-        face_centers = []   # list of (center_x, center_y)
+        face_centers = []  # list of (center_x, center_y)
 
         if cfg.face_detector == "yolo":
             yolo_results = yolo_model(frame, verbose=False)
@@ -1218,7 +1421,7 @@ def buat_video_split_screen(
             # Only one face detected — assign to whoever is speaking
             active = get_active_speaker(diarization_data, start_clip + current_time)
             if active == speaker_bottom:
-                top_cx = default_x + crop_w / 2   # default for top
+                top_cx = default_x + crop_w / 2  # default for top
                 bottom_cx = face_centers[0][0]
             else:
                 top_cx = face_centers[0][0]
@@ -1235,7 +1438,9 @@ def buat_video_split_screen(
         raw_data_top.append({"time": current_time, "x": top_x})
         raw_data_bottom.append({"time": current_time, "x": bottom_x})
 
-        detect_percent = min(100, int((current_time / duration) * 100)) if duration > 0 else 100
+        detect_percent = (
+            min(100, int((current_time / duration) * 100)) if duration > 0 else 100
+        )
         if detect_percent != last_detect_percent:
             print(f"⏳ {label} - Analisa wajah: {detect_percent:3d}%", flush=True)
             last_detect_percent = detect_percent
@@ -1287,7 +1492,9 @@ def buat_video_split_screen(
         return default_x
 
     # ---- FASE 3: RENDER FRAMES ----
-    writer = open_ffmpeg_video_writer(output_video, out_w, out_h, orig_fps, video_encoder)
+    writer = open_ffmpeg_video_writer(
+        output_video, out_w, out_h, orig_fps, video_encoder
+    )
 
     # Pre-create overlay for inactive speaker
     dark_overlay = np.zeros((panel_h, panel_w, 3), dtype=np.uint8)
@@ -1313,29 +1520,47 @@ def buat_video_split_screen(
 
             # Crop for top speaker
             cx_top = _get_x(smooth_top, t)
-            panel_top = frame[0:crop_h, cx_top:cx_top + crop_w]
+            panel_top = frame[0:crop_h, cx_top : cx_top + crop_w]
             panel_top = cv2.resize(panel_top, (panel_w, panel_h))
 
             # Crop for bottom speaker
             cx_bottom = _get_x(smooth_bottom, t)
-            panel_bottom = frame[0:crop_h, cx_bottom:cx_bottom + crop_w]
+            panel_bottom = frame[0:crop_h, cx_bottom : cx_bottom + crop_w]
             panel_bottom = cv2.resize(panel_bottom, (panel_w, panel_h))
 
             # Apply active/inactive styling
             if active_speaker == speaker_bottom:
                 # Top is inactive — darken it
-                panel_top = cv2.addWeighted(panel_top, 1.0 - INACTIVE_ALPHA, dark_overlay, INACTIVE_ALPHA, 0)
+                panel_top = cv2.addWeighted(
+                    panel_top, 1.0 - INACTIVE_ALPHA, dark_overlay, INACTIVE_ALPHA, 0
+                )
                 # Bottom is active — add highlight border
-                cv2.rectangle(panel_bottom, (0, 0), (panel_w - 1, panel_h - 1), (0, 255, 255), ACTIVE_BORDER)
+                cv2.rectangle(
+                    panel_bottom,
+                    (0, 0),
+                    (panel_w - 1, panel_h - 1),
+                    (0, 255, 255),
+                    ACTIVE_BORDER,
+                )
             elif active_speaker == speaker_top:
                 # Bottom is inactive — darken it
-                panel_bottom = cv2.addWeighted(panel_bottom, 1.0 - INACTIVE_ALPHA, dark_overlay, INACTIVE_ALPHA, 0)
+                panel_bottom = cv2.addWeighted(
+                    panel_bottom, 1.0 - INACTIVE_ALPHA, dark_overlay, INACTIVE_ALPHA, 0
+                )
                 # Top is active — add highlight border
-                cv2.rectangle(panel_top, (0, 0), (panel_w - 1, panel_h - 1), (0, 255, 255), ACTIVE_BORDER)
+                cv2.rectangle(
+                    panel_top,
+                    (0, 0),
+                    (panel_w - 1, panel_h - 1),
+                    (0, 255, 255),
+                    ACTIVE_BORDER,
+                )
             # else: both panels equal (no one speaking or transition)
 
             # Compose the final frame: top panel + divider + bottom panel
-            divider = np.full((DIVIDER_HEIGHT, panel_w, 3), 80, dtype=np.uint8)  # gray divider
+            divider = np.full(
+                (DIVIDER_HEIGHT, panel_w, 3), 80, dtype=np.uint8
+            )  # gray divider
             final_frame = np.vstack([panel_top, divider, panel_bottom])
 
             # Ensure exact output dimensions
@@ -1345,13 +1570,347 @@ def buat_video_split_screen(
             writer.stdin.write(final_frame.tobytes())
             frame_count += 1
 
-            render_percent = min(100, int((t / duration) * 100)) if duration > 0 else 100
+            render_percent = (
+                min(100, int((t / duration) * 100)) if duration > 0 else 100
+            )
             if render_percent != last_render_percent:
                 print(
                     f"⏳ {label} - Render split-screen: {render_percent:3d}% | "
-                    f"{format_seconds(t)} / {format_seconds(duration)}", flush=True,
+                    f"{format_seconds(t)} / {format_seconds(duration)}",
+                    flush=True,
                 )
                 last_render_percent = render_percent
+
+        writer.stdin.close()
+        stderr_data = writer.stderr.read().decode("utf-8", errors="ignore")
+        return_code = writer.wait()
+
+        if return_code != 0:
+            raise RuntimeError(f"FFmpeg writer gagal: {stderr_data[-1000:]}")
+
+        print(f"✅ {label} selesai.", flush=True)
+
+    finally:
+        cap.release()
+
+
+def buat_video_camera_switch(
+    input_video,
+    output_video,
+    start_clip,
+    end_clip,
+    diarization_data,
+    cfg,
+    label="CameraSwitch",
+):
+    """
+    Render a full 9:16 video with automatic camera switching based on active speaker.
+
+    Behaviour per frame:
+      - One speaker active   → full 9:16 crop centred on that speaker's face
+      - Both speakers active → blurred pillarbox (16:9 wide-shot + blurred bg)
+      - No speaker active    → stay on last known speaker (or pillarbox if none yet)
+
+    A minimum hold duration (cfg.switch_hold_duration, default 2 s) prevents
+    rapid flickering when speakers alternate quickly.
+
+    Parameters
+    ----------
+    input_video : str
+        Path to the source video.
+    output_video : str
+        Output video path (silent, no audio).
+    start_clip, end_clip : float
+        Clip time range in seconds.
+    diarization_data : list[dict]
+        Speaker segments from diarization.run_diarization().
+    cfg : SimpleNamespace
+        Config object (uses cfg.switch_hold_duration, cfg.face_detector, etc.)
+    label : str
+        Label for progress logging.
+    """
+    from .diarization import get_active_speakers
+
+    STEP_DETEKSI = 0.5
+    DEADZONE_RATIO = 0.25
+    SMOOTH_FACTOR = 0.15
+    JITTER_THRESHOLD = 5
+    SNAP_THRESHOLD = 0.25
+    MIN_HOLD = float(getattr(cfg, "switch_hold_duration", 2.0))
+    BLUR_KERNEL = 99
+    BLUR_SIGMA = 30
+
+    video_encoder = detect_video_encoder()
+
+    # ---------------------------------------------------------------- face detector
+    yolo_model = None
+    detector = None
+    if cfg.face_detector == "yolo":
+        if not os.path.exists(cfg.file_yolo_model):
+            print(f"   📥 Mendownload YOLOv8 Face Model ({cfg.yolo_size})...")
+            import urllib.request
+
+            urllib.request.urlretrieve(cfg.url_yolo_model, cfg.file_yolo_model)
+        from ultralytics import YOLO
+
+        yolo_model = YOLO(cfg.file_yolo_model)
+    else:
+        detector = get_face_detector(cfg)
+
+    cap = cv2.VideoCapture(input_video)
+    orig_fps = cap.get(cv2.CAP_PROP_FPS)
+    if math.isnan(orig_fps) or orig_fps == 0:
+        orig_fps = 30.0
+
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    duration = end_clip - start_clip
+
+    out_w, out_h = 1080, 1920
+
+    # 9:16 crop region from the source frame
+    crop_ratio = out_w / out_h  # ≈ 0.5625
+    if (width / height) > crop_ratio:  # source is wider  → crop width
+        crop_h = height
+        crop_w = int(height * crop_ratio)
+    else:  # source is taller → crop height
+        crop_w = width
+        crop_h = int(width / crop_ratio)
+
+    default_x = (width - crop_w) // 2
+
+    # Unique speakers sorted
+    speakers = sorted(set(s["speaker"] for s in diarization_data))
+    if len(speakers) < 2:
+        speakers = (
+            [speakers[0], speakers[0]] if speakers else ["SPEAKER_00", "SPEAKER_01"]
+        )
+    speaker_a = speakers[0]  # leftmost  (smaller X)
+    speaker_b = speakers[1]  # rightmost (larger  X)
+
+    # ================================================================
+    # FASE 1 — Detect all faces & assign to speakers by X position
+    # ================================================================
+    print(f"🧠 {label} - Analisa wajah (camera switch) dimulai...", flush=True)
+
+    raw_data = {speaker_a: [], speaker_b: []}
+    current_time = 0.0
+    last_detect_percent = -1
+
+    while current_time <= duration:
+        cap.set(cv2.CAP_PROP_POS_MSEC, (start_clip + current_time) * 1000)
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        face_centers = []
+
+        if cfg.face_detector == "yolo":
+            yolo_results = yolo_model(frame, verbose=False)
+            if yolo_results and len(yolo_results[0].boxes) > 0:
+                boxes = yolo_results[0].boxes.xyxy.cpu().numpy()
+                for box in boxes:
+                    x1, y1, x2, y2 = box
+                    face_centers.append(((x1 + x2) / 2, (y1 + y2) / 2))
+        else:
+            results = detector.detect(
+                mp.Image(
+                    image_format=mp.ImageFormat.SRGB,
+                    data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
+                )
+            )
+            if results.detections:
+                for d in results.detections:
+                    bb = d.bounding_box
+                    face_centers.append(
+                        (
+                            bb.origin_x + bb.width / 2,
+                            bb.origin_y + bb.height / 2,
+                        )
+                    )
+
+        face_centers.sort(key=lambda fc: fc[0])  # left → right
+
+        if len(face_centers) >= 2:
+            ax = face_centers[0][0]
+            bx = face_centers[-1][0]
+        elif len(face_centers) == 1:
+            active_now = get_active_speakers(
+                diarization_data, start_clip + current_time
+            )
+            if speaker_b in active_now and speaker_a not in active_now:
+                ax = default_x + crop_w / 2
+                bx = face_centers[0][0]
+            else:
+                ax = face_centers[0][0]
+                bx = default_x + crop_w / 2
+        else:
+            ax = bx = default_x + crop_w / 2
+
+        raw_data[speaker_a].append(
+            {
+                "time": current_time,
+                "x": max(0, min(int(ax - crop_w / 2), width - crop_w)),
+            }
+        )
+        raw_data[speaker_b].append(
+            {
+                "time": current_time,
+                "x": max(0, min(int(bx - crop_w / 2), width - crop_w)),
+            }
+        )
+
+        detect_pct = (
+            min(100, int(current_time / duration * 100)) if duration > 0 else 100
+        )
+        if detect_pct != last_detect_percent:
+            print(f"⏳ {label} - Analisa wajah: {detect_pct:3d}%", flush=True)
+            last_detect_percent = detect_pct
+
+        current_time += STEP_DETEKSI
+
+    # ================================================================
+    # FASE 2 — Smooth per-speaker camera positions
+    # ================================================================
+    def _smooth_positions(raw_list):
+        smooth = []
+        if not raw_list:
+            return smooth
+        cam_x = raw_list[0]["x"]
+        deadzone_px = crop_w * DEADZONE_RATIO
+        snap_px = width * SNAP_THRESHOLD
+        for d in raw_list:
+            face_x = d["x"]
+            if abs(face_x - cam_x) > snap_px:
+                cam_x = face_x
+            else:
+                if face_x > cam_x + deadzone_px:
+                    cam_x += (face_x - (cam_x + deadzone_px)) * SMOOTH_FACTOR
+                elif face_x < cam_x - deadzone_px:
+                    cam_x += (face_x - (cam_x - deadzone_px)) * SMOOTH_FACTOR
+            final_x = int(max(0, min(cam_x, width - crop_w)))
+            if smooth and abs(final_x - smooth[-1]["x"]) <= JITTER_THRESHOLD:
+                final_x = smooth[-1]["x"]
+            smooth.append({"time": d["time"], "x": final_x})
+        return smooth
+
+    smooth = {
+        speaker_a: _smooth_positions(raw_data[speaker_a]),
+        speaker_b: _smooth_positions(raw_data[speaker_b]),
+    }
+
+    def _get_x(speaker, t):
+        sd = smooth.get(speaker, [])
+        if not sd:
+            return default_x
+        if t <= sd[0]["time"]:
+            return sd[0]["x"]
+        if t >= sd[-1]["time"]:
+            return sd[-1]["x"]
+        for i in range(len(sd) - 1):
+            if sd[i]["time"] <= t <= sd[i + 1]["time"]:
+                t1, t2 = sd[i]["time"], sd[i + 1]["time"]
+                x1, x2 = sd[i]["x"], sd[i + 1]["x"]
+                if t1 == t2:
+                    return x1
+                return int(x1 + (x2 - x1) * (t - t1) / (t2 - t1))
+        return default_x
+
+    # ----------------------------------------------------------------
+    # Helper: blurred pillarbox for wide-shot / simultaneous speech
+    # ----------------------------------------------------------------
+    def _make_blurred_pillarbox(frame):
+        h, w = frame.shape[:2]
+        # Background: scale to cover 1080×1920, crop centre, then blur
+        scale = max(out_w / w, out_h / h)
+        new_w = max(out_w, int(w * scale))
+        new_h = max(out_h, int(h * scale))
+        bg = cv2.resize(frame, (new_w, new_h))
+        y0 = (new_h - out_h) // 2
+        x0 = (new_w - out_w) // 2
+        bg = bg[y0 : y0 + out_h, x0 : x0 + out_w]
+        ksize = BLUR_KERNEL if BLUR_KERNEL % 2 == 1 else BLUR_KERNEL + 1
+        bg = cv2.GaussianBlur(bg, (ksize, ksize), BLUR_SIGMA)
+        # Foreground: scale frame to width=out_w, preserve aspect ratio
+        fg_w = out_w
+        fg_h = min(out_h, int(h * out_w / w))
+        fg = cv2.resize(frame, (fg_w, fg_h))
+        # Composite: centre foreground vertically on blurred background
+        result = bg.copy()
+        y_start = (out_h - fg_h) // 2
+        result[y_start : y_start + fg_h, 0:fg_w] = fg
+        return result
+
+    # ================================================================
+    # FASE 3 — Render frames with camera-switch logic
+    # ================================================================
+    writer = open_ffmpeg_video_writer(
+        output_video, out_w, out_h, orig_fps, video_encoder
+    )
+
+    current_speaker = None
+    last_switch_time = 0.0
+
+    try:
+        cap.set(cv2.CAP_PROP_POS_MSEC, start_clip * 1000)
+        frame_count = 0
+        last_render_percent = -1
+
+        print(f"🎬 {label} - Render camera switch dimulai...", flush=True)
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            t = frame_count / orig_fps
+            if t > duration:
+                break
+
+            timestamp_abs = start_clip + t
+            active_speakers = get_active_speakers(diarization_data, timestamp_abs)
+
+            if len(active_speakers) >= 2:
+                # Simultaneous speech → blurred pillarbox wide-shot
+                out_frame = _make_blurred_pillarbox(frame)
+
+            elif len(active_speakers) == 1:
+                new_speaker = active_speakers[0]
+                # Switch logic: enforce minimum hold duration
+                if current_speaker is None:
+                    current_speaker = new_speaker
+                    last_switch_time = t
+                elif (
+                    new_speaker != current_speaker
+                    and (t - last_switch_time) >= MIN_HOLD
+                ):
+                    current_speaker = new_speaker
+                    last_switch_time = t
+                # else: hold not expired → stay on current_speaker
+                cx = _get_x(current_speaker, t)
+                crop_fr = frame[0:crop_h, cx : cx + crop_w]
+                out_frame = cv2.resize(crop_fr, (out_w, out_h))
+
+            else:
+                # No active speaker → stay on last known speaker, or wide-shot
+                if current_speaker is not None:
+                    cx = _get_x(current_speaker, t)
+                    crop_fr = frame[0:crop_h, cx : cx + crop_w]
+                    out_frame = cv2.resize(crop_fr, (out_w, out_h))
+                else:
+                    out_frame = _make_blurred_pillarbox(frame)
+
+            writer.stdin.write(out_frame.tobytes())
+            frame_count += 1
+
+            render_pct = min(100, int(t / duration * 100)) if duration > 0 else 100
+            if render_pct != last_render_percent:
+                print(
+                    f"⏳ {label} - Render camera switch: {render_pct:3d}% | "
+                    f"{format_seconds(t)} / {format_seconds(duration)}",
+                    flush=True,
+                )
+                last_render_percent = render_pct
 
         writer.stdin.close()
         stderr_data = writer.stderr.read().decode("utf-8", errors="ignore")
@@ -1370,9 +1929,17 @@ def buat_video_split_screen(
 # PROSES KLIP UTAMA
 # ==============================================================================
 
-def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, diarization_data=None):
+
+def proses_klip(
+    rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, diarization_data=None
+):
     h_start = float(clip.get("hook_start_time", clip["start_time"]))
-    h_end = float(clip.get("hook_end_time", clip.get("hook_start_time", clip["start_time"]) + cfg.durasi_hook))
+    h_end = float(
+        clip.get(
+            "hook_end_time",
+            clip.get("hook_start_time", clip["start_time"]) + cfg.durasi_hook,
+        )
+    )
     m_start = float(clip["start_time"])
     m_end = float(clip["end_time"])
     judul = clip.get("title_indonesia")
@@ -1387,22 +1954,22 @@ def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, d
         "video_path": out_vid,
         "thumbnail_path": out_thm,
         "thumbnail_text": judul_en or judul or f"Highlight {rank}",
-
-        "youtube_title_final": clip.get("youtube_title_final", clip.get("title_inggris", "")),
+        "youtube_title_final": clip.get(
+            "youtube_title_final", clip.get("title_inggris", "")
+        ),
         "youtube_description_final": clip.get("youtube_description_final", ""),
         "youtube_tags_final": clip.get("youtube_tags_final", []),
-        "tiktok_caption_final": clip.get("tiktok_caption_final", clip.get("hastag", "")),
-
+        "tiktok_caption_final": clip.get(
+            "tiktok_caption_final", clip.get("hastag", "")
+        ),
         "title_indonesia": clip.get("title_indonesia", ""),
         "title_inggris": clip.get("title_inggris", ""),
         "hastag": clip.get("hastag", ""),
-
         "start_time": m_start,
         "end_time": m_end,
         "hook_start_time": h_start,
         "hook_end_time": h_end,
         "duration": round(m_end - m_start, 2),
-
         "alasan": clip.get("alasan", ""),
         "broll_list": clip.get("broll_list", []),
         "typography_plan": clip.get("typography_plan", []),
@@ -1419,7 +1986,12 @@ def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, d
     typography_plan = clip.get("typography_plan", [])
     siapkan_font_tipografi(cfg)
 
-    h_ts, m_ts, a_hook, a_main = f"h_{rank}.ts", f"m_{rank}.ts", f"ah_{rank}.ass", f"am_{rank}.ass"
+    h_ts, m_ts, a_hook, a_main = (
+        f"h_{rank}.ts",
+        f"m_{rank}.ts",
+        f"ah_{rank}.ass",
+        f"am_{rank}.ass",
+    )
     h_silent, m_silent = f"h_silent_{rank}.mp4", f"m_silent_{rank}.mp4"
 
     aktif_hook = cfg.use_hook_glitch
@@ -1427,6 +1999,15 @@ def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, d
     # Determine if we should use split-screen mode
     use_split = (
         getattr(cfg, "use_split_screen", False)
+        and rasio == "9:16"
+        and diarization_data
+        and len(set(s["speaker"] for s in diarization_data)) >= 2
+    )
+
+    # Camera-switch mode (mutually exclusive: split-screen takes precedence)
+    use_camera_switch = (
+        not use_split
+        and getattr(cfg, "use_camera_switch", False)
         and rasio == "9:16"
         and diarization_data
         and len(set(s["speaker"] for s in diarization_data)) >= 2
@@ -1452,20 +2033,45 @@ def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, d
             if use_split:
                 print("   📸 [Hook] Split-screen render...")
                 buat_video_split_screen(
-                    cfg.file_video_asli, h_silent, h_start, h_end,
-                    diarization_data, cfg,
+                    cfg.file_video_asli,
+                    h_silent,
+                    h_start,
+                    h_end,
+                    diarization_data,
+                    cfg,
                     label=f"Rank {rank} Hook SplitScreen",
+                )
+            elif use_camera_switch:
+                print("   📸 [Hook] Camera switch render...")
+                buat_video_camera_switch(
+                    cfg.file_video_asli,
+                    h_silent,
+                    h_start,
+                    h_end,
+                    diarization_data,
+                    cfg,
+                    label=f"Rank {rank} Hook CameraSwitch",
                 )
             else:
                 print("   📸 [Hook] Hybrid render...")
                 buat_video_hybrid(
-                    cfg.file_video_asli, h_silent, h_start, h_end, rasio, cfg,
+                    cfg.file_video_asli,
+                    h_silent,
+                    h_start,
+                    h_end,
+                    rasio,
+                    cfg,
                     label=f"Rank {rank} Hook",
                 )
 
             aktif_advanced_hook = cfg.use_advanced_text_on_hook
             buat_file_ass(
-                data_segmen, h_start, h_end, a_hook, rasio, cfg,
+                data_segmen,
+                h_start,
+                h_end,
+                a_hook,
+                rasio,
+                cfg,
                 typography_plan=typography_plan,
                 gunakan_advanced=aktif_advanced_hook,
             )
@@ -1476,18 +2082,31 @@ def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, d
             vf_hook = f"subtitles={esc_ass_hook}:fontsdir={esc_fontsdir}"
 
             cmd_h_base = [
-                "ffmpeg", "-hide_banner", "-loglevel", "verbose", "-y",
-                "-i", h_silent,
-                "-ss", str(h_start),
-                "-to", str(h_end),
-                "-i", cfg.file_video_asli,
-                "-map", "0:v:0",
-                "-map", "1:a:0",
-                "-vf", vf_hook,
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "verbose",
+                "-y",
+                "-i",
+                h_silent,
+                "-ss",
+                str(h_start),
+                "-to",
+                str(h_end),
+                "-i",
+                cfg.file_video_asli,
+                "-map",
+                "0:v:0",
+                "-map",
+                "1:a:0",
+                "-vf",
+                vf_hook,
             ] + std_p
 
             cmd_h = build_ffmpeg_progress_cmd(cmd_h_base, h_ts)
-            rc_h, err_h = run_ffmpeg_with_progress(cmd_h, h_end - h_start, label=f"Rank {rank} Hook FFmpeg")
+            rc_h, err_h = run_ffmpeg_with_progress(
+                cmd_h, h_end - h_start, label=f"Rank {rank} Hook FFmpeg"
+            )
             if rc_h != 0:
                 raise RuntimeError("FFmpeg hook gagal:\n" + "\n".join(err_h))
 
@@ -1495,18 +2114,48 @@ def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, d
         if use_split:
             print("   📸 [Main] Split-screen render (Visual)...")
             buat_video_split_screen(
-                cfg.file_video_asli, m_silent, m_start, m_end,
-                diarization_data, cfg,
+                cfg.file_video_asli,
+                m_silent,
+                m_start,
+                m_end,
+                diarization_data,
+                cfg,
                 label=f"Rank {rank} Main SplitScreen",
+            )
+        elif use_camera_switch:
+            print("   📸 [Main] Camera switch render (Visual)...")
+            buat_video_camera_switch(
+                cfg.file_video_asli,
+                m_silent,
+                m_start,
+                m_end,
+                diarization_data,
+                cfg,
+                label=f"Rank {rank} Main CameraSwitch",
             )
         else:
             print("   📸 [Main] Hybrid render (Visual)...")
             buat_video_hybrid(
-                cfg.file_video_asli, m_silent, m_start, m_end, rasio, cfg, broll_aktif,
+                cfg.file_video_asli,
+                m_silent,
+                m_start,
+                m_end,
+                rasio,
+                cfg,
+                broll_aktif,
                 label=f"Rank {rank} Main",
             )
 
-        buat_file_ass(data_segmen, m_start, m_end, a_main, rasio, cfg, typography_plan=typography_plan, gunakan_advanced=True)
+        buat_file_ass(
+            data_segmen,
+            m_start,
+            m_end,
+            a_main,
+            rasio,
+            cfg,
+            typography_plan=typography_plan,
+            gunakan_advanced=True,
+        )
 
         print("   🎬 [Main] FFmpeg burn subtitle + audio ducking...")
         esc_ass_main = escape_ffmpeg_filter_value(os.path.abspath(a_main))
@@ -1547,28 +2196,59 @@ def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, d
             )
 
             cmd_m_base = [
-                "ffmpeg", "-hide_banner", "-loglevel", "verbose", "-y",
-                "-i", m_silent,
-                "-ss", str(m_start), "-to", str(m_end), "-i", cfg.file_video_asli,
-                "-stream_loop", "-1", "-i", file_bgm,
-                "-filter_complex", filter_complex,
-                "-map", "[v_out]",
-                "-map", "[a_out]",
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "verbose",
+                "-y",
+                "-i",
+                m_silent,
+                "-ss",
+                str(m_start),
+                "-to",
+                str(m_end),
+                "-i",
+                cfg.file_video_asli,
+                "-stream_loop",
+                "-1",
+                "-i",
+                file_bgm,
+                "-filter_complex",
+                filter_complex,
+                "-map",
+                "[v_out]",
+                "-map",
+                "[a_out]",
                 "-shortest",
             ] + std_p
         else:
             vf_main = f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"
             cmd_m_base = [
-                "ffmpeg", "-hide_banner", "-loglevel", "verbose", "-y",
-                "-i", m_silent,
-                "-ss", str(m_start), "-to", str(m_end), "-i", cfg.file_video_asli,
-                "-map", "0:v:0",
-                "-map", "1:a:0",
-                "-vf", vf_main,
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "verbose",
+                "-y",
+                "-i",
+                m_silent,
+                "-ss",
+                str(m_start),
+                "-to",
+                str(m_end),
+                "-i",
+                cfg.file_video_asli,
+                "-map",
+                "0:v:0",
+                "-map",
+                "1:a:0",
+                "-vf",
+                vf_main,
             ] + std_p
 
         cmd_m = build_ffmpeg_progress_cmd(cmd_m_base, m_ts)
-        rc_m, err_m = run_ffmpeg_with_progress(cmd_m, m_end - m_start, label=f"Rank {rank} Main FFmpeg")
+        rc_m, err_m = run_ffmpeg_with_progress(
+            cmd_m, m_end - m_start, label=f"Rank {rank} Main FFmpeg"
+        )
         if rc_m != 0:
             raise RuntimeError("FFmpeg main gagal:\n" + "\n".join(err_m))
 
@@ -1580,7 +2260,17 @@ def proses_klip(rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, d
             concat_str = f"concat:{m_ts}"
 
         subprocess.run(
-            ["ffmpeg", "-y", "-i", concat_str, "-c", "copy", "-bsf:a", "aac_adtstoasc", out_vid],
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                concat_str,
+                "-c",
+                "copy",
+                "-bsf:a",
+                "aac_adtstoasc",
+                out_vid,
+            ],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

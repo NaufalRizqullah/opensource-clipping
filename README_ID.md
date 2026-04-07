@@ -22,6 +22,7 @@
 | **Metadata Lintas Platform** | Judul/deskripsi/tag YouTube + caption TikTok — semua dalam Bahasa Inggris |
 | **Auto YouTube Uploader** | Upload klip highlight beserta metadata ke YouTube secara otomatis dengan penjadwalan (opsional) |
 | **Podcast Split-Screen** | Diarization speaker otomatis via **Pyannote** dengan layout split-screen atas-bawah untuk podcast 2 orang (9:16) |
+| **Podcast Camera Switch** | Deteksi speaker aktif otomatis yang switch crop full 9:16 ke orang yang sedang berbicara; blurred pillarbox saat keduanya bicara bersamaan (9:16) |
 
 ## 📋 Prasyarat
 
@@ -30,7 +31,7 @@
 - **GPU CUDA** disarankan (untuk Whisper; bisa fallback ke CPU)
 - **Google Gemini API Key** ([dapatkan di sini](https://aistudio.google.com/apikey))
 - **Pexels API Key** (opsional, untuk B-roll — [dapatkan di sini](https://www.pexels.com/api/))
-- **HuggingFace Token** (opsional, untuk split-screen — [dapatkan di sini](https://huggingface.co/settings/tokens), perlu accept [Pyannote model agreement](https://huggingface.co/pyannote/speaker-diarization-3.1))
+- **HuggingFace Token** (opsional, untuk split-screen / camera-switch — [dapatkan di sini](https://huggingface.co/settings/tokens), perlu accept [Pyannote model agreement](https://huggingface.co/pyannote/speaker-diarization-3.1))
 
 ## ☁️ Menjalankan di Google Colab (Direkomendasikan)
 
@@ -98,10 +99,8 @@ pip install -r requirements.txt          # pip / Colab
 cp .env.sample .env
 # Edit file .env dan masukkan GOOGLE_API_KEY kamu
 
-# 4. Jalankan dengan default
-python main.py
-# uv run main.py                        # jika pakai uv
-
+# 4. Jalankan (Wajib sertakan --url)
+python main.py --url "https://youtube.com/watch?v=VIDEO_ID"
 # 5. Contoh Eksekusi
 
 # Mode Standar (Default untuk 5 klip)
@@ -119,6 +118,13 @@ python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
   --clips 3 \
   --ratio "9:16" \
   --split-screen
+
+# Mode Podcast Camera Switch (auto-switch ke speaker aktif, blurred pillarbox saat overlap)
+python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
+  --clips 3 \
+  --ratio "9:16" \
+  --camera-switch \
+  --switch-hold-duration 2.0
 ```
 
 ## ⚙️ Opsi CLI
@@ -129,7 +135,7 @@ python main.py --help
 
 | Argumen | Default | Deskripsi |
 |---|---|---|
-| `--url`, `-u` | *(URL preset)* | URL video YouTube yang akan diproses |
+| `--url`, `-u` | — | URL video YouTube yang akan diproses (Wajib) |
 | `--clips`, `-n` | `7` | Jumlah klip highlight yang dihasilkan |
 | `--ratio`, `-r` | `9:16` | Rasio aspek output (`9:16` atau `16:9`) |
 | `--words-per-sub` | `5` | Maks kata per grup subtitle karaoke |
@@ -150,6 +156,8 @@ python main.py --help
 | `--gemini-fallback-model` | `gemini-2.5-flash` | Nama model fallback Gemini jika model utama gagal |
 | `--split-screen` | `False` | Aktifkan mode split-screen untuk podcast 2 speaker (hanya 9:16, butuh `HF_TOKEN`) |
 | `--diarization-speakers` | `2` | Jumlah speaker untuk diarization (digunakan dengan `--split-screen`) |
+| `--camera-switch` | `False` | Aktifkan mode camera-switch untuk podcast — crop full 9:16 berpindah ke speaker aktif; blurred pillarbox saat kedua speaker bicara bersamaan (hanya 9:16, butuh `HF_TOKEN`) |
+| `--switch-hold-duration` | `2.0` | Durasi minimum (detik) sebelum berpindah speaker (hanya untuk camera-switch) |
 
 ## 📂 Struktur Proyek
 
@@ -166,9 +174,9 @@ opensource-clipping/
 │   ├── __init__.py
 │   ├── config.py            # Konfigurasi master & argparse
 │   ├── engine.py            # Download → Transkripsi → Gemini AI
-│   ├── diarization.py       # Pyannote speaker diarization (split-screen)
+│   ├── diarization.py       # Pyannote speaker diarization (split-screen & camera-switch)
 │   ├── metadata.py          # Normalisasi & QA metadata
-│   ├── studio.py            # Mesin render video (face-track, split-screen, subs, B-roll, BGM)
+│   ├── studio.py            # Mesin render video (face-track, split-screen, camera-switch, subs, B-roll, BGM)
 │   └── runner.py            # Orkestrator pipeline
 └── youtube_uploader/
     ├── __init__.py
@@ -240,6 +248,15 @@ Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 > 1. Mendaftarkan akun di [HuggingFace](https://huggingface.co/) dan membuat token
 > 2. Accept [user agreement Pyannote](https://huggingface.co/pyannote/speaker-diarization-3.1)
 > 3. Menambahkan `HF_TOKEN=your-token` di file `.env`
+
+**📹 Pengaturan Camera Switch (Podcast)**
+- `--camera-switch` : Aktifkan mode camera-switch penuh — video 9:16 bergantian mengikuti speaker yang aktif seperti kamera beralih live. **Mutually exclusive** dengan `--split-screen` (split-screen lebih prioritas jika keduanya diaktifkan).
+- `--switch-hold-duration` : Durasi minimum (detik) sebelum sistem berpindah speaker (default: `2.0`). Berguna agar tidak flickering saat pergantian cepat.
+
+> 💡 **Tiga skenario rendering Camera Switch:**
+> - **Satu speaker aktif** → crop full 9:16 mengikuti wajah speaker tersebut
+> - **Dua speaker bicara bersamaan** → **blurred pillarbox** (frame 16:9 asli diletakkan di tengah, sisi kiri-kanan diisi blur background — tidak ada bar hitam)
+> - **Tidak ada yang bicara** → tetap pada speaker terakhir yang aktif
 
 **🌐 Asset Eksternal**
 - Semua asset pendukung (Model AI, Glitch video, Font) akan diunduh **otomatis** saat pertama kali dijalankan

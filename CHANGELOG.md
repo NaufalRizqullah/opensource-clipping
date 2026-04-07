@@ -7,6 +7,28 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.7.0] - 2026-04-06
+
+> ⚠️ **Experimental**: The camera-switch feature in this version is experimental and may be rolled back or undergo significant changes in future updates.
+
+### Added
+- **Camera-Switch Mode** (`--camera-switch`): New full 9:16 rendering mode for podcast-style videos. Uses Pyannote speaker diarization to detect who is speaking at each moment and automatically switches the crop to focus on the active speaker — similar to a live director cutting between camera angles.
+  - **Single speaker active** → full 9:16 crop centred and face-tracked on that speaker
+  - **Both speakers simultaneously** → **blurred pillarbox** (original 16:9 frame centred with blurred background filling the 9:16 canvas — no black bars)
+  - **No one speaking** → holds on the last active speaker
+  - **Minimum hold duration** (`--switch-hold-duration`, default `2.0` s) prevents flickering when speakers alternate rapidly
+- **Blurred Pillarbox Helper** (`_make_blurred_pillarbox`): Internal renderer that produces TikTok/Reels-style blurred letterbox/pillarbox by using a scaled + Gaussian-blurred version of the source frame as background, with the original frame composited at the centre.
+- **`get_active_speakers()` in `diarization.py`**: New helper that returns *all* speakers active at a given timestamp (vs. the existing `get_active_speaker()` which returns only the first). Enables detection of simultaneous speech for the blurred pillarbox transition.
+
+### Changed
+- **Diarization trigger in `runner.py`**: Speaker diarization is now also triggered when `--camera-switch` is active (previously only triggered for `--split-screen`).
+
+### Notes
+- `--camera-switch` and `--split-screen` are mutually exclusive; if both flags are passed, `--split-screen` takes precedence.
+- Requires `HF_TOKEN` set in `.env` (same as split-screen).
+
+---
+
 ## [v0.6.3] - 2026-04-06
 
 ### Fixed
@@ -119,5 +141,5 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 ## [Planned / Upcoming Features]
 
 - **[Planned] Wefluence Integration**: Building an automated batch clipping system that pulls source videos directly from Google Drive and YouTube, crafting compelling video compilations.
-- **[Planned] Auto Camera Switch (Full 9:16)**: Automatic active speaker detection that goes full-frame 9:16 and switches between speakers based on who is currently talking (instead of split-screen).
+- **[Done → v0.7.0] Auto Camera Switch (Full 9:16)**: Implemented as `--camera-switch` flag with blurred pillarbox for simultaneous speech.
 - **[Planned] 16:9 Speaker Switch**: Automatic Active Speaker detection for 16:9 that performs full frame cuts/switches (Speaker A / Speaker B / Wide Shot).

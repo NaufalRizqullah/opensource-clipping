@@ -9,10 +9,10 @@ pada klip podcast.
 import os
 import subprocess
 
-
 # ==============================================================================
 # AUDIO EXTRACTION
 # ==============================================================================
+
 
 def extract_audio(video_path: str, audio_output_path: str) -> str:
     """
@@ -34,17 +34,23 @@ def extract_audio(video_path: str, audio_output_path: str) -> str:
         os.remove(audio_output_path)
 
     cmd = [
-        "ffmpeg", "-y",
-        "-i", video_path,
-        "-vn",                      # no video
-        "-acodec", "pcm_s16le",     # 16-bit PCM
-        "-ar", "16000",             # 16kHz sample rate (optimal for Pyannote)
-        "-ac", "1",                 # mono
+        "ffmpeg",
+        "-y",
+        "-i",
+        video_path,
+        "-vn",  # no video
+        "-acodec",
+        "pcm_s16le",  # 16-bit PCM
+        "-ar",
+        "16000",  # 16kHz sample rate (optimal for Pyannote)
+        "-ac",
+        "1",  # mono
         audio_output_path,
     ]
 
     subprocess.run(
-        cmd, check=True,
+        cmd,
+        check=True,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -55,6 +61,7 @@ def extract_audio(video_path: str, audio_output_path: str) -> str:
 # ==============================================================================
 # SPEAKER DIARIZATION
 # ==============================================================================
+
 
 def run_diarization(
     audio_path: str,
@@ -109,8 +116,10 @@ def run_diarization(
     # Use GPU if available
     try:
         import torch
+
         if torch.cuda.is_available():
             import torch
+
             pipeline.to(torch.device("cuda"))
             print("   ✅ Pyannote menggunakan GPU (CUDA)")
         else:
@@ -137,11 +146,13 @@ def run_diarization(
     raw_segments = []
     try:
         for turn, _, speaker in diarization.itertracks(yield_label=True):
-            raw_segments.append({
-                "speaker": speaker,
-                "start": round(turn.start, 3),
-                "end": round(turn.end, 3),
-            })
+            raw_segments.append(
+                {
+                    "speaker": speaker,
+                    "start": round(turn.start, 3),
+                    "end": round(turn.end, 3),
+                }
+            )
     except AttributeError as e:
         raise RuntimeError(
             f"Gagal memproses hasil diarization ({type(diarization)}): {e}. "
@@ -156,7 +167,9 @@ def run_diarization(
 
     # Get unique speakers
     speakers = sorted(set(s["speaker"] for s in merged))
-    print(f"   ✅ Diarization selesai: {len(merged)} segments, {len(speakers)} speakers ({', '.join(speakers)})")
+    print(
+        f"   ✅ Diarization selesai: {len(merged)} segments, {len(speakers)} speakers ({', '.join(speakers)})"
+    )
 
     return merged
 
@@ -182,6 +195,7 @@ def _merge_adjacent_segments(segments: list[dict], max_gap: float = 0.5) -> list
 # HELPER: ACTIVE SPEAKER LOOKUP
 # ==============================================================================
 
+
 def get_active_speaker(
     diarization_data: list[dict],
     timestamp: float,
@@ -205,3 +219,33 @@ def get_active_speaker(
         if seg["start"] <= timestamp <= seg["end"]:
             return seg["speaker"]
     return None
+
+
+def get_active_speakers(
+    diarization_data: list[dict],
+    timestamp: float,
+) -> list[str]:
+    """
+    Return ALL speakers active at a given timestamp.
+
+    Unlike get_active_speaker(), this returns a list and may include
+    more than one speaker when segments overlap (simultaneous speech).
+
+    Parameters
+    ----------
+    diarization_data : list[dict]
+        Diarization segments from run_diarization().
+    timestamp : float
+        Time in seconds to query.
+
+    Returns
+    -------
+    list[str]
+        List of active speaker labels (may be empty or contain 2+ speakers).
+    """
+    active = []
+    for seg in diarization_data:
+        if seg["start"] <= timestamp <= seg["end"]:
+            if seg["speaker"] not in active:
+                active.append(seg["speaker"])
+    return active

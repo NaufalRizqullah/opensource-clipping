@@ -22,6 +22,7 @@
 | **Cross-Platform Metadata** | YouTube title/description/tags + TikTok caption — all in English |
 | **Auto YouTube Uploader** | Automatically upload highlight clips to YouTube with scheduling support and full metadata (optional) |
 | **Podcast Split-Screen** | Auto speaker diarization via **Pyannote** with top-bottom split-screen layout for 2-speaker podcasts (9:16) |
+| **Podcast Camera Switch** | Auto active-speaker detection that switches a full 9:16 crop to focus on whoever is talking; blurred pillarbox when both speak simultaneously (9:16) |
 
 ## 📋 Prerequisites
 
@@ -30,7 +31,7 @@
 - **CUDA GPU** recommended (for Whisper; CPU fallback available)
 - **Google Gemini API Key** ([get one here](https://aistudio.google.com/apikey))
 - **Pexels API Key** (optional, for B-roll — [get one here](https://www.pexels.com/api/))
-- **HuggingFace Token** (optional, for split-screen — [get one here](https://huggingface.co/settings/tokens), requires accepting [Pyannote model agreement](https://huggingface.co/pyannote/speaker-diarization-3.1))
+- **HuggingFace Token** (optional, for split-screen / camera-switch — [get one here](https://huggingface.co/settings/tokens), requires accepting [Pyannote model agreement](https://huggingface.co/pyannote/speaker-diarization-3.1))
 
 ## ☁️ Running on Google Colab (Recommended)
 
@@ -98,10 +99,8 @@ pip install -r requirements.txt          # pip / Colab
 cp .env.sample .env
 # Edit .env and add your GOOGLE_API_KEY
 
-# 4. Run with defaults
-python main.py
-# uv run main.py                        # if using uv
-
+# 4. Run (Must include --url)
+python main.py --url "https://youtube.com/watch?v=VIDEO_ID"
 # 5. Examples of Execution
 
 # Standard run (Default options with 5 clips)
@@ -119,6 +118,13 @@ python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
   --clips 3 \
   --ratio "9:16" \
   --split-screen
+
+# Podcast Camera Switch (auto-switches to active speaker, blurred pillarbox on overlap)
+python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
+  --clips 3 \
+  --ratio "9:16" \
+  --camera-switch \
+  --switch-hold-duration 2.0
 ```
 
 ## ⚙️ CLI Options
@@ -129,7 +135,7 @@ python main.py --help
 
 | Argument | Default | Description |
 |---|---|---|
-| `--url`, `-u` | *(preset URL)* | YouTube video URL to process |
+| `--url`, `-u` | — | YouTube video URL to process (Required) |
 | `--clips`, `-n` | `7` | Number of highlight clips to generate |
 | `--ratio`, `-r` | `9:16` | Output aspect ratio (`9:16` or `16:9`) |
 | `--words-per-sub` | `5` | Max words per karaoke subtitle group |
@@ -150,6 +156,8 @@ python main.py --help
 | `--gemini-fallback-model` | `gemini-2.5-flash` | Gemini fallback model name if main model fails |
 | `--split-screen` | `False` | Enable split-screen mode for 2-speaker podcasts (9:16 only, requires `HF_TOKEN`) |
 | `--diarization-speakers` | `2` | Number of speakers for diarization (used with `--split-screen`) |
+| `--camera-switch` | `False` | Enable camera-switch mode for podcasts — full 9:16 crop switches to the active speaker; blurred pillarbox on simultaneous speech (9:16 only, requires `HF_TOKEN`) |
+| `--switch-hold-duration` | `2.0` | Min seconds to hold on current speaker before switching (camera-switch only) |
 
 ## 📂 Project Structure
 
@@ -166,9 +174,9 @@ opensource-clipping/
 │   ├── __init__.py
 │   ├── config.py            # Master configuration & argparse
 │   ├── engine.py            # Download → Transcribe → Gemini AI
-│   ├── diarization.py       # Pyannote speaker diarization (split-screen)
+│   ├── diarization.py       # Pyannote speaker diarization (split-screen & camera-switch)
 │   ├── metadata.py          # QA metadata normalization
-│   ├── studio.py            # Video render engine (face-track, split-screen, subs, B-roll, BGM)
+│   ├── studio.py            # Video render engine (face-track, split-screen, camera-switch, subs, B-roll, BGM)
 │   └── runner.py            # Pipeline orchestrator
 └── youtube_uploader/
     ├── __init__.py

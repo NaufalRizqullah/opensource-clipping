@@ -5,11 +5,11 @@ Maps to Cell 4 (Execute) of the notebook.
 Orchestrates the full clip generation pipeline.
 """
 
-import os
 import json
+import os
 
-from . import engine, metadata, studio
 from . import diarization as diarization_mod
+from . import engine, metadata, studio
 
 
 def run_pipeline(cfg) -> list[dict]:
@@ -35,24 +35,32 @@ def run_pipeline(cfg) -> list[dict]:
     """
 
     # Step 1 — Download
-    engine.download_video(cfg.url_youtube, cfg.file_video_asli, getattr(cfg, "use_dlp_subs", False))
+    engine.download_video(
+        cfg.url_youtube, cfg.file_video_asli, getattr(cfg, "use_dlp_subs", False)
+    )
 
     # Step 2 — Transcribe
     transkrip_lengkap = ""
     data_segmen = []
-    
+
     import glob
+
     # Mencari file json3 apapun (karena bahasanya bisa .id.json3 atau .en.json3)
     json3_files = glob.glob(cfg.file_video_asli.replace(".mp4", ".*.json3"))
     file_json3 = json3_files[0] if json3_files else None
 
-    if getattr(cfg, "use_dlp_subs", False) and file_json3 and os.path.exists(file_json3):
+    if (
+        getattr(cfg, "use_dlp_subs", False)
+        and file_json3
+        and os.path.exists(file_json3)
+    ):
         transkrip_lengkap, data_segmen = engine.parse_youtube_json3_subs(
-            file_json3,
-            max_words_per_subtitle=cfg.max_kata_per_subtitle
+            file_json3, max_words_per_subtitle=cfg.max_kata_per_subtitle
         )
         if transkrip_lengkap and data_segmen:
-            print(f"✅ Berhasil memparsing subtitle dari YouTube ({os.path.basename(file_json3)}), melewati proses Whisper.")
+            print(
+                f"✅ Berhasil memparsing subtitle dari YouTube ({os.path.basename(file_json3)}), melewati proses Whisper."
+            )
 
     if not transkrip_lengkap or not data_segmen:
         transkrip_lengkap, data_segmen = engine.transcribe_video(
@@ -69,15 +77,23 @@ def run_pipeline(cfg) -> list[dict]:
     # Step 4 — Metadata normalisation
     hasil_json = metadata.normalize_and_validate(hasil_json)
     metadata.print_preview(hasil_json)
-    
+
     metadata_path = os.path.join(cfg.outputs_dir, "metadata_preview.json")
     metadata.save_metadata_preview(hasil_json, path=metadata_path)
 
-    # Step 5 — Diarization (split-screen)
+    # Step 5 — Diarization (split-screen / camera-switch)
     diarization_data = None
-    if getattr(cfg, "use_split_screen", False) and cfg.pilihan_rasio == "9:16":
+    if (
+        getattr(cfg, "use_split_screen", False)
+        or getattr(cfg, "use_camera_switch", False)
+    ) and cfg.pilihan_rasio == "9:16":
         try:
-            print("\n🎙️ [Split-Screen] Menjalankan speaker diarization...")
+            mode_label = (
+                "Split-Screen"
+                if getattr(cfg, "use_split_screen", False)
+                else "Camera-Switch"
+            )
+            print(f"\n🎙️ [{mode_label}] Menjalankan speaker diarization...")
             audio_path = cfg.file_video_asli.replace(".mp4", "_audio.wav")
             diarization_mod.extract_audio(cfg.file_video_asli, audio_path)
             diarization_data = diarization_mod.run_diarization(
@@ -99,7 +115,9 @@ def run_pipeline(cfg) -> list[dict]:
     file_glitch_ts = None
     if cfg.use_hook_glitch:
         print("⚙️ Menyiapkan Video Glitch Transisi...")
-        file_glitch_ts = studio.siapkan_glitch_video(cfg.pilihan_rasio, cfg, video_encoder)
+        file_glitch_ts = studio.siapkan_glitch_video(
+            cfg.pilihan_rasio, cfg, video_encoder
+        )
 
     # Step 6 — Render each clip
     render_manifest: list[dict] = []
@@ -123,5 +141,7 @@ def run_pipeline(cfg) -> list[dict]:
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(render_manifest, f, ensure_ascii=False, indent=2)
 
-    print(f"\n💾 Render manifest disimpan ke {manifest_path} ({len(render_manifest)} item)")
+    print(
+        f"\n💾 Render manifest disimpan ke {manifest_path} ({len(render_manifest)} item)"
+    )
     return render_manifest
