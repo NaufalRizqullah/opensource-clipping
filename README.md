@@ -159,6 +159,37 @@ python main.py --help
 | `--camera-switch` | `False` | Enable camera-switch mode for podcasts — full 9:16 crop switches to the active speaker; blurred pillarbox on simultaneous speech (9:16 only, requires `HF_TOKEN`) |
 | `--switch-hold-duration` | `2.0` | Min seconds to hold on current speaker before switching (camera-switch only) |
 
+## 🎙️ Podcast Mode Comparison
+
+When processing 2-speaker podcast videos, two specialized modes are available that use **Speaker Diarization** (Pyannote) to intelligently manage the layout.
+
+### 1. **`--split-screen`**
+This mode permanently divides the screen into two sections to display both speakers simultaneously.
+*   **Layout:** **Top-Bottom** split.
+*   **How it works:** Places Speaker A in the top half and Speaker B in the bottom half of the 9:16 frame.
+*   **Pros:** Allows viewers to see both speakers' expressions and reactions at the same time, ideal for intense interaction formats.
+
+### 2. **`--camera-switch`**
+This mode mimics professional editing styles where a full-screen crop focuses only on the currently active speaker.
+*   **Layout:** Dynamic **Full 9:16** switching.
+*   **How it works:**
+    *   **Single speaker active** -> Full crop on that speaker's face.
+    *   **Overlap/Both speaking** -> **Blurred Pillarbox** (original video centered with blurred background).
+    *   **Silence** -> Stays on the last active speaker.
+*   **Pros:** Feels more dynamic and cinematic, providing full focus on the subject who is talking.
+
+### **Comparison Table**
+
+| Feature | `--split-screen` | `--camera-switch` |
+| :--- | :--- | :--- |
+| **Visual Layout** | Top-Bottom Split | Full Screen (Switching) |
+| **Face Overlay** | Always 2 faces | 1 face (2 during overlap) |
+| **Video Feel** | Informative & Complete | Dynamic & Cinematic |
+| **Priority** | High (Primary) | Lower |
+
+> [!IMPORTANT]
+> Both features require a **HuggingFace Token** (`HF_TOKEN`) in your `.env` file and acceptance of the Pyannote model agreement on HuggingFace.
+
 ## 📂 Project Structure
 
 ```

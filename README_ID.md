@@ -159,6 +159,37 @@ python main.py --help
 | `--camera-switch` | `False` | Aktifkan mode camera-switch untuk podcast — crop full 9:16 berpindah ke speaker aktif; blurred pillarbox saat kedua speaker bicara bersamaan (hanya 9:16, butuh `HF_TOKEN`) |
 | `--switch-hold-duration` | `2.0` | Durasi minimum (detik) sebelum berpindah speaker (hanya untuk camera-switch) |
 
+## 🎙️ Perbedaan Mode Podcast
+
+Jika Anda memproses video podcast dengan 2 orang pembicara, tersedia dua mode khusus yang menggunakan **Speaker Diarization** (Pyannote) untuk mengatur tampilan secara cerdas.
+
+### 1. **`--split-screen` (Layar Terpisah)**
+Mode ini membagi layar menjadi dua bagian secara permanen untuk menampilkan kedua pembicara sekaligus.
+*   **Tampilan:** Layout **Top-Bottom** (Atas-Bawah).
+*   **Cara Kerja:** Menempatkan Speaker A di bagian atas dan Speaker B di bagian bawah layar 9:16.
+*   **Kelebihan:** Penonton dapat melihat ekspresi dan reaksi kedua orang secara bersamaan, sangat cocok untuk format interaksi intens.
+
+### 2. **`--camera-switch` (Ganti Kamera Otomatis)**
+Mode ini meniru gaya editing profesional di mana layar penuh hanya fokus pada satu orang yang sedang berbicara aktif.
+*   **Tampilan:** **Full 9:16** yang berpindah-pindah.
+*   **Cara Kerja:**
+    *   **Satu pembicara aktif** -> Crop penuh pada wajah pembicara tersebut.
+    *   **Keduanya bicara/overlap** -> **Blurred Pillarbox** (video asli diletakkan di tengah dengan background blur).
+    *   **Hening** -> Tetap pada pembicara terakhir yang aktif.
+*   **Kelebihan:** Video terasa lebih dinamis dan sinematik, memberikan fokus penuh pada subjek yang sedang berbicara.
+
+### **Tabel Perbandingan**
+
+| Fitur | `--split-screen` | `--camera-switch` |
+| :--- | :--- | :--- |
+| **Layout Visual** | Split Atas-Bawah | Layar Penuh (Switching) |
+| **Overlay Wajah** | Selalu 2 orang | 1 orang (2 jika overlap) |
+| **Kesan Video** | Informatif & Lengkap | Dinamis & Sinematik |
+| **Prioritas** | Tinggi (Utama) | Lebih Rendah |
+
+> [!IMPORTANT]
+> Kedua fitur ini memerlukan **HuggingFace Token** (`HF_TOKEN`) di file `.env` dan persetujuan model Pyannote di HuggingFace.
+
 ## 📂 Struktur Proyek
 
 ```
