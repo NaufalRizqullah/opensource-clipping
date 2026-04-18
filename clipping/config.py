@@ -308,6 +308,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Enable developer visualization mode for 9:16 tracking (shows stabilization box and dimmed background)",
     )
+    p.add_argument(
+        "--track-lines",
+        action="store_true",
+        help="Draw crosshair tracking lines extending from the face box to the boundaries",
+    )
 
     # --- Smart Auto-Framing / Tracking ---
     p.add_argument(
@@ -432,6 +437,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         track_snap=args.track_snap,
         box_face_detection=args.box_face_detection,
         dev_mode=args.dev_mode,
+        track_lines=args.track_lines,
     )
 
     return cfg

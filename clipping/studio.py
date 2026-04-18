@@ -964,13 +964,26 @@ def buat_video_hybrid(
                 cv2.line(frame_dev, (cx_scaled + cw_scaled, 0), (cx_scaled + cw_scaled, out_h), (255, 255, 255), 2)
                 
                 # Draw face box if detected
-                if cfg.box_face_detection or True: # Force in dev mode
+                if cfg.box_face_detection or cfg.track_lines or True: # Force in dev mode
                     box = get_box(t)
                     if box:
                         scale_y = out_h / height
                         bx1, by1 = int(box[0] * scale_x), int(box[1] * scale_y)
                         bx2, by2 = int(box[2] * scale_x), int(box[3] * scale_y)
                         cv2.rectangle(frame_dev, (bx1, by1), (bx2, by2), (0, 255, 255), 2)
+                        
+                        if cfg.track_lines or cfg.dev_mode:
+                            # Center points of sides
+                            mid_x = (bx1 + bx2) // 2
+                            mid_y = (by1 + by2) // 2
+                            
+                            # Horizontal lines to 9:16 boundaries
+                            cv2.line(frame_dev, (cx_scaled, mid_y), (bx1, mid_y), (0, 255, 255), 2)
+                            cv2.line(frame_dev, (bx2, mid_y), (cx_scaled + cw_scaled, mid_y), (0, 255, 255), 2)
+                            
+                            # Vertical lines to frame boundaries (top/bottom)
+                            cv2.line(frame_dev, (mid_x, 0), (mid_x, by1), (0, 255, 255), 2)
+                            cv2.line(frame_dev, (mid_x, by2), (mid_x, out_h), (0, 255, 255), 2)
                 
                 frame_terpilih = frame_dev
                 frame_utama_siap = frame_dev # Ensure this is defined for B-roll transitions
@@ -2406,6 +2419,24 @@ def buat_video_camera_switch(
                     scale_y = out_h / height
                     fb1, fb2, fb3, fb4 = int(fb[0]*scale_x), int(fb[1]*scale_y), int(fb[2]*scale_x), int(fb[3]*scale_y)
                     cv2.rectangle(frame_dev, (fb1, fb2), (fb3, fb4), (0, 255, 255), 2)
+                    
+                    if (cfg.track_lines or cfg.dev_mode) and not is_wide:
+                        # Current crop boundaries
+                        if current_speaker is not None:
+                            cx = _get_x(current_speaker, t)
+                            cx_scaled = int(cx * scale_x)
+                            cw_scaled = int(crop_w * scale_x)
+                            
+                            mid_x = (fb1 + fb3) // 2
+                            mid_y = (fb2 + fb4) // 2
+                            
+                            # Horizontal lines
+                            cv2.line(frame_dev, (cx_scaled, mid_y), (fb1, mid_y), (0, 255, 255), 2)
+                            cv2.line(frame_dev, (fb3, mid_y), (cx_scaled + cw_scaled, mid_y), (0, 255, 255), 2)
+                            
+                            # Vertical lines
+                            cv2.line(frame_dev, (mid_x, 0), (mid_x, fb2), (0, 255, 255), 2)
+                            cv2.line(frame_dev, (mid_x, fb4), (mid_x, out_h), (0, 255, 255), 2)
                 
                 out_frame = frame_dev
 

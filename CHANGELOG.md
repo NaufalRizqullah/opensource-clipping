@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.7.9] - 2026-04-18
+
+### Added
+- **Crosshair Tracking Lines** (`--track-lines`): New visualization feature that draws horizontal and vertical yellow lines extending from the face box to the boundaries of the 9:16 crop window. Automatically enabled in `--dev-mode`.
+
+---
+
 ## [v0.7.8] - 2026-04-18
 
 ### Fixed
