@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.7.8] - 2026-04-18
+
+### Fixed
+- **Dev-Mode Stability**: Fixed `UnboundLocalError: cannot access local variable 'frame_utama_siap'` that occurred in `--dev-mode` when B-roll transitions were triggered.
+
+---
+
 ## [v0.7.7] - 2026-04-18
 
 > ⚠️ **Experimental**: The dev-mode stabilizer visualization is currently experimental.

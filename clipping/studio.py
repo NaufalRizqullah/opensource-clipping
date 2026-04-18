@@ -973,6 +973,7 @@ def buat_video_hybrid(
                         cv2.rectangle(frame_dev, (bx1, by1), (bx2, by2), (0, 255, 255), 2)
                 
                 frame_terpilih = frame_dev
+                frame_utama_siap = frame_dev # Ensure this is defined for B-roll transitions
 
             elif rasio == "9:16":
                 cx = get_x(t)
