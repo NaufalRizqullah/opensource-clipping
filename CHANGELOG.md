@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.8.0] - 2026-04-19
+
+### Fixed
+- **Dev-Mode Subtitle Alignment**: Subtitles now dynamically follow the 9:16 tracking window in `--dev-mode`, ensuring they stay centered within the highlighted box rather than the full 16:9 frame.
+
+---
+
 ## [v0.7.9] - 2026-04-18
 
 ### Added

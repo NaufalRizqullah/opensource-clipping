@@ -1061,6 +1061,8 @@ def buat_video_hybrid(
         cap.release()
         for bc in broll_caps:
             bc["cap"].release()
+            
+    return get_x
 
 
 # ==============================================================================
@@ -1077,6 +1079,8 @@ def buat_file_ass(
     cfg,
     typography_plan=None,
     gunakan_advanced=True,
+    get_x_func=None,
+    source_dim=None,
 ):
     if typography_plan is None:
         typography_plan = []
@@ -1295,6 +1299,19 @@ def buat_file_ass(
 
             for line in lines:
                 start_x = (play_res_x - line["width"]) / 2
+                
+                if get_x_func and cfg.dev_mode and source_dim:
+                    sw, sh = source_dim
+                    # Calculate center of 9:16 window in source pixels
+                    crop_w_src = sh * 9 // 16
+                    # Reference time: midpoint of the current segment/line
+                    t_ref = line["words"][0]["start"] + start_clip
+                    cx = get_x_func(t_ref)
+                    center_x_src = cx + (crop_w_src / 2)
+                    # Target center in PlayResX (1920)
+                    target_center_x = center_x_src * (play_res_x / sw)
+                    start_x = target_center_x - (line["width"] / 2)
+
                 line_y = current_y + line["height"]
 
                 for w_data in line["words"]:
@@ -2351,6 +2368,7 @@ def buat_video_camera_switch(
         cap.set(cv2.CAP_PROP_POS_MSEC, start_clip * 1000)
         frame_count = 0
         last_render_percent = -1
+        tracking_log = [] # Store (t, cx) for each frame
 
         print(f"🎬 {label} - Render camera switch dimulai...", flush=True)
 
@@ -2446,6 +2464,7 @@ def buat_video_camera_switch(
                     not speaker_is_solo.get(spk, False) for spk in active_speakers
                 )
                 if all_multi_scene:
+                    cx = (width - crop_w) // 2
                     out_frame = _make_blurred_pillarbox(frame)
                 else:
                     if current_speaker is None or current_speaker not in active_speakers:
@@ -2476,8 +2495,10 @@ def buat_video_camera_switch(
                     crop_fr = frame[0:crop_h, cx : cx + crop_w]
                     out_frame = cv2.resize(crop_fr, (out_w, out_h))
                 else:
+                    cx = (width - crop_w) // 2 # Center for blurred view
                     out_frame = _make_blurred_pillarbox(frame)
 
+            tracking_log.append((t, cx))
             writer.stdin.write(out_frame.tobytes())
             frame_count += 1
 
@@ -2511,6 +2532,8 @@ def buat_video_camera_switch(
 def proses_klip(
     rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, diarization_data=None
 ):
+    get_x_h = None
+    get_x_main = None
     h_start = float(clip.get("hook_start_time", clip["start_time"]))
     h_end = float(
         clip.get(
@@ -2524,6 +2547,13 @@ def proses_klip(
     judul_en = clip.get("title_inggris")
     out_vid = os.path.join(cfg.outputs_dir, f"highlight_rank_{rank}_ready.mp4")
     out_thm = os.path.join(cfg.outputs_dir, f"thumbnail_rank_{rank}.jpg")
+
+    # Ambil resolusi video asli untuk perhitungan posisi subtitle di dev-mode
+    cap_asli = cv2.VideoCapture(cfg.file_video_asli)
+    sw = int(cap_asli.get(cv2.CAP_PROP_FRAME_WIDTH))
+    sh = int(cap_asli.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    cap_asli.release()
+    source_dim = (sw, sh)
 
     manifest_item = {
         "rank": rank,
@@ -2608,6 +2638,7 @@ def proses_klip(
     try:
         # HOOK
         if aktif_hook:
+            get_x_h = None
             if use_split:
                 print("   📸 [Hook] Split-screen render...")
                 buat_video_split_screen(
@@ -2621,7 +2652,7 @@ def proses_klip(
                 )
             elif use_camera_switch:
                 print("   📸 [Hook] Camera switch render...")
-                buat_video_camera_switch(
+                get_x_h = buat_video_camera_switch(
                     cfg.file_video_asli,
                     h_silent,
                     h_start,
@@ -2632,7 +2663,7 @@ def proses_klip(
                 )
             else:
                 print("   📸 [Hook] Hybrid render...")
-                buat_video_hybrid(
+                get_x_h = buat_video_hybrid(
                     cfg.file_video_asli,
                     h_silent,
                     h_start,
@@ -2653,6 +2684,8 @@ def proses_klip(
                     cfg,
                     typography_plan=typography_plan,
                     gunakan_advanced=aktif_advanced_hook,
+                    get_x_func=get_x_h,
+                    source_dim=source_dim,
                 )
 
                 print("   🎬 [Hook] FFmpeg burn subtitle + audio...")
@@ -2707,7 +2740,7 @@ def proses_klip(
             )
         elif use_camera_switch:
             print("   📸 [Main] Camera switch render (Visual)...")
-            buat_video_camera_switch(
+            get_x_main = buat_video_camera_switch(
                 cfg.file_video_asli,
                 m_silent,
                 m_start,
@@ -2718,7 +2751,7 @@ def proses_klip(
             )
         else:
             print("   📸 [Main] Hybrid render (Visual)...")
-            buat_video_hybrid(
+            get_x_main = buat_video_hybrid(
                 cfg.file_video_asli,
                 m_silent,
                 m_start,
@@ -2739,6 +2772,8 @@ def proses_klip(
                 cfg,
                 typography_plan=typography_plan,
                 gunakan_advanced=True,
+                get_x_func=get_x_main,
+                source_dim=source_dim,
             )
 
         print(f"   🎬 [Main] FFmpeg {'skip subtitle' if cfg.no_subs else 'burn subtitle'} + audio ducking...")
