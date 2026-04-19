@@ -2014,19 +2014,15 @@ def buat_video_split_screen(
                 # Compose the final frame
                 divider = np.full((DIVIDER_HEIGHT, panel_w, 3), 80, dtype=np.uint8)
                 final_frame = np.vstack([panel_top, divider, panel_bottom])
+                # Log neutral center for split mode subtitles
+                tracking_log.append((t, width / 2))
 
 
             # Ensure exact output dimensions
             if final_frame.shape[0] != out_h or final_frame.shape[1] != out_w:
                 final_frame = cv2.resize(final_frame, (out_w, out_h))
 
-            # Store tracking for subtitles (use center in split mode)
-            if current_layout == "full":
-                tracking_log.append((t, cx_full))
-            else:
-                # In split mode, the 1080px frame is centered at width/2 of the original usually
-                # or we can just say subtitles are centered in the 9:16 window.
-                tracking_log.append((t, default_x_full))
+            # Subtitle tracking is already handled inside the layout branches
 
             writer.stdin.write(final_frame.tobytes())
             frame_count += 1
