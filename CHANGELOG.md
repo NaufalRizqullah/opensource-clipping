@@ -7,6 +7,16 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.8.4] - 2026-04-19
+
+### Added
+- **Experimental Stability Filter for `--dynamic-split`**: Added three-layer protection against "ghost" split-screen triggers:
+  - Higher YOLO confidence threshold (0.55).
+  - IoU box merger to prevent duplicate face detections for the same person.
+  - Majority-vote layout smoothing (12-frame window) to prevent flickering during dynamic transitions.
+
+---
+
 ## [v0.8.3] - 2026-04-19
 
 ### Fixed

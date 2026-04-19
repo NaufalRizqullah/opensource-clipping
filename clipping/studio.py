@@ -1613,10 +1613,34 @@ def buat_video_split_screen(
         face_boxes = []
 
         if cfg.face_detector == "yolo":
-            yolo_results = yolo_model(frame, verbose=False)
+            # Higher confidence to filter background noise (microphones, reflections)
+            yolo_results = yolo_model(frame, verbose=False, conf=0.55)
             if yolo_results and len(yolo_results[0].boxes) > 0:
-                boxes = yolo_results[0].boxes.xyxy.cpu().numpy()
-                for box in boxes:
+                raw_boxes = yolo_results[0].boxes.xyxy.cpu().numpy()
+                
+                # IoU filter to merge overlapping boxes for one person
+                def compute_iou(b1, b2):
+                    xi1, yi1 = max(b1[0], b2[0]), max(b1[1], b2[1])
+                    xi2, yi2 = min(b1[2], b2[2]), min(b1[3], b2[3])
+                    inter = max(0, xi2 - xi1) * max(0, yi2 - yi1)
+                    area1 = (b1[2]-b1[0])*(b1[3]-b1[1])
+                    area2 = (b2[2]-b2[0])*(b2[3]-b2[1])
+                    return inter / (area1 + area2 - inter + 1e-6)
+
+                final_boxes = []
+                for rb in raw_boxes:
+                    merged = False
+                    for i, fb in enumerate(final_boxes):
+                        if compute_iou(rb, fb) > 0.4:
+                            # Keep the larger box
+                            if (rb[2]-rb[0])*(rb[3]-rb[1]) > (fb[2]-fb[0])*(fb[3]-fb[1]):
+                                final_boxes[i] = rb
+                            merged = True
+                            break
+                    if not merged:
+                        final_boxes.append(rb)
+
+                for box in final_boxes:
                     x1, y1, x2, y2 = box
                     cx = (x1 + x2) / 2
                     cy = (y1 + y2) / 2
@@ -1873,6 +1897,10 @@ def buat_video_split_screen(
     current_layout = "split"
     current_speaker = None
     last_switch_time = 0.0
+    
+    # Stability window for layout decisions (Majority Vote of face counts)
+    LAYOUT_SMOOTH_WINDOW = 12 # ~0.5s at 24fps
+    face_count_history = []
     MIN_HOLD = float(getattr(cfg, "switch_hold_duration", 2.0))
     is_dynamic = getattr(cfg, "use_dynamic_split", False)
 
@@ -1913,10 +1941,20 @@ def buat_video_split_screen(
             if is_dynamic:
                 if cfg.split_trigger == "face":
                     now_boxes = _get_all_boxes(t)
-                    if len(now_boxes) == 1:
+                    face_count_history.append(len(now_boxes))
+                    if len(face_count_history) > LAYOUT_SMOOTH_WINDOW:
+                        face_count_history.pop(0)
+                    
+                    # Majority vote face count
+                    if face_count_history:
+                        stable_count = max(set(face_count_history), key=face_count_history.count)
+                    else:
+                        stable_count = len(now_boxes)
+
+                    if stable_count == 1:
                         target_layout = "full"
                         target_speaker = ranked[0]
-                    elif len(now_boxes) >= 2:
+                    elif stable_count >= 2:
                         target_layout = "split"
                         target_speaker = ranked[0]
                     else:
