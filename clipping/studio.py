@@ -2105,7 +2105,6 @@ def buat_video_split_screen(
                 # --- DIRECTOR'S CONSOLE (DEV MODE) ---
                 # UI Constants
                 HUD_COLOR = (0, 255, 0)
-                HUD_BG = (0, 0, 0)
                 HUD_X, HUD_Y = 30, 50
                 
                 # Base frame: 1920x1080 landscape
@@ -2115,42 +2114,54 @@ def buat_video_split_screen(
                 scale_x = 1920 / width
                 scale_y = 1080 / height
                 
-                # Draw all detected faces
+                # PREcalculate coordinates for BOTH layouts
+                # 1. solo (9:16)
+                spk_solo = current_speaker or (speaker_top if speaker_top in ranked else ranked[0])
+                cx_solo = _get_cx(spk_solo, t)
+                cx_s_scaled = int(cx_solo * scale_x)
+                cw_s_scaled = int(crop_w_full * scale_x)
+                x1s = max(0, cx_s_scaled - cw_s_scaled // 2)
+                x2s = min(1919, x1s + cw_s_scaled)
+                
+                # 2. split boxes (horizontal)
+                cx_split = width / 2
+                cx_p_scaled = int(cx_split * scale_x)
+                cw_p_scaled = int(crop_w * scale_x)
+                x1p = max(0, cx_p_scaled - cw_p_scaled // 2)
+                x2p = min(1919, x1p + cw_p_scaled)
+                mid_h = (1080 - DIVIDER_HEIGHT) // 2
+                
+                # --- APPLY CLEAR WINDOW (Active) ---
+                if current_layout == "full":
+                    # Clear solo window
+                    frame_dev[0:1080, x1s:x2s] = frame_res[0:1080, x1s:x2s]
+                else:
+                    # Clear split windows
+                    frame_dev[0:mid_h, x1p:x2p] = frame_res[0:mid_h, x1p:x2p]
+                    frame_dev[mid_h + DIVIDER_HEIGHT:1080, x1p:x2p] = frame_res[mid_h + DIVIDER_HEIGHT:1080, x1p:x2p]
+
+                # --- DRAW BOXES (Both) ---
+                # Inactive boxes are drawn with lower opacity or thinner lines
+                color_solo = (255, 255, 255) if current_layout == "full" else (100, 100, 100)
+                color_split = (255, 255, 255) if current_layout == "split" else (100, 100, 100)
+                thick_solo = 3 if current_layout == "full" else 1
+                thick_split = 2 if current_layout == "split" else 1
+
+                cv2.rectangle(frame_dev, (x1s, 0), (x2s, 1079), color_solo, thick_solo)
+                cv2.rectangle(frame_dev, (x1p, 0), (x2p, mid_h), color_split, thick_split)
+                cv2.rectangle(frame_dev, (x1p, mid_h + DIVIDER_HEIGHT), (x2p, 1079), color_split, thick_split)
+
+                # Labels
+                if current_layout == "full":
+                    cv2.putText(frame_dev, f"ACTIVE SOLO: {spk_solo}", (x1s + 10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+                else:
+                    cv2.putText(frame_dev, "ACTIVE SPLIT", (x1p + 10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+
+                # Draw all detected faces (on top of clearing)
                 all_boxes = _get_all_boxes(t)
                 for b in all_boxes:
                     bx1, by1, bx2, by2 = int(b[0]*scale_x), int(b[1]*scale_y), int(b[2]*scale_x), int(b[3]*scale_y)
                     cv2.rectangle(frame_dev, (bx1, by1), (bx2, by2), (0, 255, 255), 2)
-                
-                # Draw crop boundaries based on current layout
-                if current_layout == "full":
-                    # Solo 9:16 box in the center of 16:9 frame
-                    # Calculate center area of 16:9 frame
-                    spk = current_speaker or ranked[0]
-                    cx_val = _get_cx(spk, t)
-                    cx_scaled = int(cx_val * scale_x)
-                    cw_scaled = int(crop_w_full * scale_x)
-                    ch_scaled = int(crop_h_full * scale_y) # should be 1080
-                    
-                    x1 = cx_scaled - cw_scaled // 2
-                    x2 = cx_scaled + cw_scaled // 2
-                    cv2.rectangle(frame_dev, (x1, 0), (x2, 1079), (255, 255, 255), 3)
-                    cv2.putText(frame_dev, f"SOLO: {spk}", (x1 + 10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
-                else:
-                    # Split logic: two boxes
-                    # Panel centers are generally fixed at width/2 in split mode for this implementation
-                    cx_val = width / 2
-                    cx_scaled = int(cx_val * scale_x)
-                    cw_scaled = int(crop_w * scale_x)
-                    ch_scaled = int(crop_h * scale_y)
-                    
-                    x1 = cx_scaled - cw_scaled // 2
-                    x2 = cx_scaled + cw_scaled // 2
-                    
-                    # Split divider in the middle
-                    mid_h = (1080 - DIVIDER_HEIGHT) // 2
-                    cv2.rectangle(frame_dev, (x1, 0), (x2, mid_h), (255, 255, 255), 2)
-                    cv2.rectangle(frame_dev, (x1, mid_h + DIVIDER_HEIGHT), (x2, 1079), (255, 255, 255), 2)
-                    cv2.putText(frame_dev, "SPLIT VIEW", (x1 + 10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
 
                 # HUD Info
                 now_count = face_count_history[-1] if face_count_history else 0

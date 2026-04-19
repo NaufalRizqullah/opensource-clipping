@@ -7,6 +7,14 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.9.1] - 2026-04-20
+
+### Improved
+- **Director's Console (Clear Window)**: Added a "spotlight" effect in Dev Mode where the active crop area is shown at 100% brightness while the background remains dimmed.
+- **Dual Layout HUD**: Both Solo and Split crop boundaries are now visible simultaneously in Dev Mode, with high-contrast highlighting for the active layout.
+
+---
+
 ## [v0.9.0] - 2026-04-20
 
 ### Added
