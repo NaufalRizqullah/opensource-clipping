@@ -367,7 +367,19 @@ def _build_parser() -> argparse.ArgumentParser:
         "--track-smooth-window",
         type=int,
         default=12,
-        help="[Experimental] Majority-vote window for layout switching stability (default: 12 frames)",
+        help="[Experimental] Majority-vote window for layout stability (default: 12 frames)",
+    )
+    p.add_argument(
+        "--scene-cut-threshold",
+        type=int,
+        default=18,
+        help="[Experimental] Visibility change threshold to detect camera cuts and reset layout history (default: 18)",
+    )
+    p.add_argument(
+        "--track-iou-threshold",
+        type=float,
+        default=0.2,
+        help="[Experimental] Box overlap threshold to merge duplicate detections (default: 0.2)",
     )
 
     return p
@@ -463,6 +475,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         track_snap=args.track_snap,
         track_conf=args.track_conf,
         track_smooth_window=args.track_smooth_window,
+        scene_cut_threshold=args.scene_cut_threshold,
+        track_iou_threshold=args.track_iou_threshold,
         box_face_detection=args.box_face_detection,
         dev_mode=args.dev_mode,
         track_lines=args.track_lines,

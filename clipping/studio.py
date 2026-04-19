@@ -1632,7 +1632,8 @@ def buat_video_split_screen(
                 for rb in raw_boxes:
                     merged = False
                     for i, fb in enumerate(final_boxes):
-                        if compute_iou(rb, fb) > 0.4:
+                        iou_thresh = getattr(cfg, "track_iou_threshold", 0.2)
+                        if compute_iou(rb, fb) > iou_thresh: # More aggressive merging
                             # Keep the larger box
                             if (rb[2]-rb[0])*(rb[3]-rb[1]) > (fb[2]-fb[0])*(fb[3]-fb[1]):
                                 final_boxes[i] = rb
@@ -1907,7 +1908,7 @@ def buat_video_split_screen(
     
     # Scene cut detection state
     prev_small_gray = None
-    SCENE_CUT_THRESHOLD = 30 # Adjust if needed
+    SCENE_CUT_THRESHOLD = getattr(cfg, "scene_cut_threshold", 18) # Lower = more sensitive to camera cuts
 
     try:
         cap.set(cv2.CAP_PROP_POS_MSEC, start_clip * 1000)

@@ -177,8 +177,10 @@ python main.py --help
 | `--track-smooth` | `None` | Camera catch-up speed factor (default: `0.30`) |
 | `--track-jitter` | `None` | Pixel threshold to ignore micro-shakes (default: `5`) |
 | `--track-snap` | `None` | Jump threshold to trigger hard cut between speakers (default: `0.25`) |
-| `--track-conf` | `0.55` | **[Experimental]** Face detection confidence threshold (raise to prevent ghosts, lower if faces are missed) |
-| `--track-smooth-window` | `12` | **[Experimental]** Frame window for layout stability (12 frames ≈ 0.5s, 24 frames ≈ 1s at 24fps) |
+| `--track-conf` | `0.55` | **[Experimental]** Face detection confidence threshold (raise to prevent ghosts) |
+| `--track-smooth-window` | `12` | **[Experimental]** Frame window for layout stability (12 frames ≈ 0.5s) |
+| `--scene-cut-threshold` | `18` | **[Experimental]** Sensitivity for camera-cut detection (instantly resets history) |
+| `--track-iou-threshold` | `0.2` | **[Experimental]** Overlap threshold for merging duplicate detections |
 
 ## 🎙️ Podcast Modes
 

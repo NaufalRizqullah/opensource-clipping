@@ -7,6 +7,14 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.8.7] - 2026-04-19
+
+### Improved
+- **Enhanced Scene-Cut Sensitivity**: Lowered the visual difference threshold from 30 to 18 to better detect camera cuts in videos with dark themes/backgrounds.
+- **Aggressive Face Merging**: Increased IoU overlap sensitivity to 0.2 to prevent near-face ghosting in close-up shots.
+
+---
+
 ## [v0.8.6] - 2026-04-19
 
 ### Fixed

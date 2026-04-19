@@ -175,6 +175,10 @@ python main.py --help
 | `--track-smooth` | `None` | Faktor kecepatan kamera mengejar wajah (default: `0.30`) |
 | `--track-jitter` | `None` | Ambang batas pixel untuk anti-getar (default: `5`) |
 | `--track-snap` | `None` | Ambang batas lompatan wajah untuk hard cut (default: `0.25`) |
+| `--track-conf` | `0.55` | **[Eksperimental]** Ambang batas keyakinan deteksi wajah (Naikkan untuk cegah hantu) |
+| `--track-smooth-window` | `12` | **[Eksperimental]** Jumlah frame untuk stabilitas layout (12 frame ≈ 0.5 dtk) |
+| `--scene-cut-threshold` | `18` | **[Eksperimental]** Sensitivitas deteksi cut kamera (Reset history instan) |
+| `--track-iou-threshold` | `0.2` | **[Eksperimental]** Ambang batas penggabungan kotak wajah yang nempel |
 
 ## 🎙️ Perbedaan Mode Podcast
 
@@ -337,8 +341,10 @@ Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 - `--track-snap` : Ambang batas lompatan wajah untuk memicu hard cut antar pembicara (default: `0.25`).
 - `--track-conf` : Ambang batas keyakinan (*confidence*) deteksi wajah (default: `0.55`). Naikkan jika banyak "deteksi hantu", turunkan jika wajah sering hilang.
 - `--track-smooth-window` : Jumlah frame untuk stabilisasi layout (default: `12`). (12 frame ≈ 0.5 dtk, 24 frame ≈ 1 dtk pada 24fps). Makin besar makin stabil.
-- `--track-lines` : Tampilkan garis crosshair kuning yang menghubungkan kotak wajah dengan batas window 9:16. Membantu melihat posisi wajah relatif terhadap area potong secara dinamis.
-- `--dev-mode` : **[Eksperimental]** Aktifkan mode visualisasi "Director" untuk rasio 9:16. Menampilkan context 16:9 penuh dengan background yang digelapkan, garis batas window, dan label tracking. Sangat berguna untuk kalibrasi kecepatan dan responsivitas AI tracking.
+- `--scene-cut-threshold` : Sensitivitas deteksi perpindahan kamera (default: `18`). Mereset history layout secara instan saat kamera pindah. **[Range: 15-20 (Gelap/Studio), 30-45 (Terang)]**
+- `--track-iou-threshold` : Ambang batas penggabungan kotak wajah (default: `0.2`). Semakin rendah semakin agresif dalam menggabungkan kotak deteksi yang nempel. **[Range: 0.1-0.5]**
+- `--track-lines` : Tampilkan garis crosshair kuning untuk kalibrasi visual window 9:16.
+- `--dev-mode` : **[Eksperimental]** Aktifkan mode visualisasi "Director" untuk rasio 9:16. Sangat berguna untuk kalibrasi responsivitas AI tracking.
 
 > 💡 **Skenario rendering Camera Switch:**
 > - **Satu speaker aktif** → crop full 9:16 mengikuti wajah speaker tersebut
