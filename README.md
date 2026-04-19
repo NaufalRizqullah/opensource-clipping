@@ -231,7 +231,64 @@ python main.py --url "VIDEO_URL" --camera-switch
 ```
 
 > [!IMPORTANT]
-> Both features require a **HuggingFace Token** (`HF_TOKEN`) in your `.env` file and acceptance of the Pyannote model agreement on HuggingFace.
+> Audio-based features (diarization) require a **HuggingFace Token** (`HF_TOKEN`) in your `.env` file and acceptance of the Pyannote model agreement on HuggingFace.
+
+## 🐍 Recommended Configurations (Notebook/Colab)
+
+These are verified configurations for optimal results in different scenarios.
+
+### 1. Standard Mode (Standard Clipping)
+Best for general videos where you want the best accuracy and focus.
+```python
+# Constants for Standard Clipping
+URL_YOUTUBE = "https://www.youtube.com/watch?v=UXhdIF8kvCI"
+JUMLAH_CLIP = 7
+RASIO = "9:16"
+FONT_STYLE = "DEFAULT"
+GEMINI_MODEL = "gemini-2.0-flash"
+
+!python main.py \
+  --url "{URL_YOUTUBE}" \
+  --clips {JUMLAH_CLIP} \
+  --ratio "{RASIO}" \
+  --font-style "{FONT_STYLE}" \
+  --hook-duration 3 \
+  --words-per-sub 5 \
+  --face-detector yolo \
+  --gemini-model "{GEMINI_MODEL}" \
+  --no-bgm \
+  --no-subs \
+  --no-broll \
+  --use-dlp-subs
+```
+
+### 2. Split-Screen Mode (Podcasts)
+Optimized for podcasts with 2+ speakers using stable YOLO detection.
+```python
+# Constants for Split-Screen
+URL_YOUTUBE = "https://www.youtube.com/watch?v=UXhdIF8kvCI"
+JUMLAH_CLIP = 3
+RASIO = "9:16"
+FONT_STYLE = "DEFAULT"
+GEMINI_MODEL = "gemini-2.0-flash"
+
+!python main.py \
+  --url "{URL_YOUTUBE}" \
+  --clips {JUMLAH_CLIP} \
+  --ratio "{RASIO}" \
+  --font-style "{FONT_STYLE}" \
+  --hook-duration 3 \
+  --words-per-sub 5 \
+  --gemini-model "{GEMINI_MODEL}" \
+  --no-bgm \
+  --no-subs \
+  --no-broll \
+  --split-screen \
+  --dynamic-split \
+  --split-trigger face \
+  --face-detector yolo \
+  --use-dlp-subs
+```
 
 ## 📂 Project Structure
 

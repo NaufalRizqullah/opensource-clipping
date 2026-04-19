@@ -347,6 +347,63 @@ Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 **🌐 Asset Eksternal**
 - Semua asset pendukung (Model AI, Glitch video, Font) akan diunduh **otomatis** saat pertama kali dijalankan
 
+## 🐍 Rekomendasi Konfigurasi (Notebook/Colab)
+
+Berikut adalah konfigurasi yang telah teruji untuk hasil optimal di berbagai skenario.
+
+### 1. Mode Standar (Standard Clipping)
+Cocok untuk video umum di mana Anda menginginkan akurasi dan fokus terbaik.
+```python
+# Konstanta untuk Clipping Standar
+URL_YOUTUBE = "https://www.youtube.com/watch?v=UXhdIF8kvCI"
+JUMLAH_CLIP = 7
+RASIO = "9:16"
+FONT_STYLE = "DEFAULT"
+GEMINI_MODEL = "gemini-2.0-flash"
+
+!python main.py \
+  --url "{URL_YOUTUBE}" \
+  --clips {JUMLAH_CLIP} \
+  --ratio "{RASIO}" \
+  --font-style "{FONT_STYLE}" \
+  --hook-duration 3 \
+  --words-per-sub 5 \
+  --face-detector yolo \
+  --gemini-model "{GEMINI_MODEL}" \
+  --no-bgm \
+  --no-subs \
+  --no-broll \
+  --use-dlp-subs
+```
+
+### 2. Mode Split-Screen (Podcast)
+Dioptimalkan untuk podcast dengan 2+ speaker menggunakan deteksi YOLO yang stabil.
+```python
+# Konstanta untuk Split-Screen
+URL_YOUTUBE = "https://www.youtube.com/watch?v=UXhdIF8kvCI"
+JUMLAH_CLIP = 3
+RASIO = "9:16"
+FONT_STYLE = "DEFAULT"
+GEMINI_MODEL = "gemini-2.0-flash"
+
+!python main.py \
+  --url "{URL_YOUTUBE}" \
+  --clips {JUMLAH_CLIP} \
+  --ratio "{RASIO}" \
+  --font-style "{FONT_STYLE}" \
+  --hook-duration 3 \
+  --words-per-sub 5 \
+  --gemini-model "{GEMINI_MODEL}" \
+  --no-bgm \
+  --no-subs \
+  --no-broll \
+  --split-screen \
+  --dynamic-split \
+  --split-trigger face \
+  --face-detector yolo \
+  --use-dlp-subs
+```
+
 ## 📺 Upload Otomatis ke YouTube
 
 Proyek ini sekarang menyertakan uploader YouTube mandiri (standalone) dengan dukungan penjadwalan (scheduling) otomatis!
