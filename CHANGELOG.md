@@ -7,6 +7,16 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.8.3] - 2026-04-19
+
+### Fixed
+- **Off-Center Solo Crops**: Fixed the bug where speakers were off-center in full 9:16 solo mode within split-screen.
+- **Aligned Tracking Parameters**: Split-screen tracking now uses identical default parameters (Deadzone, Smoothing, Step) as the standard hybrid mode for a consistent "feel".
+- **Coordinate Overhaul**: Implemented absolute center-X tracking (`cx`) to support dynamic layout-independent centering.
+- **Stability Tuning**: Improved logic to work better with `--face-detector yolo` for profile-heavy podcast scenarios.
+
+---
+
 ## [v0.8.2] - 2026-04-19
 
 ### Added

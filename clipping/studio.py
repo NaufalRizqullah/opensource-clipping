@@ -1498,11 +1498,11 @@ def buat_video_split_screen(
     """
     from .diarization import get_active_speaker, get_active_speakers
 
-    STEP_DETEKSI = 0.5
-    DEADZONE_RATIO = 0.25
-    SMOOTH_FACTOR = 0.15
-    JITTER_THRESHOLD = 5
-    SNAP_THRESHOLD = 0.25
+    STEP_DETEKSI     = cfg.track_step if cfg.track_step is not None else 0.25
+    DEADZONE_RATIO   = cfg.track_deadzone if cfg.track_deadzone is not None else 0.15
+    SMOOTH_FACTOR    = cfg.track_smooth if cfg.track_smooth is not None else 0.30
+    JITTER_THRESHOLD = cfg.track_jitter if cfg.track_jitter is not None else 5
+    SNAP_THRESHOLD   = cfg.track_snap if cfg.track_snap is not None else 0.25
     DIVIDER_HEIGHT = 4  # px, divider between panels
     INACTIVE_ALPHA = 0.15  # darkening for inactive speaker panel
     ACTIVE_BORDER = 3  # px, highlight border for active speaker
@@ -1738,7 +1738,7 @@ def buat_video_split_screen(
         if nf == 1 and na == 1:
             spk = act_list[0]
             if spk in raw_data:
-                raw_data[spk].append({"time": fd["time"], "x": _clamp_x(fc_list[0][0])})
+                raw_data[spk].append({"time": fd["time"], "cx": fc_list[0][0]})
 
         elif nf >= 2 and na >= 2:
             # Greedy canonical assignment: sort active speakers by canonical X,
@@ -1756,7 +1756,7 @@ def buat_video_split_screen(
                     ),
                 )
                 remaining.remove(best)
-                raw_data[spk].append({"time": fd["time"], "x": _clamp_x(best[0])})
+                raw_data[spk].append({"time": fd["time"], "cx": best[0]})
 
         elif nf >= 2 and na == 1:
             spk = act_list[0]
@@ -1780,53 +1780,53 @@ def buat_video_split_screen(
                 best = min(pool, key=lambda fc: abs(fc[0] - speaker_canonical_cx[spk]))
             else:
                 best = pool[len(pool) // 2]
-            raw_data[spk].append({"time": fd["time"], "x": _clamp_x(best[0])})
+            raw_data[spk].append({"time": fd["time"], "cx": best[0]})
 
-    # ---- FASE 2: SMOOTH CAMERA PER SPEAKER ----
+    # ---- FASE 2: SMOOTH CAMERA PER SPEAKER (Centering CX) ----
     def _smooth_positions(raw_data):
         smooth = []
         if not raw_data:
             return smooth
-        cam_x = raw_data[0]["x"]
-        deadzone_px = crop_w * DEADZONE_RATIO
+        cam_cx = raw_data[0]["cx"]
+        # Use crop_w_full (the 9:16 solo width) for deadzone to match standard behavior
+        deadzone_px = crop_w_full * DEADZONE_RATIO
         snap_px = width * SNAP_THRESHOLD
 
         for d in raw_data:
-            face_x = d["x"]
-            if abs(face_x - cam_x) > snap_px:
-                cam_x = face_x
+            face_cx = d["cx"]
+            if abs(face_cx - cam_cx) > snap_px:
+                cam_cx = face_cx
             else:
-                if face_x > cam_x + deadzone_px:
-                    cam_x += (face_x - (cam_x + deadzone_px)) * SMOOTH_FACTOR
-                elif face_x < cam_x - deadzone_px:
-                    cam_x += (face_x - (cam_x - deadzone_px)) * SMOOTH_FACTOR
+                if face_cx > cam_cx + deadzone_px:
+                    cam_cx += (face_cx - (cam_cx + deadzone_px)) * SMOOTH_FACTOR
+                elif face_cx < cam_cx - deadzone_px:
+                    cam_cx += (face_cx - (cam_cx - deadzone_px)) * SMOOTH_FACTOR
 
-            final_x = int(max(0, min(cam_x, width - crop_w)))
-            if smooth and abs(final_x - smooth[-1]["x"]) <= JITTER_THRESHOLD:
-                final_x = smooth[-1]["x"]
-            smooth.append({"time": d["time"], "x": final_x})
+            final_cx = cam_cx
+            # No jitter clamping here, we'll do it during render-time clamping
+            smooth.append({"time": d["time"], "cx": final_cx})
         return smooth
 
     smooth: dict[str, list] = {
         spk: _smooth_positions(raw_data[spk]) for spk in all_speakers_in_clip
     }
 
-    def _get_x(speaker: str, t: float) -> int:
+    def _get_cx(speaker: str, t: float) -> float:
         sd = smooth.get(speaker, [])
         if not sd:
-            return default_x
+            return width / 2
         if t <= sd[0]["time"]:
-            return sd[0]["x"]
+            return sd[0]["cx"]
         if t >= sd[-1]["time"]:
-            return sd[-1]["x"]
+            return sd[-1]["cx"]
         for i in range(len(sd) - 1):
             if sd[i]["time"] <= t <= sd[i + 1]["time"]:
                 t1, t2 = sd[i]["time"], sd[i + 1]["time"]
-                x1, x2 = sd[i]["x"], sd[i + 1]["x"]
+                cx1, cx2 = sd[i]["cx"], sd[i + 1]["cx"]
                 if t1 == t2:
-                    return x1
-                return int(x1 + (x2 - x1) * (t - t1) / (t2 - t1))
-        return default_x
+                    return cx1
+                return cx1 + (cx2 - cx1) * (t - t1) / (t2 - t1)
+        return width / 2
 
     def _get_all_boxes(t):
         if not all_frame_data:
@@ -1951,12 +1951,14 @@ def buat_video_split_screen(
             if current_layout == "full":
                 # Solo mode: Render full 9:16 crop
                 spk = current_speaker or (speaker_top if speaker_top in ranked else ranked[0])
-                cx_panel = _get_x(spk, t)
-                # Convert panel-crop X to full-crop X
-                cx_full = int(max(0, min(cx_panel + (crop_w - crop_w_full) // 2, width - crop_w_full)))
+                smooth_cx = _get_cx(spk, t)
+                # Calculate Top-Left X for full 9:16 crop
+                x_full = int(max(0, min(smooth_cx - crop_w_full / 2, width - crop_w_full)))
                 
-                crop = frame[0:crop_h_full, cx_full : cx_full + crop_w_full]
+                crop = frame[0:crop_h_full, x_full : x_full + crop_w_full]
                 final_frame = cv2.resize(crop, (out_w, out_h))
+                # Log cx for subtitles to follow
+                tracking_log.append((t, smooth_cx))
             else:
                 # Split mode: existing logic
                 if active_speaker and active_speaker not in (speaker_top, speaker_bottom):
@@ -1982,8 +1984,10 @@ def buat_video_split_screen(
                         else:
                             return cv2.resize(frame[0:crop_h, default_x : default_x + crop_w], (panel_w, panel_h)), True
                     else:
-                        cx = _get_x(spk, t)
-                        crop = cv2.resize(frame[0:crop_h, cx : cx + crop_w], (panel_w, panel_h))
+                        smooth_cx = _get_cx(spk, t)
+                        # Calculate Top-Left X for wide panel crop
+                        x_panel = int(max(0, min(smooth_cx - crop_w / 2, width - crop_w)))
+                        crop = cv2.resize(frame[0:crop_h, x_panel : x_panel + crop_w], (panel_w, panel_h))
                         if not in_solo_scene or active_speaker == spk:
                             last_valid_crop[spk] = crop.copy()
                         return crop, False
@@ -2052,11 +2056,16 @@ def buat_video_split_screen(
 
     def get_x_final(t):
         if not tracking_log: return default_x_full
-        # Simple lookup
+        # Interpolate for smoother subtitle tracking
         for i in range(len(tracking_log)-1):
             if tracking_log[i][0] <= t <= tracking_log[i+1][0]:
-                return int(tracking_log[i][1])
-        return int(tracking_log[-1][1]) if tracking_log else default_x_full
+                t1, t2 = tracking_log[i][0], tracking_log[i+1][0]
+                cx1, cx2 = tracking_log[i][1], tracking_log[i+1][1]
+                cx = cx1 + (cx2 - cx1) * (t - t1) / (t2 - t1)
+                return int(max(0, min(cx - crop_w_full / 2, width - crop_w_full)))
+        
+        last_cx = tracking_log[-1][1]
+        return int(max(0, min(last_cx - crop_w_full / 2, width - crop_w_full)))
 
     return get_x_final
 
@@ -2099,11 +2108,11 @@ def buat_video_camera_switch(
     """
     from .diarization import get_active_speakers
 
-    STEP_DETEKSI = 0.5
-    DEADZONE_RATIO = 0.25
-    SMOOTH_FACTOR = 0.15
-    JITTER_THRESHOLD = 5
-    SNAP_THRESHOLD = 0.25
+    STEP_DETEKSI     = cfg.track_step if cfg.track_step is not None else 0.25
+    DEADZONE_RATIO   = cfg.track_deadzone if cfg.track_deadzone is not None else 0.15
+    SMOOTH_FACTOR    = cfg.track_smooth if cfg.track_smooth is not None else 0.30
+    JITTER_THRESHOLD = cfg.track_jitter if cfg.track_jitter is not None else 5
+    SNAP_THRESHOLD   = cfg.track_snap if cfg.track_snap is not None else 0.25
     MIN_HOLD = float(getattr(cfg, "switch_hold_duration", 2.0))
     BLUR_KERNEL = 99
     BLUR_SIGMA = 30
