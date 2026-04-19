@@ -1561,24 +1561,28 @@ def buat_video_split_screen(
     default_x_full = (width - crop_w_full) // 2
 
     # ----------------------------------------------------------------
-    # Determine top/bottom panel speakers by speaking time in this clip
+    # Determine top/bottom panel speakers
     # ----------------------------------------------------------------
-    all_speakers_in_clip = sorted(set(s["speaker"] for s in diarization_data))
-    if not all_speakers_in_clip:
-        all_speakers_in_clip = ["SPEAKER_00", "SPEAKER_01"]
+    if diarization_data:
+        all_speakers_in_clip = sorted(set(s["speaker"] for s in diarization_data))
+        speaking_time: dict[str, float] = {spk: 0.0 for spk in all_speakers_in_clip}
+        for seg in diarization_data:
+            eff_start = max(seg["start"], start_clip)
+            eff_end = min(seg["end"], end_clip)
+            if eff_end > eff_start:
+                speaking_time[seg["speaker"]] += eff_end - eff_start
 
-    speaking_time: dict[str, float] = {spk: 0.0 for spk in all_speakers_in_clip}
-    for seg in diarization_data:
-        eff_start = max(seg["start"], start_clip)
-        eff_end = min(seg["end"], end_clip)
-        if eff_end > eff_start:
-            speaking_time[seg["speaker"]] += eff_end - eff_start
-
-    # Top-2 speakers by speaking time own the permanent panel slots
-    ranked = sorted(all_speakers_in_clip, key=lambda s: speaking_time[s], reverse=True)
-    speaker_top = ranked[0]
-    speaker_bottom = ranked[1] if len(ranked) > 1 else ranked[0]
-    extra_speakers = ranked[2:]  # 3rd, 4th, … speakers
+        ranked = sorted(all_speakers_in_clip, key=lambda s: speaking_time[s], reverse=True)
+        speaker_top = ranked[0]
+        speaker_bottom = ranked[1] if len(ranked) > 1 else ranked[0]
+        extra_speakers = ranked[2:]
+    else:
+        # Visual-only mode: use generic labels
+        all_speakers_in_clip = ["FACE_L", "FACE_R"]
+        speaker_top = "FACE_L"
+        speaker_bottom = "FACE_R"
+        ranked = all_speakers_in_clip
+        extra_speakers = []
 
     # ---- FASE 1: DETECT ALL FACES & ASSIGN TO SPEAKERS (diarization-guided) ----
     # Strategy:
@@ -1641,7 +1645,19 @@ def buat_video_split_screen(
                     )
 
         face_centers.sort(key=lambda fc: fc[0])  # left → right
-        active_now = get_active_speakers(diarization_data, start_clip + current_time)
+        
+        if diarization_data:
+            from .diarization import get_active_speakers
+            active_now = get_active_speakers(diarization_data, start_clip + current_time)
+        else:
+            # Visual-only: base active speakers on face count
+            if len(face_centers) == 1:
+                active_now = ["FACE_L"]
+            elif len(face_centers) >= 2:
+                active_now = ["FACE_L", "FACE_R"]
+            else:
+                active_now = []
+
         n_faces = len(face_centers)
         n_active = len(active_now)
 
@@ -1680,6 +1696,13 @@ def buat_video_split_screen(
         spk: _stats.median(cxs) for spk, cxs in speaker_solo_cxs.items() if cxs
     }
 
+    if not diarization_data:
+        # Visual-only: assume L is left and R is right
+        if "FACE_L" not in speaker_canonical_cx:
+            speaker_canonical_cx["FACE_L"] = width * 0.25
+        if "FACE_R" not in speaker_canonical_cx:
+            speaker_canonical_cx["FACE_R"] = width * 0.75
+
     # Determine which speakers appear mostly in solo-scene frames
     speaker_is_solo: dict[str, bool] = {
         spk: (solo_counts.get(spk, 0) > multi_counts.get(spk, 0))
@@ -1695,6 +1718,13 @@ def buat_video_split_screen(
     # that face from Scene A frames, leaving the correct face for Speaker A/B.
     # ================================================================
     raw_data: dict[str, list] = {spk: [] for spk in all_speakers_in_clip}
+
+    # Helper for visual-only assignment
+    def _get_canonical_x(spk):
+        if diarization_data:
+            return speaker_canonical_cx.get(spk, width / 2)
+        else:
+            return 0 if spk == "FACE_L" else width
 
     for fd in all_frame_data:
         fc_list = fd["face_centers"]  # list of (cx, cy), sorted left → right
@@ -1715,14 +1745,14 @@ def buat_video_split_screen(
             # each picks their nearest remaining face.
             remaining = list(fc_list)
             for spk in sorted(
-                act_list, key=lambda s: speaker_canonical_cx.get(s, width / 2)
+                act_list, key=lambda s: _get_canonical_x(s)
             ):
                 if not remaining or spk not in raw_data:
                     break
                 best = min(
                     remaining,
                     key=lambda fc: abs(
-                        fc[0] - speaker_canonical_cx.get(spk, width / 2)
+                        fc[0] - _get_canonical_x(spk)
                     ),
                 )
                 remaining.remove(best)
@@ -1881,15 +1911,27 @@ def buat_video_split_screen(
 
             # --- Layout decision logic ---
             if is_dynamic:
-                if len(active_speakers) == 1:
-                    target_layout = "full"
-                    target_speaker = active_speakers[0]
-                elif len(active_speakers) >= 2:
-                    target_layout = "split"
-                    target_speaker = active_speakers[0] # Not used in split but for tracking
+                if cfg.split_trigger == "face":
+                    now_boxes = _get_all_boxes(t)
+                    if len(now_boxes) == 1:
+                        target_layout = "full"
+                        target_speaker = ranked[0]
+                    elif len(now_boxes) >= 2:
+                        target_layout = "split"
+                        target_speaker = ranked[0]
+                    else:
+                        target_layout = current_layout
+                        target_speaker = current_speaker
                 else:
-                    target_layout = current_layout # Stay put
-                    target_speaker = current_speaker
+                    if len(active_speakers) == 1:
+                        target_layout = "full"
+                        target_speaker = active_speakers[0]
+                    elif len(active_speakers) >= 2:
+                        target_layout = "split"
+                        target_speaker = active_speakers[0] # Not used in split but for tracking
+                    else:
+                        target_layout = current_layout # Stay put
+                        target_speaker = current_speaker
                 
                 if target_layout != current_layout and (t - last_switch_time) >= MIN_HOLD:
                     current_layout = target_layout
@@ -1897,11 +1939,12 @@ def buat_video_split_screen(
                     last_switch_time = t
                 
                 if current_layout == "full":
-                    # If someone else starts talking, we might want to switch speaker even in full mode
-                    if len(active_speakers) == 1 and active_speakers[0] != current_speaker:
-                        if (t - last_switch_time) >= MIN_HOLD:
-                            current_speaker = active_speakers[0]
-                            last_switch_time = t
+                    # Switch speaker if audio trigger is active, or stay on tracked
+                    if not cfg.split_trigger == "face":
+                        if len(active_speakers) == 1 and active_speakers[0] != current_speaker:
+                            if (t - last_switch_time) >= MIN_HOLD:
+                                current_speaker = active_speakers[0]
+                                last_switch_time = t
             else:
                 current_layout = "split"
 
@@ -2210,6 +2253,13 @@ def buat_video_camera_switch(
     speaker_canonical_cx: dict[str, float] = {
         spk: _stats.median(cxs) for spk, cxs in speaker_solo_cxs.items() if cxs
     }
+
+    if not diarization_data:
+        # Visual-only: assume L is left and R is right
+        if "FACE_L" not in speaker_canonical_cx:
+            speaker_canonical_cx["FACE_L"] = width * 0.25
+        if "FACE_R" not in speaker_canonical_cx:
+            speaker_canonical_cx["FACE_R"] = width * 0.75
 
     # Determine which speakers appear mostly in solo-scene frames
     speaker_is_solo: dict[str, bool] = {
@@ -2633,12 +2683,16 @@ def proses_klip(
     aktif_hook = cfg.use_hook_glitch
 
     # Determine if we should use split-screen mode
-    use_split = (
-        getattr(cfg, "use_split_screen", False)
-        and rasio == "9:16"
-        and diarization_data
-        and len(set(s["speaker"] for s in diarization_data)) >= 2
-    )
+    if getattr(cfg, "use_split_screen", False) and rasio == "9:16":
+        if cfg.split_trigger == "face":
+            use_split = True
+        else:
+            use_split = (
+                diarization_data is not None
+                and len(set(s["speaker"] for s in diarization_data)) >= 2
+            )
+    else:
+        use_split = False
 
     # Camera-switch mode (mutually exclusive: split-screen takes precedence)
     use_camera_switch = (

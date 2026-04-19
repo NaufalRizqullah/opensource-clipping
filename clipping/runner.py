@@ -84,7 +84,7 @@ def run_pipeline(cfg) -> list[dict]:
     # Step 5 — Diarization (split-screen / camera-switch)
     diarization_data = None
     if (
-        getattr(cfg, "use_split_screen", False)
+        (getattr(cfg, "use_split_screen", False) and cfg.split_trigger == "diarization")
         or getattr(cfg, "use_camera_switch", False)
     ) and cfg.pilihan_rasio == "9:16":
         try:

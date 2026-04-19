@@ -7,6 +7,18 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.8.2] - 2026-04-19
+
+### Added
+- **Visual-Based Split Trigger** (`--split-trigger face`): Alternative way to decide when to split the screen.
+  - Switches to Split layout when 2+ faces are detected.
+  - Switches to Full layout when 1 face is detected.
+  - **No HF_TOKEN required**: Can run without Speaker Diarization.
+  - Highly efficient as it uses existing face tracking data.
+- **Improved Resiliency**: Diarization helpers are now more robust when no speaker data is available.
+
+---
+
 ## [v0.8.1] - 2026-04-19
 
 ### Added

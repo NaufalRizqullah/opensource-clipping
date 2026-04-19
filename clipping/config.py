@@ -242,6 +242,13 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Automatically switch between full-screen (1 speaker) and split-screen (2 speakers) based on who is talking. Only active with --split-screen.",
     )
+    p.add_argument(
+        "--split-trigger",
+        choices=["diarization", "face"],
+        default="diarization",
+        help="The trigger used to decide when to split the screen. 'diarization' uses audio (who is talking), 'face' uses video (how many faces are visible).",
+    )
+
 
     # --- Subtitle & Tipografi ---
     p.add_argument(
@@ -401,6 +408,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         use_karaoke_effect=not args.no_karaoke,
         use_split_screen=args.split_screen,
         use_dynamic_split=args.dynamic_split,
+        split_trigger=args.split_trigger,
         use_camera_switch=args.camera_switch,
         diarization_num_speakers=args.diarization_speakers,
         switch_hold_duration=args.switch_hold_duration,

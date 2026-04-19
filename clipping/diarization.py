@@ -230,6 +230,8 @@ def get_active_speaker(
     str or None
         Speaker label (e.g. "SPEAKER_00") or None if no speaker active.
     """
+    if diarization_data is None:
+        return None
     for seg in diarization_data:
         if seg["start"] <= timestamp <= seg["end"]:
             return seg["speaker"]
@@ -258,6 +260,8 @@ def get_active_speakers(
     list[str]
         List of active speaker labels (may be empty or contain 2+ speakers).
     """
+    if diarization_data is None:
+        return []
     active = []
     for seg in diarization_data:
         if seg["start"] <= timestamp <= seg["end"]:

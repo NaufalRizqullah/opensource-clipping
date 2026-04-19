@@ -178,37 +178,58 @@ python main.py --help
 
 ## 🎙️ Perbedaan Mode Podcast
 
-Jika Anda memproses video podcast, tersedia dua mode khusus yang menggunakan **Speaker Diarization** (Pyannote) untuk mengatur tampilan secara cerdas. Kedua mode mendukung **3+ speaker lintas beberapa scene** (misal: 2 speaker dalam 1 shot kamera + 1 speaker di shot terpisah).
+Saat memproses video podcast, Anda dapat memilih antara beberapa mode rendering cerdas. Mode-mode ini mendukung **3+ speaker di berbagai scene**.
 
-### 1. **`--split-screen` (Layar Terpisah)**
-Mode ini membagi layar menjadi dua bagian secara permanen untuk menampilkan pembicara.
-*   **Tampilan:** Layout **Top-Bottom** (Atas-Bawah).
-*   **Cara Kerja:** Menempatkan 2 speaker paling aktif di panel tetap. Speaker tambahan (ke-3, ke-4…) sementara mengambil alih panel saat mereka berbicara.
-*   **Dukungan multi-scene:** Cache frozen frame per-speaker memastikan konten panel selalu benar walau scene speaker belum tampil.
-*   **Kelebihan:** Penonton dapat melihat ekspresi dan reaksi kedua pembicara sekaligus.
+### 1. **`--split-screen` (Layout Terpisah)**
+Membagi layar menjadi beberapa panel untuk menampilkan pembicara sekaligus.
+*   **Default:** Layout **Top-Bottom** permanen (mendukung 3+ speaker via pergantian panel).
+*   **`--dynamic-split`:** Otomatis berganti antara **Full 9:16** (saat 1 orang bicara/terlihat) dan **Split** (saat 2+ orang aktif).
+*   **Mode Pemicu (`--split-trigger`):**
+    *   **`diarization` (Default):** Menggunakan audio (siapa yang bicara). Butuh `HF_TOKEN`. Ada efek redup pada speaker pasif.
+    *   **`face`:** Menggunakan deteksi wajah visual. **Tanpa token**. Tidak ada efek redup.
+*   **Cocok Untuk:** Podcast edukasi atau saat reaksi lawan bicara sangat penting.
 
-### 2. **`--camera-switch` (Ganti Kamera Otomatis)**
-Mode ini meniru gaya editing profesional di mana layar penuh hanya fokus pada satu orang yang sedang berbicara aktif.
+### 2. **`--camera-switch` (Switching Sinematik)**
+Meniru gaya editing profesional dengan fokus penuh pada satu pembicara yang aktif.
 *   **Tampilan:** **Full 9:16** yang berpindah-pindah.
-*   **Cara Kerja:**
-    *   **Satu pembicara aktif** -> Crop penuh pada wajah pembicara tersebut.
-    *   **Beberapa speaker, scene yang sama** -> **Blurred Pillarbox** (video asli diletakkan di tengah dengan background blur).
-    *   **Beberapa speaker, scene berbeda** -> Tetap fokus pada speaker saat ini (tanpa pillarbox).
-    *   **Hening** -> Tetap pada pembicara terakhir yang aktif.
-*   **Kelebihan:** Video terasa lebih dinamis dan sinematik, dengan kecerdasan scene-aware yang menghindari wide-shot yang tidak perlu.
+*   **Scene-Aware:** Otomatis memakai **Blurred Pillarbox** jika dua orang di scene yang sama bicara bersamaan; tetap full crop jika dari scene berbeda.
+*   **Cocok Untuk:** Storytelling, interview, atau klip dengan energi tinggi.
+
+---
 
 ### **Tabel Perbandingan**
 
 | Fitur | `--split-screen` | `--camera-switch` |
 | :--- | :--- | :--- |
-| **Layout Visual** | Split Atas-Bawah | Layar Penuh (Switching) |
-| **Overlay Wajah** | Selalu 2 orang | 1 orang (wide-shot saat overlap di scene sama) |
-| **Multi-Speaker** | ✅ 3+ speaker, fallback per-speaker | ✅ 3+ speaker, switching scene-aware |
-| **Kesan Video** | Informatif & Lengkap | Dinamis & Sinematik |
-| **Prioritas** | Tinggi (Utama) | Lebih Rendah |
+| **Layout Visual** | Split (Atas-Bawah) | Layar Penuh (Switching) |
+| **Mode Dinamis** | ✅ `--dynamic-split` (Otomatis) | ✅ Selalu Dinamis |
+| **Sumber Pemicu** | Audio atau Visual (`--split-trigger`) | Audio Saja (Diarization) |
+| **Reaksi Lawan Bicara** | ✅ Keduanya terlihat | ❌ Hanya 1 yang terlihat |
+| **Prasyarat** | Opsional `HF_TOKEN` (Mode visual tanpa token) | `HF_TOKEN` (Wajib) |
+
+> [!TIP]
+> Gunakan `--split-screen --dynamic-split --split-trigger face` untuk proses render tercepat tanpa perlu API token khusus atau model Diarization.
+
+---
+
+## 🚀 Contoh Eksekusi Cepat
+
+```bash
+# 1. Clipping AI Standar (7 klip, 9:16)
+python main.py --url "URL_VIDEO"
+
+# 2. Dynamic Split-Screen (Berbasis Visual, TANPA TOKEN)
+python main.py --url "URL_VIDEO" --split-screen --dynamic-split --split-trigger face
+
+# 3. Dynamic Split-Screen (Berbasis Audio, Sorot yang bicara, butuh HF_TOKEN)
+python main.py --url "URL_VIDEO" --split-screen --dynamic-split --split-trigger diarization
+
+# 4. Camera Switch Sinematik (Butuh HF_TOKEN)
+python main.py --url "URL_VIDEO" --camera-switch
+```
 
 > [!IMPORTANT]
-> Kedua fitur ini memerlukan **HuggingFace Token** (`HF_TOKEN`) di file `.env` dan persetujuan model Pyannote di HuggingFace.
+> Fitur diarization memerlukan persetujuan model Pyannote di HuggingFace dan token `HF_TOKEN` di file `.env`.
 
 ## 📂 Struktur Proyek
 
@@ -296,6 +317,7 @@ Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 **🎙️ Pengaturan Split-Screen (Podcast)**
 - `--split-screen` : Aktifkan mode split-screen atas-bawah untuk video podcast. Mendukung **3+ speaker lintas scene**. Menggunakan **Pyannote** untuk mendeteksi siapa yang berbicara.
 - `--dynamic-split` : Aktifkan mode dinamis yang otomatis berpindah antara full-screen (saat 1 orang bicara) dan split-screen (saat 2 orang bicara). Memerlukan flag `--split-screen`.
+- `--split-trigger` : Pemicu splitting: `diarization` (berdasarkan suara, butuh `HF_TOKEN`) atau `face` (berdasarkan jumlah wajah yang terlihat, tanpa token).
 - `--diarization-speakers` : Jumlah speaker yang diharapkan (default: `auto`). Mode `auto` akan melakukan visual scanning otomatis untuk menghitung jumlah wajah terbanyak di satu frame untuk mencegah *over-segmentation*. Memerlukan `HF_TOKEN` di file `.env`.
 
 > ⚠️ **Catatan**: Untuk menggunakan split-screen, Anda perlu:

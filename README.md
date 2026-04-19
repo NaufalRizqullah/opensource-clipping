@@ -168,6 +168,7 @@ python main.py --help
 | `--gemini-fallback-model` | `gemini-2.5-flash` | Gemini fallback model name if main model fails |
 | `--split-screen` | `False` | Enable split-screen mode for podcasts (9:16 only, requires `HF_TOKEN`). Supports 3+ speakers across multiple scenes |
 | `--dynamic-split` | `False` | Automatically switch between full-screen and split-screen based on activity (requires `--split-screen`) |
+| `--split-trigger` | `diarization` | Trigger for splitting: `diarization` (audio-based) or `face` (visual count) |
 | `--diarization-speakers` | `auto` | Number of speakers for diarization (set to `3` for exact 3 speakers, or `auto` for visual AI auto-detection) |
 | `--camera-switch` | `False` | Enable camera-switch mode for podcasts — full 9:16 crop switches to the active speaker; blurred pillarbox on simultaneous speech (9:16 only, requires `HF_TOKEN`) |
 | `--switch-hold-duration` | `2.0` | Min seconds to hold on current speaker before switching (camera-switch only) |
@@ -177,36 +178,57 @@ python main.py --help
 | `--track-jitter` | `None` | Pixel threshold to ignore micro-shakes (default: `5`) |
 | `--track-snap` | `None` | Jump threshold to trigger hard cut between speakers (default: `0.25`) |
 
-## 🎙️ Podcast Mode Comparison
+## 🎙️ Podcast Modes
 
-When processing podcast videos, two specialized modes are available that use **Speaker Diarization** (Pyannote) to intelligently manage the layout. Both modes support **3+ speakers across multiple scenes** (e.g., 2 speakers in one camera shot + 1 speaker in a separate shot).
+When processing podcast videos, you can choose between several intelligent rendering modes. These modes support **3+ speakers across multiple scenes**.
 
-### 1. **`--split-screen`**
-This mode permanently divides the screen into two sections to display speakers simultaneously.
-*   **Layout:** **Top-Bottom** split.
-*   **How it works:** Places the top-2 most active speakers in fixed panels. Extra speakers (3rd, 4th…) temporarily take over a panel when they are talking.
-*   **Multi-scene support:** Per-speaker frozen frame cache ensures correct content even when a speaker's dedicated scene is not currently playing.
-*   **Pros:** Allows viewers to see two speakers' expressions and reactions at the same time.
+### 1. **`--split-screen` (Split Layout)**
+Divides the screen into panels to show multiple speakers simultaneously.
+*   **Default:** Permanent **Top-Bottom** layout (supports 3+ speakers via panel-swapping).
+*   **`--dynamic-split`:** Automatically switches between **Full 9:16** (when 1 person is talking/visible) and **Split** (when 2+ are active).
+*   **Trigger Modes (`--split-trigger`):**
+    *   **`diarization` (Default):** Uses audio to know who is talking. Requires `HF_TOKEN`. Dimming effect on inactive speaker.
+    *   **`face`:** Uses visual face count. **No token required**. No dimming effect.
+*   **Best for:** Educational podcasts or when reaction shots are important.
 
-### 2. **`--camera-switch`**
-This mode mimics professional editing styles where a full-screen crop focuses only on the currently active speaker.
-*   **Layout:** Dynamic **Full 9:16** switching.
-*   **How it works:**
-    *   **Single speaker active** -> Full crop on that speaker's face.
-    *   **Multiple speakers, same scene** -> **Blurred Pillarbox** (original video centered with blurred background).
-    *   **Multiple speakers, different scenes** -> Stays focused on the current speaker (no pillarbox).
-    *   **Silence** -> Stays on the last active speaker.
-*   **Pros:** Feels more dynamic and cinematic, with scene-aware intelligence that avoids unnecessary wide-shots.
+### 2. **`--camera-switch` (Cinematic Switching)**
+Mimics professional editing by focusing only on the active speaker in full screen.
+*   **Tampilan:** **Full 9:16** that cuts between speakers.
+*   **Scene-Aware:** Automatically uses **Blurred Pillarbox** if two people in the same wide-shot are talking; otherwise stays in clean full-crop.
+*   **Best for:** Storytelling, interviews, or high-energy clips.
+
+---
 
 ### **Comparison Table**
 
 | Feature | `--split-screen` | `--camera-switch` |
 | :--- | :--- | :--- |
-| **Visual Layout** | Top-Bottom Split | Full Screen (Switching) |
-| **Face Overlay** | Always 2 faces | 1 face (wide-shot on same-scene overlap) |
-| **Multi-Speaker** | ✅ 3+ speakers, per-speaker fallback | ✅ 3+ speakers, scene-aware switching |
-| **Video Feel** | Informative & Complete | Dynamic & Cinematic |
-| **Priority** | High (Primary) | Lower |
+| **Visual Layout** | Split (Top-Bottom) | Full Screen (Switching) |
+| **Dynamic Mode** | ✅ `--dynamic-split` (Auto-toggle) | ✅ Always Dynamic |
+| **Trigger Source** | Audio or Visual (`--split-trigger`) | Audio Only (Diarization) |
+| **Reaction Shots** | ✅ Both speakers visible | ❌ Only 1 speaker visible |
+| **Requirement** | Optional `HF_TOKEN` (Visual mode needs no token) | `HF_TOKEN` (Required) |
+
+> [!TIP]
+> Use `--split-screen --dynamic-split --split-trigger face` for the fastest rendering without needing any special API tokens or Diarization models.
+
+---
+
+## 🚀 Quick Start Examples
+
+```bash
+# 1. Standard AI Clipping (7 clips, 9:16)
+python main.py --url "VIDEO_URL"
+
+# 2. Dynamic Split-Screen (Visual-based, NO TOKEN REQUIRED)
+python main.py --url "VIDEO_URL" --split-screen --dynamic-split --split-trigger face
+
+# 3. Dynamic Split-Screen (Audio-based, Highlight active speaker, needs HF_TOKEN)
+python main.py --url "VIDEO_URL" --split-screen --dynamic-split --split-trigger diarization
+
+# 4. Cinematic Camera Switch (Needs HF_TOKEN)
+python main.py --url "VIDEO_URL" --camera-switch
+```
 
 > [!IMPORTANT]
 > Both features require a **HuggingFace Token** (`HF_TOKEN`) in your `.env` file and acceptance of the Pyannote model agreement on HuggingFace.
