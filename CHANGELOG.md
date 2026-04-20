@@ -7,6 +7,14 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.9.2] - 2026-04-20
+
+### Added
+- **Dual-Render Pipeline**: Added `--dev-mode-with-output` to generate both standard video and the dev dashboard simultaneously as two separate files.
+- **Merged Dashboard**: Added `--dev-mode-with-output-merge` combining the standard output and the dev dashboard side-by-side into a single ultrawide video feed (2527x1080 resolution).
+
+---
+
 ## [v0.9.1] - 2026-04-20
 
 ### Improved

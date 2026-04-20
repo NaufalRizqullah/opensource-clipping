@@ -321,6 +321,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Enable developer visualization mode for 9:16 tracking (shows stabilization box and dimmed background)",
     )
     p.add_argument(
+        "--dev-mode-with-output",
+        action="store_true",
+        help="Render BOTH the Dev Mode visualization AND the standard output video simultaneously.",
+    )
+    p.add_argument(
+        "--dev-mode-with-output-merge",
+        action="store_true",
+        help="Render a merged side-by-side video of both Dev Mode and standard output.",
+    )
+    p.add_argument(
         "--track-lines",
         action="store_true",
         help="Draw crosshair tracking lines extending from the face box to the boundaries",
@@ -479,6 +489,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         track_iou_threshold=args.track_iou_threshold,
         box_face_detection=args.box_face_detection,
         dev_mode=args.dev_mode,
+        dev_mode_with_output=args.dev_mode_with_output,
+        dev_mode_with_output_merge=args.dev_mode_with_output_merge,
         track_lines=args.track_lines,
     )
 

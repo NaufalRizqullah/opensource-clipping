@@ -159,6 +159,8 @@ python main.py --help
 | `--face-detector` | `mediapipe` | AI model for face tracking (`mediapipe` or `yolo`) |
 | `--box-face-detection` | `False` | Draw yellow bounding boxes for tracking debug |
 | `--dev-mode` | `False` | **[Experimental]** Enable 16:9 context visualization for 9:16 tracking/stabilization process |
+| `--dev-mode-with-output` | `False` | **[Experimental]** Generates both the final production video and the dev dashboard video simultaneously. |
+| `--dev-mode-with-output-merge` | `False` | **[Experimental]** Generates a merged ultrawide side-by-side video of the final output and the dev dashboard. |
 | `--track-lines` | `False` | Draw crosshair tracking lines extending from the face box to the boundaries |
 | `--yolo-size` | `8m` | YOLO face track model (`8n`, `8s`, `8m`, `8n_v2`, `9c`) |
 | `--whisper-model` | `large-v3` | Whisper model size ([see here](https://github.com/SYSTRAN/faster-whisper?tab=readme-ov-file#whisper) for options) |

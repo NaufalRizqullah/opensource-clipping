@@ -1535,29 +1535,24 @@ def buat_video_split_screen(
 
     # Output dimensions: 1080x1920 for 9:16
     out_w, out_h = 1080, 1920
-    dev_visualize = cfg.dev_mode
-    if dev_visualize:
-        out_w, out_h = 1920, 1080
-
-    panel_h = (out_h - DIVIDER_HEIGHT) // 2  # height per speaker panel
-    if dev_visualize: # use fixed scale for dev mode panels to avoid distortion
-        panel_h, panel_w_fixed = 960, 1080 # matches 1080x1920 logical boxes but scaled maybe?
-        # Actually in Dev Mode we just draw rectangles on a 1920x1080 base.
-        # But we still need panel_h/w for internal logic if used.
-        panel_h = (1920 - DIVIDER_HEIGHT) // 2 
-        # Wait, let's keep it simple. out_w/out_h are ONLY for the encoder.
-    
-    panel_h = (1920 - DIVIDER_HEIGHT) // 2 if not dev_visualize else 960
-    panel_w = 1080 if not dev_visualize else 1080
-    # Re-calculate to be safe
     out_w_final, out_h_final = out_w, out_h
-    if not dev_visualize:
-        panel_h = (1920 - DIVIDER_HEIGHT) // 2
-        panel_w = 1080
-    else:
-        # Internal panel logic should still think in terms of 1080x1920 logic
-        panel_h = (1920 - DIVIDER_HEIGHT) // 2
-        panel_w = 1080
+    
+    dev_visualize = cfg.dev_mode or cfg.dev_mode_with_output or cfg.dev_mode_with_output_merge
+    dual_output = cfg.dev_mode_with_output
+    merge_output = cfg.dev_mode_with_output_merge
+    
+    if merge_output:
+        # Merged Canvas: 2527 x 1080
+        out_w_final, out_h_final = 2527, 1080
+    elif dev_visualize and not dual_output:
+        # Pure Dev Mode (override output)
+        out_w_final, out_h_final = 1920, 1080
+    
+    # Calculate panel dimensions based on the 1080x1920 orientation
+    # regardless of whether dev mode is on, because the internal layout arithmetic
+    # must still think in terms of the target 9:16 portrait canvas.
+    panel_h = (1920 - DIVIDER_HEIGHT) // 2
+    panel_w = 1080
 
     # --- Panel Crop dimensions (wider aspect for half-height panels) ---
     panel_ratio = panel_w / panel_h
@@ -1907,9 +1902,19 @@ def buat_video_split_screen(
         return []
 
     # ---- FASE 3: RENDER FRAMES ----
-    writer = open_ffmpeg_video_writer(
-        output_video, out_w_final, out_h_final, orig_fps, video_encoder
-    )
+    # Determine outputs needed
+    writer_main = None
+    writer_dev = None
+    
+    if dual_output:
+        # Two separate files need to be written simultaneously
+        vid_main = output_video
+        vid_dev = output_video.replace(".ts", "_dev.ts").replace(".mp4", "_dev.mp4")
+        writer_main = open_ffmpeg_video_writer(vid_main, 1080, 1920, orig_fps, video_encoder)
+        writer_dev = open_ffmpeg_video_writer(vid_dev, 1920, 1080, orig_fps, video_encoder)
+    else:
+        # Only one stream (either standard, pure dev, or merged)
+        writer_main = open_ffmpeg_video_writer(output_video, out_w_final, out_h_final, orig_fps, video_encoder)
 
     # Pre-create overlay for inactive speaker
     dark_overlay = np.zeros((panel_h, panel_w, 3), dtype=np.uint8)
@@ -2188,10 +2193,31 @@ def buat_video_split_screen(
                 
                 for i, line in enumerate(hud_lines):
                     cv2.putText(frame_dev, line, (HUD_X, HUD_Y + i*35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, HUD_COLOR, 2)
-                
-                final_frame = frame_dev
 
-            writer.stdin.write(final_frame.tobytes())
+            # --- DUAL ROUTING LOGIC ---
+            if dual_output:
+                # Resize normal output as base logic does not guarantee 1080x1920 if resolution is off
+                if final_frame.shape[0] != 1920 or final_frame.shape[1] != 1080:
+                    frm_normal = cv2.resize(final_frame, (1080, 1920))
+                else:
+                    frm_normal = final_frame
+                writer_main.stdin.write(frm_normal.tobytes())
+                writer_dev.stdin.write(frame_dev.tobytes())
+                
+            elif merge_output:
+                # Scale portrait to height=1080 -> 607x1080
+                frm_normal_small = cv2.resize(final_frame, (607, 1080))
+                # Combine landscape dev (1920x1080) + portrait small (607x1080) = 2527x1080
+                frm_merged = np.hstack([frame_dev, frm_normal_small])
+                writer_main.stdin.write(frm_merged.tobytes())
+                
+            else:
+                # Single Stream Handling
+                output_frm = frame_dev if dev_visualize else final_frame
+                if output_frm.shape[0] != out_h_final or output_frm.shape[1] != out_w_final:
+                    output_frm = cv2.resize(output_frm, (out_w_final, out_h_final))
+                writer_main.stdin.write(output_frm.tobytes())
+
             frame_count += 1
 
             render_percent = (
@@ -2205,12 +2231,19 @@ def buat_video_split_screen(
                 )
                 last_render_percent = render_percent
 
-        writer.stdin.close()
-        stderr_data = writer.stderr.read().decode("utf-8", errors="ignore")
-        return_code = writer.wait()
-
-        if return_code != 0:
-            raise RuntimeError(f"FFmpeg writer gagal: {stderr_data[-1000:]}")
+        if writer_main:
+            writer_main.stdin.close()
+            stderr_data = writer_main.stderr.read().decode("utf-8", errors="ignore")
+            return_code = writer_main.wait()
+            if return_code != 0:
+                raise RuntimeError(f"FFmpeg writer main gagal: {stderr_data[-1000:]}")
+        
+        if writer_dev:
+            writer_dev.stdin.close()
+            stderr_data_dev = writer_dev.stderr.read().decode("utf-8", errors="ignore")
+            return_code_dev = writer_dev.wait()
+            if return_code_dev != 0:
+                raise RuntimeError(f"FFmpeg writer dev gagal: {stderr_data_dev[-1000:]}")
 
         print(f"✅ {label} selesai.", flush=True)
 
@@ -2795,7 +2828,11 @@ def proses_klip(
     m_end = float(clip["end_time"])
     judul = clip.get("title_indonesia")
     judul_en = clip.get("title_inggris")
+    
     out_vid = os.path.join(cfg.outputs_dir, f"highlight_rank_{rank}_ready.mp4")
+    if getattr(cfg, "dev_mode_with_output_merge", False):
+        out_vid = os.path.join(cfg.outputs_dir, f"highlight_rank_{rank}_dev_mode_merge_ready.mp4")
+        
     out_thm = os.path.join(cfg.outputs_dir, f"thumbnail_rank_{rank}.jpg")
 
     # Ambil resolusi video asli untuk perhitungan posisi subtitle di dev-mode
@@ -2851,8 +2888,13 @@ def proses_klip(
         f"am_{rank}.ass",
     )
     h_silent, m_silent = f"h_silent_{rank}.mp4", f"m_silent_{rank}.mp4"
-
+    
+    dev_dual = getattr(cfg, "dev_mode_with_output", False)
+    h_ts_dev = f"h_{rank}_dev.ts"
+    m_ts_dev = f"m_{rank}_dev.ts"
+    
     aktif_hook = cfg.use_hook_glitch
+
 
     # Determine if we should use split-screen mode
     if getattr(cfg, "use_split_screen", False) and rasio == "9:16":
@@ -2993,6 +3035,7 @@ def proses_klip(
                 label=f"Rank {rank} Main SplitScreen",
             )
         elif use_camera_switch:
+            # Note: Camera Switch doesn't currently support dev_mode frames but we pass it anyway
             print("   📸 [Main] Camera switch render (Visual)...")
             get_x_main = buat_video_camera_switch(
                 cfg.file_video_asli,
@@ -3037,17 +3080,14 @@ def proses_klip(
         # SMART BGM
         aktif_bgm = cfg.use_auto_bgm
         bgm_mood = clip.get("bgm_mood", "chill")
-
         if bgm_mood not in cfg.bgm_pool:
             bgm_mood = "chill"
-
         bgm_page = cfg.bgm_pool[bgm_mood]
         file_bgm = os.path.abspath(os.path.join(cfg.base_dir, f"bgm_{bgm_mood}.mp3"))
 
         if aktif_bgm and not os.path.exists(file_bgm):
             print(f"   🎵 Mendownload Background Music (Mood: {bgm_mood})...")
             ok_bgm = download_bgm_from_pixabay_page(bgm_page, file_bgm)
-
             if not ok_bgm and bgm_mood != "chill":
                 print("   🔄 Fallback ke BGM chill...")
                 chill_page = cfg.bgm_pool["chill"]
@@ -3059,97 +3099,113 @@ def proses_klip(
             else:
                 print("   ⚠️ Semua fallback gagal. Render lanjut tanpa BGM.")
 
-        if aktif_bgm and os.path.exists(file_bgm):
-            v_filter = f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}" if not cfg.no_subs else "null"
-            filter_complex = (
-                f"[0:v]{v_filter}[v_out]; "
-                f"[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume=1.2[voc]; "
-                f"[2:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume={cfg.bgm_base_volume}[bgm]; "
-                f"[bgm][voc]sidechaincompress=threshold=0.08:ratio=5.0:attack=100:release=1000[bgm_ducked]; "
-                f"[voc][bgm_ducked]amix=inputs=2:duration=first:weights=1 1:dropout_transition=2[a_out]"
+        # --- Subtitle & BGM Encoding Loop (Handles dual output files if needed) ---
+        runs = [m_silent] if not dev_dual else [m_silent, m_silent.replace(".ts", "_dev.ts")]
+        out_targets = [m_ts] if not dev_dual else [m_ts, m_ts_dev]
+        
+        for input_silent_ts, output_final_ts in zip(runs, out_targets):
+            lbl_suffix = "" if input_silent_ts == m_silent else " (DEV)"
+            
+            if aktif_bgm and os.path.exists(file_bgm):
+                v_filter = f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}" if not cfg.no_subs else "null"
+                filter_complex = (
+                    f"[0:v]{v_filter}[v_out]; "
+                    f"[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume=1.2[voc]; "
+                    f"[2:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume={cfg.bgm_base_volume}[bgm]; "
+                    f"[bgm][voc]sidechaincompress=threshold=0.08:ratio=5.0:attack=100:release=1000[bgm_ducked]; "
+                    f"[voc][bgm_ducked]amix=inputs=2:duration=first:weights=1 1:dropout_transition=2[a_out]"
+                )
+
+                cmd_m_base = [
+                    "ffmpeg",
+                    "-hide_banner",
+                    "-loglevel",
+                    "verbose",
+                    "-y",
+                    "-i",
+                    input_silent_ts,
+                    "-ss",
+                    str(m_start),
+                    "-to",
+                    str(m_end),
+                    "-i",
+                    cfg.file_video_asli,
+                    "-stream_loop",
+                    "-1",
+                    "-i",
+                    file_bgm,
+                    "-filter_complex",
+                    filter_complex,
+                    "-map",
+                    "[v_out]",
+                    "-map",
+                    "[a_out]",
+                    "-shortest",
+                ] + std_p
+            else:
+                cmd_m_base = [
+                    "ffmpeg",
+                    "-hide_banner",
+                    "-loglevel",
+                    "verbose",
+                    "-y",
+                    "-i",
+                    input_silent_ts,
+                    "-ss",
+                    str(m_start),
+                    "-to",
+                    str(m_end),
+                    "-i",
+                    cfg.file_video_asli,
+                    "-map",
+                    "0:v:0",
+                    "-map",
+                    "1:a:0",
+                ]
+                if not cfg.no_subs:
+                    vf_main = f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"
+                    cmd_m_base += ["-vf", vf_main]
+                cmd_m_base += std_p
+
+            cmd_m = build_ffmpeg_progress_cmd(cmd_m_base, output_final_ts)
+            rc_m, err_m = run_ffmpeg_with_progress(
+                cmd_m, m_end - m_start, label=f"Rank {rank} Main FFmpeg{lbl_suffix}"
             )
-
-            cmd_m_base = [
-                "ffmpeg",
-                "-hide_banner",
-                "-loglevel",
-                "verbose",
-                "-y",
-                "-i",
-                m_silent,
-                "-ss",
-                str(m_start),
-                "-to",
-                str(m_end),
-                "-i",
-                cfg.file_video_asli,
-                "-stream_loop",
-                "-1",
-                "-i",
-                file_bgm,
-                "-filter_complex",
-                filter_complex,
-                "-map",
-                "[v_out]",
-                "-map",
-                "[a_out]",
-                "-shortest",
-            ] + std_p
-        else:
-            cmd_m_base = [
-                "ffmpeg",
-                "-hide_banner",
-                "-loglevel",
-                "verbose",
-                "-y",
-                "-i",
-                m_silent,
-                "-ss",
-                str(m_start),
-                "-to",
-                str(m_end),
-                "-i",
-                cfg.file_video_asli,
-                "-map",
-                "0:v:0",
-                "-map",
-                "1:a:0",
-            ]
-            if not cfg.no_subs:
-                vf_main = f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"
-                cmd_m_base += ["-vf", vf_main]
-            cmd_m_base += std_p
-
-        cmd_m = build_ffmpeg_progress_cmd(cmd_m_base, m_ts)
-        rc_m, err_m = run_ffmpeg_with_progress(
-            cmd_m, m_end - m_start, label=f"Rank {rank} Main FFmpeg"
-        )
-        if rc_m != 0:
-            raise RuntimeError("FFmpeg main gagal:\n" + "\n".join(err_m))
+            if rc_m != 0:
+                raise RuntimeError(f"FFmpeg main{lbl_suffix} gagal:\n" + "\n".join(err_m))
 
         # FINAL CONCAT
         print("   🔗 [Final] Menyelesaikan clip akhir...")
-        if aktif_hook and glitch_ts and os.path.exists(glitch_ts):
-            concat_str = f"concat:{h_ts}|{glitch_ts}|{m_ts}"
-        else:
-            concat_str = f"concat:{m_ts}"
+        
+        concat_runs = [(out_vid, m_ts, h_ts)]
+        if dev_dual:
+            out_vid_dev = os.path.join(cfg.outputs_dir, f"highlight_rank_{rank}_dev_mode_ready.mp4")
+            # Usually hook doesn't generate dual, so we fallback to standard hook for dev if missing
+            h_dev_target = h_ts_dev if os.path.exists(h_ts_dev) else h_ts 
+            concat_runs.append((out_vid_dev, m_ts_dev, h_dev_target))
+            
+        for final_path, main_vid_ts, hook_vid_ts in concat_runs:
+            if aktif_hook and glitch_ts and os.path.exists(glitch_ts) and os.path.exists(hook_vid_ts):
+                concat_str = f"concat:{hook_vid_ts}|{glitch_ts}|{main_vid_ts}"
+            else:
+                concat_str = f"concat:{main_vid_ts}"
 
-        subprocess.run(
-            [
-                "ffmpeg",
-                "-y",
-                "-i",
-                concat_str,
-                "-c",
-                "copy",
-                "-bsf:a",
-                "aac_adtstoasc",
-                out_vid,
-            ],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-y",
+                    "-i",
+                    concat_str,
+                    "-c",
+                    "copy",
+                    "-bsf:a",
+                    "aac_adtstoasc",
+                    final_path,
+                ],
+                check=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
 
         judul_thumbnail = judul_en or judul or f"Highlight {rank}"
         buat_thumbnail(out_vid, out_thm, judul_thumbnail, cfg)
@@ -3179,6 +3235,9 @@ def proses_klip(
 
     finally:
         files_to_remove = [h_ts, m_ts, a_hook, a_main, h_silent, m_silent]
+        if dev_dual:
+            files_to_remove.extend([h_ts_dev, m_ts_dev, m_silent.replace(".ts", "_dev.ts")])
+            
         for br in broll_aktif:
             files_to_remove.append(br["filepath"])
 
