@@ -7,6 +7,15 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.9.3] - 2026-04-20
+
+### Improved
+- **Visual Merge Dashboard (Experimental)**: Added white bounding boxes, padded margins, and legend titles to the `--dev-mode-with-output-merge` view. 
+- **Resolution Update**: Merged output resolution is now `2648x1220` to accommodate the new visual framing.
+- **Note**: This enhanced styling is currently experimental. Users can revert to the standard side-by-side view from v0.9.2 if preferred.
+
+---
+
 ## [v0.9.2] - 2026-04-20
 
 ### Added

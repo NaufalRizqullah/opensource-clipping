@@ -160,7 +160,7 @@ python main.py --help
 | `--box-face-detection` | `False` | Tampilkan kotak kuning deteksi wajah (debug) |
 | `--dev-mode` | `False` | **[Eksperimental]** Aktifkan visualisasi konteks 16:9 untuk proses tracking/stabilisasi 9:16 |
 | `--dev-mode-with-output` | `False` | **[Eksperimental]** Menghasilkan video final dan video "Director's Console" secara bersamaan di file terpisah. |
-| `--dev-mode-with-output-merge` | `False` | **[Eksperimental]** Menghasilkan satu video side-by-side (2648x1220) yang menyatukan video final dan "Director's Console". |
+| `--dev-mode-with-output-merge` | `False` | **[Eksperimental]** Menghasilkan satu video side-by-side (2648x1220) dengan bingkai kotak (boxed) dan legend (v0.9.3). |
 | `--track-lines` | `False` | Tampilkan garis crosshair kuning dari kotak wajah ke batas window tracking |
 | `--yolo-size` | `8m` | Parameter model YOLO ADetailer (`8n`, `8s`, `8m`, `8n_v2`, `9c`) |
 | `--whisper-model` | `large-v3` | Ukuran model Whisper ([lihat daftar model](https://github.com/SYSTRAN/faster-whisper?tab=readme-ov-file#whisper)) |
