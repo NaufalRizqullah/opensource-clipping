@@ -311,6 +311,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Gemini fallback model name if main model fails",
     )
     p.add_argument(
+        "--load-gemini-json",
+        action="store_true",
+        help="Load the saved gemini_response.json from outputs dir to bypass the AI generation step (useful for debugging)",
+    )
+    p.add_argument(
         "--box-face-detection",
         action="store_true",
         help="Draw a yellow bounding box around the detected face for debugging/tracking visualization",
@@ -477,6 +482,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         # Gemini
         gemini_model=args.gemini_model,
         gemini_fallback_model=args.gemini_fallback_model,
+        load_gemini_json=args.load_gemini_json,
         # Tracking Tuning
         track_step=args.track_step,
         track_deadzone=args.track_deadzone,

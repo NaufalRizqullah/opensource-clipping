@@ -72,7 +72,19 @@ def run_pipeline(cfg) -> list[dict]:
         )
 
     # Step 3 — Gemini AI analysis
-    hasil_json = engine.analyze_with_gemini(transkrip_lengkap, cfg)
+    gemini_output_path = os.path.join(cfg.outputs_dir, "gemini_response.json")
+    
+    if getattr(cfg, "load_gemini_json", False) and os.path.exists(gemini_output_path):
+        print(f"\n🔄 [3/3] Memuat data Gemini (" + cfg.gemini_model + f") dari file lokal: {gemini_output_path}")
+        with open(gemini_output_path, "r", encoding="utf-8") as f:
+            hasil_json = json.load(f)
+    else:
+        hasil_json = engine.analyze_with_gemini(transkrip_lengkap, cfg)
+        
+        # Save raw gemini json for future loading/reproduction
+        with open(gemini_output_path, "w", encoding="utf-8") as f:
+            json.dump(hasil_json, f, indent=4, ensure_ascii=False)
+        print(f"💾 Raw Gemini response tersimpan di: {gemini_output_path}")
 
     # Step 4 — Metadata normalisation
     hasil_json = metadata.normalize_and_validate(hasil_json)
