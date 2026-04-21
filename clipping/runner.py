@@ -9,7 +9,7 @@ import json
 import os
 
 from . import diarization as diarization_mod
-from . import engine, metadata, studio
+from . import engine, metadata, studio, hook_manager
 
 
 def run_pipeline(cfg) -> list[dict]:
@@ -149,7 +149,16 @@ def run_pipeline(cfg) -> list[dict]:
     # Step 6 — Render each clip
     render_manifest: list[dict] = []
 
+    custom_hook_path = None
+    if getattr(cfg, "hook_source", None):
+        print("\n🎣 Mengunduh sumber klip Hook kustom...")
+        custom_hook_path = hook_manager.download_custom_hook(cfg)
+
     for klip in sorted(hasil_json, key=lambda x: x["rank"]):
+        
+        if custom_hook_path:
+            klip["custom_hook_info"] = {"file_path": custom_hook_path}
+
         hasil_render = studio.proses_klip(
             klip["rank"],
             klip,

@@ -199,6 +199,17 @@ def _build_parser() -> argparse.ArgumentParser:
         default=DURASI_HOOK,
         help="Hook teaser duration in seconds",
     )
+    p.add_argument(
+        "--hook-source",
+        default=None,
+        help="Google Drive URL or local path for a single custom hook video (.mp4)",
+    )
+    p.add_argument(
+        "--hook-source-start",
+        type=float,
+        default=0.0,
+        help="Start time in seconds for the custom hook video",
+    )
     p.add_argument("--no-broll", action="store_true", help="Disable B-roll footage")
     p.add_argument("--no-hook", action="store_true", help="Disable hook glitch teaser")
     p.add_argument("--no-bgm", action="store_true", help="Disable background music")
@@ -441,6 +452,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         # Konten & Hook
         max_kata_per_subtitle=args.words_per_sub,
         durasi_hook=args.hook_duration,
+        hook_source=args.hook_source,
+        hook_source_start=args.hook_source_start,
         use_broll=not args.no_broll,
         use_hook_glitch=not args.no_hook,
         use_auto_bgm=not args.no_bgm,

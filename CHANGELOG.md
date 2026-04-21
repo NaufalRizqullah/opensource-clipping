@@ -7,6 +7,15 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.9.5] - 2026-04-21
+
+### Added
+- **Manual Custom Hook Override**: Added `--hook-source` flag to use a specific external video file (.mp4) as the teaser hook for all generated clips.
+- **Hook Tailoring**: Added `--hook-source-start` to define the exact starting point within the custom hook video.
+- **Clean B-Roll Style**: Custom hooks now automatically skip subtitle rendering to preserve the original visual quality (ideal for quotes or cinematic assets).
+
+---
+
 ## [v0.9.4] - 2026-04-21
 
 ### Added

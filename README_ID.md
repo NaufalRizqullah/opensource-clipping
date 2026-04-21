@@ -132,6 +132,9 @@ python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
   --ratio "9:16" \
   --camera-switch \
   --diarization-speakers 3
+
+# Custom Hook Manual (menggunakan klip .mp4 eksternal)
+python main.py --url "URL_VIDEO" --hook-source "URL_DRIVE_ATAU_PATH" --hook-source-start 5.0 --hook-duration 4
 ```
 
 ## ⚙️ Opsi CLI
@@ -150,6 +153,8 @@ python main.py --help
 | `--font-style` | `HORMOZI` | Preset font (`DEFAULT`, `STORYTELLER`, `HORMOZI`, `CINEMATIC`) |
 | `--no-broll` | — | Nonaktifkan footage B-roll |
 | `--no-hook` | — | Nonaktifkan hook glitch teaser |
+| `--hook-source` | `None` | URL Google Drive atau path lokal untuk file video custom hook tunggal (.mp4) |
+| `--hook-source-start` | `0.0` | Waktu mulai (detik) di dalam video custom hook |
 | `--no-bgm` | — | Nonaktifkan musik latar |
 | `--no-subs` | — | Nonaktifkan semua rendering subtitle |
 | `--no-karaoke` | — | Gunakan teks biasa tanpa highlight karaoke |

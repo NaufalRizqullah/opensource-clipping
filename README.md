@@ -132,6 +132,9 @@ python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
   --ratio "9:16" \
   --camera-switch \
   --diarization-speakers 3
+
+# Manual Custom Hook (using external .mp4 clip)
+python main.py --url "VIDEO_URL" --hook-source "DRIVE_URL_OR_PATH" --hook-source-start 5.0 --hook-duration 4
 ```
 
 ## ⚙️ CLI Options
@@ -150,6 +153,8 @@ python main.py --help
 | `--font-style` | `HORMOZI` | Font preset (`DEFAULT`, `STORYTELLER`, `HORMOZI`, `CINEMATIC`) |
 | `--no-broll` | — | Disable B-roll footage |
 | `--no-hook` | — | Disable hook glitch teaser |
+| `--hook-source` | `None` | Google Drive URL or local path for a single custom hook video (.mp4) |
+| `--hook-source-start` | `0.0` | Start time in seconds for the custom hook video |
 | `--no-bgm` | — | Disable background music |
 | `--no-subs` | — | Disable all subtitle rendering |
 | `--no-karaoke` | — | Use clean text instead of karaoke highlight |

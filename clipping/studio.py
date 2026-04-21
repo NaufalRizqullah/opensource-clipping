@@ -2838,6 +2838,29 @@ def proses_klip(
             clip.get("hook_start_time", clip["start_time"]) + cfg.durasi_hook,
         )
     )
+    
+    # Custom Hook Override
+    file_hook_src = cfg.file_video_asli
+    custom_hook = clip.get("custom_hook_info")
+    if custom_hook:
+        file_hook_src = custom_hook["file_path"]
+        h_start = getattr(cfg, "hook_source_start", 0.0)
+        
+        try:
+            cap_h = cv2.VideoCapture(file_hook_src)
+            fps = cap_h.get(cv2.CAP_PROP_FPS)
+            frames = cap_h.get(cv2.CAP_PROP_FRAME_COUNT)
+            if fps > 0:
+                vid_duration = frames / fps
+            else:
+                vid_duration = float('inf')
+            cap_h.release()
+        except:
+            vid_duration = float('inf')
+
+        h_end = h_start + cfg.durasi_hook
+        if h_end > vid_duration:
+            h_end = vid_duration
     m_start = float(clip["start_time"])
     m_end = float(clip["end_time"])
     judul = clip.get("title_indonesia")
@@ -2950,31 +2973,31 @@ def proses_klip(
         if aktif_hook:
             get_x_h = None
             if use_split:
-                print("   📸 [Hook] Split-screen render...")
+                print("   📸 [Hook] Split-screen render (Custom Hook diabaikan untuk format ini saat ini atau digabung)...")
                 get_x_h = buat_video_split_screen(
-                    cfg.file_video_asli,
+                    file_hook_src,
                     h_silent,
                     h_start,
                     h_end,
-                    diarization_data,
+                    diarization_data if not custom_hook else None,
                     cfg,
                     label=f"Rank {rank} Hook SplitScreen",
                 )
             elif use_camera_switch:
                 print("   📸 [Hook] Camera switch render...")
                 get_x_h = buat_video_camera_switch(
-                    cfg.file_video_asli,
+                    file_hook_src,
                     h_silent,
                     h_start,
                     h_end,
-                    diarization_data,
+                    diarization_data if not custom_hook else None,
                     cfg,
                     label=f"Rank {rank} Hook CameraSwitch",
                 )
             else:
                 print("   📸 [Hook] Hybrid render...")
                 get_x_h = buat_video_hybrid(
-                    cfg.file_video_asli,
+                    file_hook_src,
                     h_silent,
                     h_start,
                     h_end,
@@ -2984,7 +3007,7 @@ def proses_klip(
                 )
             
             aktif_advanced_hook = cfg.use_advanced_text_on_hook
-            if not cfg.no_subs:
+            if not cfg.no_subs and not custom_hook:
                 buat_file_ass(
                     data_segmen,
                     h_start,
@@ -3003,7 +3026,7 @@ def proses_klip(
                 esc_fontsdir = escape_ffmpeg_filter_value(os.path.abspath(cfg.font_dir))
                 vf_hook = f"subtitles={esc_ass_hook}:fontsdir={esc_fontsdir}"
             else:
-                print("   🎬 [Hook] Skip subtitle rendering...")
+                print(f"   🎬 [Hook] Skip subtitle rendering {'(Custom Hook)' if custom_hook else ''}...")
                 vf_hook = None
 
             cmd_h_base = [
@@ -3019,7 +3042,7 @@ def proses_klip(
                 "-to",
                 str(h_end),
                 "-i",
-                cfg.file_video_asli,
+                file_hook_src,
                 "-map",
                 "0:v:0",
                 "-map",
