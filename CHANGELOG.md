@@ -7,6 +7,14 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.9.4] - 2026-04-21
+
+### Added
+- **Gemini JSON Caching**: The engine now automatically saves the raw Gemini AI analysis to `gemini_response.json` in the output directory.
+- **Reproducibility Flag**: Added `--load-gemini-json` CLI argument to bypass AI generation and load results from a local file, enabling faster reproduction and debugging of specific clip layouts.
+
+---
+
 ## [v0.9.3] - 2026-04-20
 
 ### Improved
