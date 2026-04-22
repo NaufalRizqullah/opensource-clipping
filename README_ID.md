@@ -255,23 +255,13 @@ opensource-clipping/
 ├── README.md                # Dokumentasi (English)
 ├── README_ID.md             # Dokumentasi (Indonesia)
 ├── clipping/
-├── __init__.py
-├── config.py            # Konfigurasi master & argparse
-├── engine.py            # Download → Transkripsi → Gemini AI
-├── diarization.py       # Pyannote speaker diarization
-├── metadata.py          # Normalisasi & QA metadata
-├── runner.py            # Orkestrator pipeline
-├── studio.py            # Modular Studio Coordinator (entry point)
-└── studio/              # BARU: Modular Rendering Package
-    ├── __init__.py      # Inisialisasi package & logika koordinator
-    ├── assets.py        # Manajemen Font, BGM, dan B-Roll
-    ├── camera.py        # Pipeline camera-switch active speaker
-    ├── extras.py        # Transisi glitch & thumbnail
-    ├── face.py          # AI Face Detection (MediaPipe/YOLO)
-    ├── hybrid.py        # Pipeline face-tracking single-speaker
-    ├── split.py         # Pipeline split-screen podcast
-    ├── subtitle.py      # Builder subtitle ASS tingkat lanjut
-    └── utils.py         # FFmpeg & utilitas tingkat rendah
+│   ├── __init__.py
+│   ├── config.py            # Konfigurasi master & argparse
+│   ├── engine.py            # Download → Transkripsi → Gemini AI
+│   ├── diarization.py       # Pyannote speaker diarization (split-screen & camera-switch)
+│   ├── metadata.py          # Normalisasi & QA metadata
+│   ├── studio.py            # Mesin render video (face-track, split-screen, camera-switch, subs, B-roll, BGM)
+│   └── runner.py            # Orkestrator pipeline
 └── youtube_uploader/
     ├── __init__.py
     └── uploader.py          # Logika upload & penjadwalan YouTube
@@ -280,38 +270,29 @@ opensource-clipping/
 ## 🔄 Alur Pipeline
 
 ```mermaid
-graph TD
+graph LR
     A[URL YouTube] --> B[Download Video]
     B --> C[Transkripsi Whisper]
     C --> D[Analisis Gemini AI]
     D --> E[QA Metadata]
     E --> F[Loop Render]
-    subgraph "Modular Studio & Renderer"
-    F --> G[Face-Track / Split-Screen / Camera-Switch]
+    F --> G[Crop Face-Track]
     F --> H[B-Roll + BGM]
     F --> I[Subtitle ASS]
     F --> J[Hook + Glitch]
-    end
-    G & H & I & J --> K[File Output Final]
-    K --> L[Standard 9:16 / 16:9 MP4]
-    K --> M[Dashboard Dev Mode (1080p)]
-    K --> N[Tampilan Konteks Merged (2648x1220)]
+    G & H & I & J --> K[MP4 Final + Thumbnail]
 ```
 
 ## 📤 Output
 
-Untuk setiap klip, pipeline melakukan render ke dalam folder `outputs/`. Tergantung pada parameter yang digunakan, file yang dihasilkan meliputi:
+Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 
-| Pola Nama File | Deskripsi |
+| File | Deskripsi |
 |---|---|
-| `klip_N.mp4` | **Output Standar**: Klip final dengan subtitle & efek lengkap. |
-| `klip_N_thumb.jpg` | **Auto-Thumbnail**: Frame berkualitas tinggi dengan overlay judul. |
-| `klip_N_dev.mp4` | **Director's Console**: (via `--dev-mode-with-output`) Tampilan konteks 1080p dengan overlay tracking. |
-| `klip_N.mp4` (merged) | **Tampilan Side-by-Side**: (via `--dev-mode-with-output-merge`) Penggabungan ultrawide 2648x1220 antara video final dan dev. |
-| `render_manifest.json` | Manifest JSON berisi metadata untuk seluruh klip yang dihasilkan. |
-| `gemini_response.json` | Cache respon analisis AI — bisa dimuat via `--load-gemini-json` untuk menghemat kuota API. |
-| `metadata_preview.json` | Metadata hasil generasi Gemini dalam format yang mudah dibaca (judul, tag, caption). |
-
+| `outputs/highlight_rank_N_ready.mp4` | Klip final dengan subtitle, B-roll, BGM |
+| `outputs/thumbnail_rank_N.jpg` | Thumbnail otomatis dengan teks judul |
+| `outputs/render_manifest.json` | Manifest berisi metadata semua klip |
+| `outputs/metadata_preview.json` | Metadata dari Gemini (judul, tag, caption) |
 
 ## 🎵 Gaya Font
 

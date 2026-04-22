@@ -1,0 +1,5 @@
+f5c8249 | feat: change default mediapipe model using full range model for improve results
+03d7392 | feat: change config default a bit at sweet spot (myself)
+1111740 | feat: change result to folder outputs
+b1d8797 | refactor: remove obsolete v2-youtube-clipping notebook
+d62f820 | feat: add standalone YouTube auto-uploader with scheduling support and CLI interface

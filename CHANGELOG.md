@@ -7,15 +7,6 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
-## [v0.9.7] - 2026-04-22
-
-### Changed
-- **Modularized Studio Architecture**: Significant refactoring of the monolithic `studio.py` (3,300+ lines) into a cleaner sub-package structure located in `clipping/studio/`.
-- **Coordinator Pattern Implementation**: `clipping/studio.py` now functions as a lightweight coordinator/entry-point, re-exporting all sub-module functions across the package. It maintains the core `proses_klip` orchestrator, requiring zero import changes for external modules (`runner.py`, `engine.py`).
-- **Domain-Specific Sub-modules**: Logic is now decoupled into specialized files: `hybrid.py`, `split.py`, `camera.py`, `face.py`, `subtitle.py`, `assets.py`, `utils.py`, and `extras.py`.
-
----
-
 ## [v0.9.6] - 2026-04-22
 
 ### Fixed

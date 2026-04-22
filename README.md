@@ -314,23 +314,13 @@ opensource-clipping/
 ├── README.md                # English docs
 ├── README_ID.md             # Indonesian docs
 ├── clipping/
-├── __init__.py
-├── config.py            # Master configuration & argparse
-├── engine.py            # Download → Transcribe → Gemini AI
-├── diarization.py       # Pyannote speaker diarization
-├── metadata.py          # QA metadata normalization
-├── runner.py            # Pipeline orchestrator
-├── studio.py            # Modular Studio Coordinator (entry point)
-└── studio/              # NEW: Modular Rendering Package
-    ├── __init__.py      # Package init & coordinator logic
-    ├── assets.py        # Fonts, BGM, and B-Roll management
-    ├── camera.py        # Camera-switch active speaker pipeline
-    ├── extras.py        # Glitch transitions & thumbnails
-    ├── face.py          # AI Face Detection (MediaPipe/YOLO)
-    ├── hybrid.py        # Single-speaker face-tracking pipeline
-    ├── split.py         # Split-screen podcast pipeline
-    ├── subtitle.py      # Advanced ASS subtitle builder
-    └── utils.py         # FFmpeg & low-level utilities
+│   ├── __init__.py
+│   ├── config.py            # Master configuration & argparse
+│   ├── engine.py            # Download → Transcribe → Gemini AI
+│   ├── diarization.py       # Pyannote speaker diarization (split-screen & camera-switch)
+│   ├── metadata.py          # QA metadata normalization
+│   ├── studio.py            # Video render engine (face-track, split-screen, camera-switch, subs, B-roll, BGM)
+│   └── runner.py            # Pipeline orchestrator
 └── youtube_uploader/
     ├── __init__.py
     └── uploader.py          # YouTube upload & scheduling logic
@@ -339,37 +329,29 @@ opensource-clipping/
 ## 🔄 Pipeline Flow
 
 ```mermaid
-graph TD
+graph LR
     A[YouTube URL] --> B[Download Video]
     B --> C[Whisper Transcription]
     C --> D[Gemini AI Analysis]
     D --> E[Metadata QA]
     E --> F[Render Loop]
-    subgraph "Modular Studio & Renderers"
-    F --> G[Face-Track / Split-Screen / Camera-Switch]
+    F --> G[Face-Track Crop]
     F --> H[B-Roll + BGM]
     F --> I[ASS Subtitles]
     F --> J[Hook + Glitch]
-    end
-    G & H & I & J --> K[Final Output Files]
-    K --> L[Standard 9:16 / 16:9 MP4]
-    K --> M[Dev Mode Dashboard (1080p)]
-    K --> N[Merged Context View (2648x1220)]
+    G & H & I & J --> K[Final MP4 + Thumbnail]
 ```
 
 ## 📤 Output
 
-For each clip, the pipeline renders into the `outputs/` directory. Depending on your flags, it generates:
+For each clip, the pipeline creates an `outputs/` directory and generates:
 
-| File Pattern | Description |
+| File | Description |
 |---|---|
-| `klip_N.mp4` | **Standard Output**: Final rendered clip with subtitles & effects. |
-| `klip_N_thumb.jpg` | **Auto-Thumbnail**: High-quality frame with title overlay. |
-| `klip_N_dev.mp4` | **Director's Console**: (via `--dev-mode-with-output`) 1080p full-context view with tracking overlays. |
-| `klip_N.mp4` (merged) | **Side-by-Side View**: (via `--dev-mode-with-output-merge`) 2648x1220 ultrawide merge of final & dev views. |
-| `render_manifest.json` | JSON manifest containing metadata for all generated clips. |
-| `gemini_response.json` | Cached AI analysis response — can be reloaded via `--load-gemini-json` to save API quota. |
-| `metadata_preview.json` | Human-readable Gemini-generated metadata (titles, tags, captions). |
+| `outputs/highlight_rank_N_ready.mp4` | Final rendered clip with subtitles, B-roll, BGM |
+| `outputs/thumbnail_rank_N.jpg` | Auto-generated thumbnail with title text |
+| `outputs/render_manifest.json` | Manifest with metadata for all clips |
+| `outputs/metadata_preview.json` | Gemini-generated metadata (titles, tags, captions) |
 
 ## 🎵 Font Styles
 
