@@ -86,8 +86,8 @@ def proses_klip(
     """
     t_start_render = time.time()
     
-    start_c = metadata_klip["start"]
-    end_c = metadata_klip["end"]
+    start_c = metadata_klip["start_time"]
+    end_c = metadata_klip["end_time"]
     label = f"Klip #{rank}"
 
     out_prefix = os.path.join(cfg.outputs_dir, f"klip_{rank}")
@@ -101,7 +101,7 @@ def proses_klip(
     use_camera = getattr(cfg, "use_camera_switch", False) and diarization_data and rasio == "9:16"
     
     # Deteksi apakah butuh B-Roll data
-    broll_data = metadata_klip.get("broll_data", [])
+    broll_data = metadata_klip.get("broll_list", [])
     
     get_x_func = None
     
@@ -159,7 +159,12 @@ def proses_klip(
 
     # 5. Generate Thumbnail
     if getattr(cfg, "generate_thumbnails", True):
-        buat_thumbnail(out_final_mp4, f"{out_prefix}_thumb.jpg")
+        buat_thumbnail(
+            out_final_mp4, 
+            f"{out_prefix}_thumb.jpg", 
+            metadata_klip.get("title_indonesia", "Klip"), 
+            cfg
+        )
 
     durasi_render = time.time() - t_start_render
     print(f"📦 {label} Berhasil! (Render: {durasi_render:.1f}s)")
