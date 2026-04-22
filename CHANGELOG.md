@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.9.6] - 2026-04-22
+
+### Fixed
+- **Instant Split→Full Transition**: Eliminated the visible "ghost frame" where the split-screen layout persisted for a fraction of a second showing only 1 person in a 2-panel view before switching to full 9:16 crop. The `split→full` transition now fires on the same frame the face count drops to 1, bypassing both the majority-vote window and `MIN_HOLD` timer. The reverse direction (`full→split`) remains guarded to prevent flicker.
+
+---
+
 ## [v0.9.5] - 2026-04-21
 
 ### Added

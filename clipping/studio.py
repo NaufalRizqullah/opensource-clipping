@@ -1987,7 +1987,8 @@ def buat_video_split_screen(
             if is_dynamic:
                 if cfg.split_trigger == "face":
                     now_boxes = _get_all_boxes(t)
-                    face_count_history.append(len(now_boxes))
+                    now_count = len(now_boxes)
+                    face_count_history.append(now_count)
                     if len(face_count_history) > LAYOUT_SMOOTH_WINDOW:
                         face_count_history.pop(0)
                     
@@ -1995,17 +1996,34 @@ def buat_video_split_screen(
                     if face_count_history:
                         stable_count = max(set(face_count_history), key=face_count_history.count)
                     else:
-                        stable_count = len(now_boxes)
+                        stable_count = now_count
 
-                    if stable_count == 1:
-                        target_layout = "full"
-                        target_speaker = ranked[0]
-                    elif stable_count >= 2:
-                        target_layout = "split"
-                        target_speaker = ranked[0]
+                    # FAST PATH: split→full is instant (no ghost frames)
+                    # When currently in split and this frame sees only 1 face,
+                    # force immediate switch without majority vote or MIN_HOLD.
+                    # Rationale: a split layout showing 1 person looks broken;
+                    # the transition must be imperceptible.
+                    if current_layout == "split" and now_count == 1:
+                        current_layout = "full"
+                        current_speaker = ranked[0]
+                        last_switch_time = t
+                        face_count_history.clear()  # Reset for clean state
                     else:
-                        target_layout = current_layout
-                        target_speaker = current_speaker
+                        # Normal path: use stable_count (guarded by MIN_HOLD)
+                        if stable_count == 1:
+                            target_layout = "full"
+                            target_speaker = ranked[0]
+                        elif stable_count >= 2:
+                            target_layout = "split"
+                            target_speaker = ranked[0]
+                        else:
+                            target_layout = current_layout
+                            target_speaker = current_speaker
+
+                        if target_layout != current_layout and (t - last_switch_time) >= MIN_HOLD:
+                            current_layout = target_layout
+                            current_speaker = target_speaker
+                            last_switch_time = t
                 else:
                     if len(active_speakers) == 1:
                         target_layout = "full"
@@ -2017,10 +2035,10 @@ def buat_video_split_screen(
                         target_layout = current_layout # Stay put
                         target_speaker = current_speaker
                 
-                if target_layout != current_layout and (t - last_switch_time) >= MIN_HOLD:
-                    current_layout = target_layout
-                    current_speaker = target_speaker
-                    last_switch_time = t
+                    if target_layout != current_layout and (t - last_switch_time) >= MIN_HOLD:
+                        current_layout = target_layout
+                        current_speaker = target_speaker
+                        last_switch_time = t
                 
                 if current_layout == "full":
                     # Switch speaker if audio trigger is active, or stay on tracked
