@@ -12,6 +12,8 @@ Aturan Refactor:
 
 import os
 import time
+import cv2
+import math
 
 # Re-export fungsi-fungsi dari sub-package untuk backward compatibility
 from .studio.utils import (
@@ -88,6 +90,14 @@ def proses_klip(
     
     start_c = metadata_klip["start_time"]
     end_c = metadata_klip["end_time"]
+    
+    # Deteksi FPS dari video asli untuk parameter encoding
+    cap_src = cv2.VideoCapture(cfg.file_video_asli)
+    fps_asli = cap_src.get(cv2.CAP_PROP_FPS)
+    cap_src.release()
+    if not fps_asli or math.isnan(fps_asli) or fps_asli <= 0:
+        fps_asli = 30.0
+    
     label = f"Klip #{rank}"
 
     out_prefix = os.path.join(cfg.outputs_dir, f"klip_{rank}")
@@ -141,7 +151,7 @@ def proses_klip(
         "-vf", f"ass={escape_ffmpeg_filter_value(out_ass)}",
     ]
     
-    ffmpeg_cmd += get_mp4_encode_args(video_encoder)
+    ffmpeg_cmd += get_mp4_encode_args(video_encoder, fps_asli)
     ffmpeg_cmd.append(out_final_mp4)
 
     import subprocess
@@ -153,7 +163,7 @@ def proses_klip(
             "ffmpeg", "-y", "-loglevel", "error",
             "-i", out_final_mp4,
         ]
-        ts_args += get_ts_encode_args(video_encoder)
+        ts_args += get_ts_encode_args(video_encoder, fps_asli)
         ts_args.append(out_final_ts)
         subprocess.run(ts_args, check=True)
 
