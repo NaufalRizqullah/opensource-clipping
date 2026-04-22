@@ -284,7 +284,7 @@ def buat_video_split_screen(
                 if len(all_frame_data[i]["face_boxes"]) != len(all_frame_data[i+1]["face_boxes"]):
                     return all_frame_data[i]["face_boxes"] if abs(t-all_frame_data[i]["time"]) < abs(t-all_frame_data[i+1]["time"]) else all_frame_data[i+1]["face_boxes"]
                 f = (t-all_frame_data[i]["time"])/(all_frame_data[i+1]["time"]-all_frame_data[i]["time"])
-                return [(b1[j] + (b2[j]-b1[j])*f) for j in range(4)] for b1, b2 in zip(all_frame_data[i]["face_boxes"], all_frame_data[i+1]["face_boxes"])
+                return [[(b1[j] + (b2[j]-b1[j])*f) for j in range(4)] for b1, b2 in zip(all_frame_data[i]["face_boxes"], all_frame_data[i+1]["face_boxes"])]
         return []
 
     writer_main = open_ffmpeg_video_writer(output_video if not dual_output else output_video, 1080 if not (merge_output or (dev_visualize and not dual_output)) else out_w_final, 1920 if not (merge_output or (dev_visualize and not dual_output)) else out_h_final, orig_fps, video_encoder)
