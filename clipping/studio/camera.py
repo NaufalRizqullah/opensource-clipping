@@ -1,5 +1,5 @@
 """
-clipping.studio_camera — Camera Switch Renderer
+clipping.studio.camera — Camera Switch Renderer
 
 Renderer otomatis camera switching berdasarkan active speaker.
 Behaviour:
@@ -19,12 +19,12 @@ import cv2
 import mediapipe as mp
 import numpy as np
 
-from .studio_utils import (
+from .utils import (
     detect_video_encoder,
     format_seconds,
     open_ffmpeg_video_writer,
 )
-from .studio_face import get_face_detector
+from .face import get_face_detector
 
 
 # ==============================================================================
@@ -67,7 +67,7 @@ def buat_video_camera_switch(
     label : str
         Label for progress logging.
     """
-    from .diarization import get_active_speakers
+    from ..diarization import get_active_speakers
 
     STEP_DETEKSI     = cfg.track_step if cfg.track_step is not None else 0.25
     DEADZONE_RATIO   = cfg.track_deadzone if cfg.track_deadzone is not None else 0.15
