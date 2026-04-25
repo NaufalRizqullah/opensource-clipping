@@ -28,18 +28,10 @@ def _build_ydl_format_selector(download_source_height: str | int) -> str:
         yt-dlp format selector expression.
     """
     if download_source_height == "max":
-        return (
-            "best[ext=mp4][acodec!=none][vcodec!=none]/"
-            "bestvideo[ext=mp4]+bestaudio[ext=m4a]/"
-            "best[acodec!=none][vcodec!=none]/"
-            "best"
-        )
+        return "bestvideo+bestaudio/best"
 
     return (
-        f"best[height<=?{download_source_height}][ext=mp4][acodec!=none][vcodec!=none]/"
-        f"bestvideo[height<=?{download_source_height}][ext=mp4]+bestaudio[ext=m4a]/"
-        f"best[height<=?{download_source_height}][acodec!=none][vcodec!=none]/"
-        "best"
+        f"bestvideo[height<=?{download_source_height}]+bestaudio/best[height<=?{download_source_height}]"
     )
 
 
