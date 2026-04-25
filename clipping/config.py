@@ -142,6 +142,7 @@ BGM_POOL = {
 WHISPER_MODEL = "large-v3"
 WHISPER_DEVICE = "cuda"
 WHISPER_COMPUTE_TYPE = "float16"
+DOWNLOAD_SOURCE_HEIGHT = "max"
 
 # Gemini
 GEMINI_MODEL = "gemini-3-flash-preview"
@@ -160,6 +161,27 @@ def _parse_speakers(val: str) -> str | int:
         return int(val)
     except ValueError:
         raise argparse.ArgumentTypeError(f"'{val}' is not a valid integer or 'auto'")
+
+
+def _parse_download_height(val: str) -> str | int:
+    """
+    Parse desired download source height.
+
+    Accepts:
+    - `max` to always prefer the highest available quality.
+    - positive integers like 1080, 1440, 2160 to cap source resolution.
+    """
+    if val.lower() == "max":
+        return "max"
+    try:
+        parsed = int(val)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"'{val}' is not valid. Use 'max' or an integer height (e.g. 1080, 1440, 2160)."
+        ) from exc
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("Download source height must be a positive integer.")
+    return parsed
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
@@ -184,6 +206,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=PILIHAN_RASIO,
         choices=["9:16", "16:9"],
         help="Output aspect ratio",
+    )
+    p.add_argument(
+        "--source-height",
+        type=_parse_download_height,
+        default=DOWNLOAD_SOURCE_HEIGHT,
+        help="Preferred source download max height. Use 'max' to fetch highest available quality.",
     )
 
     # --- Konten & Hook ---
@@ -449,6 +477,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         url_youtube=args.url,
         jumlah_clip=args.clips,
         pilihan_rasio=args.ratio,
+        download_source_height=args.source_height,
         # Konten & Hook
         max_kata_per_subtitle=args.words_per_sub,
         durasi_hook=args.hook_duration,

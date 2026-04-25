@@ -14,6 +14,16 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 
 ---
 
+## [v0.9.8] - 2026-04-25
+
+### Added
+- **Configurable Source Download Quality**: Added `--source-height` CLI flag to control preferred source resolution at download time (e.g. `1080`, `1440`, `2160`).
+
+### Changed
+- **Default Source Strategy**: If `--source-height` is not provided, downloader now prefers the highest available source quality (`max`) to preserve sharpness after 16:9 → 9:16 crop.
+
+---
+
 ## [v0.9.7] - 2026-04-23
 
 ### Changed

@@ -106,6 +106,12 @@ python main.py --url "https://youtube.com/watch?v=VIDEO_ID"
 # Mode Standar (Default untuk 5 klip)
 python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --clips 5 --ratio 16:9
 
+# Prioritaskan kualitas source tertinggi yang tersedia (default)
+python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --source-height max
+
+# Batasi kualitas source hingga 1440p (2K)
+python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --source-height 1440
+
 # Mode Advanced (YOLOv8 GPU Face Tracking & Font Khusus)
 python main.py --url "https://youtube.com/watch?v=VIDEO_ID" \
   --clips 7 \
@@ -148,6 +154,7 @@ python main.py --help
 | `--url`, `-u` | — | URL video YouTube yang akan diproses (Wajib) |
 | `--clips`, `-n` | `7` | Jumlah klip highlight yang dihasilkan |
 | `--ratio`, `-r` | `9:16` | Rasio aspek output (`9:16` atau `16:9`) |
+| `--source-height` | `max` | Batas tinggi resolusi source saat download (`max`, `1080`, `1440`, `2160`, dst.) |
 | `--words-per-sub` | `5` | Maks kata per grup subtitle karaoke |
 | `--hook-duration` | `3` | Durasi hook teaser (detik) |
 | `--font-style` | `HORMOZI` | Preset font (`DEFAULT`, `STORYTELLER`, `HORMOZI`, `CINEMATIC`) |
@@ -309,6 +316,7 @@ Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 - `--url` : Link video YouTube sumber
 - `--clips` : Berapa banyak klip yang ingin dihasilkan
 - `--ratio` : `9:16` untuk TikTok/Reels/Shorts, `16:9` untuk YouTube biasa
+- `--source-height` : Batas resolusi source saat download (`max` = ambil kualitas tertinggi yang tersedia)
 
 **🎬 Pengaturan Konten & Hook**
 - `--words-per-sub` : Jumlah maksimal kata yang muncul di layar (karaoke style)

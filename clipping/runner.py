@@ -36,7 +36,10 @@ def run_pipeline(cfg) -> list[dict]:
 
     # Step 1 — Download
     engine.download_video(
-        cfg.url_youtube, cfg.file_video_asli, getattr(cfg, "use_dlp_subs", False)
+        cfg.url_youtube,
+        cfg.file_video_asli,
+        getattr(cfg, "use_dlp_subs", False),
+        getattr(cfg, "download_source_height", "max"),
     )
 
     # Step 2 — Transcribe

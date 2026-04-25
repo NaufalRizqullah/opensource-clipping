@@ -16,17 +16,50 @@ from faster_whisper import WhisperModel
 # TAHAP 1: DOWNLOAD VIDEO
 # ==============================================================================
 
-def download_video(url: str, output_path: str, use_dlp_subs: bool = False) -> None:
-    """Download a YouTube video to *output_path* (max 1080p)."""
+def _build_ydl_format_selector(download_source_height: str | int) -> str:
+    """
+    Build a yt-dlp format selector string for source-quality preference.
+
+    Args:
+        download_source_height: "max" to prefer highest available quality,
+            or an integer height cap (e.g. 1080, 1440, 2160).
+
+    Returns:
+        yt-dlp format selector expression.
+    """
+    if download_source_height == "max":
+        return (
+            "best[ext=mp4][acodec!=none][vcodec!=none]/"
+            "bestvideo[ext=mp4]+bestaudio[ext=m4a]/"
+            "best[acodec!=none][vcodec!=none]/"
+            "best"
+        )
+
+    return (
+        f"best[height<=?{download_source_height}][ext=mp4][acodec!=none][vcodec!=none]/"
+        f"bestvideo[height<=?{download_source_height}][ext=mp4]+bestaudio[ext=m4a]/"
+        f"best[height<=?{download_source_height}][acodec!=none][vcodec!=none]/"
+        "best"
+    )
+
+
+def download_video(
+    url: str,
+    output_path: str,
+    use_dlp_subs: bool = False,
+    download_source_height: str | int = "max",
+) -> None:
+    """
+    Download a YouTube video to *output_path* with configurable source height.
+    """
     print("[1/3] Mendownload video dari YouTube...")
+    if download_source_height == "max":
+        print("      🎯 Source quality: highest available", flush=True)
+    else:
+        print(f"      🎯 Source quality: up to {download_source_height}p", flush=True)
 
     ydl_opts = {
-        "format": (
-            "best[height<=?1080][ext=mp4][acodec!=none][vcodec!=none]/"
-            "bestvideo[height<=?1080][ext=mp4]+bestaudio[ext=m4a]/"
-            "best[height<=?1080][acodec!=none][vcodec!=none]/"
-            "best"
-        ),
+        "format": _build_ydl_format_selector(download_source_height),
         "outtmpl": output_path,
         "quiet": True,
         "merge_output_format": "mp4",
