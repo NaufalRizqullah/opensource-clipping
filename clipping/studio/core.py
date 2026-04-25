@@ -1448,7 +1448,7 @@ def buat_video_split_screen(
     label : str
         Label for progress logging.
     """
-    from .diarization import get_active_speaker, get_active_speakers
+    from clipping.diarization import get_active_speaker, get_active_speakers
 
     STEP_DETEKSI     = cfg.track_step if cfg.track_step is not None else 0.25
     DEADZONE_RATIO   = cfg.track_deadzone if cfg.track_deadzone is not None else 0.15
@@ -1641,7 +1641,7 @@ def buat_video_split_screen(
         face_centers.sort(key=lambda fc: fc[0])  # left → right
         
         if diarization_data:
-            from .diarization import get_active_speakers
+            from clipping.diarization import get_active_speakers
             active_now = get_active_speakers(diarization_data, start_clip + current_time)
         else:
             # Visual-only: base active speakers on face count
@@ -1931,7 +1931,7 @@ def buat_video_split_screen(
             prev_small_gray = curr_small
 
             timestamp_abs = start_clip + t
-            from .diarization import get_active_speakers
+            from clipping.diarization import get_active_speakers
             active_speakers = get_active_speakers(diarization_data, timestamp_abs)
             active_speaker = get_active_speaker(diarization_data, timestamp_abs)
 
@@ -2286,7 +2286,7 @@ def buat_video_camera_switch(
     label : str
         Label for progress logging.
     """
-    from .diarization import get_active_speakers
+    from clipping.diarization import get_active_speakers
 
     STEP_DETEKSI     = cfg.track_step if cfg.track_step is not None else 0.25
     DEADZONE_RATIO   = cfg.track_deadzone if cfg.track_deadzone is not None else 0.15
