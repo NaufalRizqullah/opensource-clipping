@@ -14,6 +14,17 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 
 ---
 
+## [v0.9.7] - 2026-04-23
+
+### Changed
+- **Studio Modularization (Non-Breaking)**: Refactored the monolithic `clipping/studio.py` into smaller internal modules under `clipping/studio/` (`core.py`, `helpers.py`, `ffmpeg_utils.py`) while keeping `clipping/studio.py` as the thin primary compatibility entry point.
+- **Code Organization**: Moved internal rendering, subtitle, asset handling, and FFmpeg helper implementations into cohesive modules without changing CLI parameters, pipeline order, output naming, or public function contracts used by `runner.py`.
+
+### Documentation
+- **Docstring Coverage**: Added/expanded docstrings on public and non-trivial internal Studio functions to improve maintainability and onboarding without changing runtime behavior.
+
+---
+
 ## [v0.9.5] - 2026-04-21
 
 ### Added
