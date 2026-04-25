@@ -19,19 +19,34 @@ from faster_whisper import WhisperModel
 def _build_ydl_format_selector(download_source_height: str | int) -> str:
     """
     Build a yt-dlp format selector string for source-quality preference.
-
-    Args:
-        download_source_height: "max" to prefer highest available quality,
-            or an integer height cap (e.g. 1080, 1440, 2160).
-
-    Returns:
-        yt-dlp format selector expression.
     """
+    # Skip AV1 codec as it lacks HW acceleration on many platforms (e.g., Colab T4)
+    # and causes decoding failures in OpenCV/FFmpeg software fallbacks.
+    # Note: Using [vcodec!^=av01] to match the start of the codec ID.
+    codec_filter = "[vcodec!^=av01]"
+
     if download_source_height == "max":
-        return "bestvideo+bestaudio/best"
+        return f"bestvideo{codec_filter}+bestaudio/best{codec_filter}/best"
+
+    try:
+        h_val = int(download_source_height)
+    except (ValueError, TypeError):
+        h_val = 0
+
+    if 0 < h_val <= 1080:
+        # For standard resolutions, strictly prefer native MP4 (H.264/AAC)
+        return (
+            f"bestvideo[height<=?{h_val}][ext=mp4]+bestaudio[ext=m4a]/"
+            f"bestvideo[height<=?{h_val}]{codec_filter}+bestaudio/"
+            f"best[height<=?{h_val}][ext=mp4]/"
+            f"best[height<=?{h_val}]{codec_filter}/"
+            f"best"
+        )
 
     return (
-        f"bestvideo[height<=?{download_source_height}]+bestaudio/best[height<=?{download_source_height}]"
+        f"bestvideo[height<=?{download_source_height}]{codec_filter}+bestaudio/"
+        f"best[height<=?{download_source_height}]{codec_filter}/"
+        f"best"
     )
 
 
