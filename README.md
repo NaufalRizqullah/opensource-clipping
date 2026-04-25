@@ -163,10 +163,10 @@ python main.py --help
 | `--clips`, `-n` | `7` | Number of highlight clips to generate |
 | `--ratio`, `-r` | `9:16` | Output aspect ratio (`9:16` or `16:9`) |
 | `--source-height` | `max` | Preferred source download max height (`max`, `1080`, `1440`, `2160`, etc.) |
-| `--video-cq` | `23` | NVENC CQ quality target (lower = sharper, larger files) |
-| `--video-crf` | `20` | libx264 CRF quality target (lower = sharper, larger files) |
-| `--video-preset` | `auto` | Encoder preset override for NVENC/libx264 (use `auto` to keep defaults) |
-| `--video-scale-algo` | `lanczos` | Resize algorithm for render scaling (`lanczos`, `bicubic`, `bilinear`, `area`) |
+| `--video-cq` | `23` | NVENC CQ quality target (lower is sharper). [Range: 15-20 (Ultra Sharp), 21-25 (Standard), 26-50 (Blurry)] |
+| `--video-crf` | `20` | libx264 CRF quality target (lower is sharper). [Range: 15-20 (Ultra Sharp), 21-25 (Standard), 26-50 (Blurry)] |
+| `--video-preset` | `auto` | Encoder preset override (NVENC: `p1`-`p7`, x264: `ultrafast`-`veryslow`). Use `auto` for default. |
+| `--video-scale-algo` | `lanczos` | Resize algorithm for render (`lanczos`: sharp, `bicubic`: balanced, `area`/`bilinear`: fast/blurry) |
 | `--words-per-sub` | `5` | Max words per karaoke subtitle group |
 | `--hook-duration` | `3` | Hook teaser duration (seconds) |
 | `--font-style` | `HORMOZI` | Font preset (`DEFAULT`, `STORYTELLER`, `HORMOZI`, `CINEMATIC`) |
