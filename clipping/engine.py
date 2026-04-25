@@ -100,6 +100,15 @@ def download_video(
 
     # Jalankan download video terpisah dari urusan subtitle
     with YoutubeDL(ydl_opts) as ydl:
+        # Extra step to verify resolution before downloading
+        try:
+            info = ydl.extract_info(url, download=False)
+            best_h = info.get("height", "unknown")
+            v_codec = info.get("vcodec", "unknown")
+            print(f"      ✅ Mendownload: {best_h}p (Codec: {v_codec})", flush=True)
+        except Exception as e:
+            print(f"      ⚠️ Gagal mengecek info detail: {e}", flush=True)
+
         ydl.download([url])
 
 
