@@ -58,6 +58,43 @@ build_ffmpeg_progress_cmd = _ffmpeg_utils.build_ffmpeg_progress_cmd
 run_ffmpeg_with_progress = _ffmpeg_utils.run_ffmpeg_with_progress
 
 
+def _get_cv2_interpolation(cfg=None):
+    """
+    Resolve OpenCV interpolation mode from runtime config.
+
+    Args:
+        cfg: Runtime config that may contain `video_scale_algo`.
+
+    Returns:
+        OpenCV interpolation constant.
+    """
+    algo = str(
+        getattr(cfg, "video_scale_algo", os.environ.get("OSC_VIDEO_SCALE_ALGO", "lanczos"))
+    ).lower()
+    mapping = {
+        "lanczos": cv2.INTER_LANCZOS4,
+        "bicubic": cv2.INTER_CUBIC,
+        "bilinear": cv2.INTER_LINEAR,
+        "area": cv2.INTER_AREA,
+    }
+    return mapping.get(algo, cv2.INTER_LANCZOS4)
+
+
+def _resize_frame(frame, size, cfg=None):
+    """
+    Resize frame using configured interpolation algorithm.
+
+    Args:
+        frame: Input image/frame array.
+        size: Target `(width, height)`.
+        cfg: Runtime config that may define `video_scale_algo`.
+
+    Returns:
+        Resized frame.
+    """
+    return cv2.resize(frame, size, interpolation=_get_cv2_interpolation(cfg))
+
+
 # ==============================================================================
 # MEDIAPIPE FACE DETECTOR (SINGLETON)
 # ==============================================================================
@@ -590,7 +627,7 @@ def crop_center_broll(img, target_w, target_h):
         y = (h - new_h) // 2
         img = img[y : y + new_h, :]
 
-    return cv2.resize(img, (target_w, target_h))
+    return _resize_frame(img, (target_w, target_h))
 
 
 # ==============================================================================
@@ -649,7 +686,7 @@ def buat_video_hybrid(
     # SNAP_THRESHOLD   = 0.30  # [NEW; NOT USED] Jika wajah lompat > 30% lebar layar, anggap ganti orang (Hard Cut)
     # =======================================================
 
-    video_encoder = detect_video_encoder()
+    video_encoder = detect_video_encoder(cfg)
 
     yolo_model = None
     detector = None
@@ -856,7 +893,7 @@ def buat_video_hybrid(
                 # Render full context for dev mode
                 cx = get_x(t)
                 # Resize original to 16:9 canvas
-                frame_base = cv2.resize(frame_utama, (out_w, out_h))
+                frame_base = _resize_frame(frame_utama, (out_w, out_h))
                 
                 # Dim background
                 frame_dev = (frame_base * 0.35).astype(np.uint8)
@@ -902,10 +939,10 @@ def buat_video_hybrid(
             elif rasio == "9:16":
                 cx = get_x(t)
                 cropped = frame_utama[:, cx : cx + crop_w]
-                frame_utama_siap = cv2.resize(cropped, (out_w, out_h))
+                frame_utama_siap = _resize_frame(cropped, (out_w, out_h))
                 frame_terpilih = frame_utama_siap
             else:
-                frame_utama_siap = cv2.resize(frame_utama, (out_w, out_h))
+                frame_utama_siap = _resize_frame(frame_utama, (out_w, out_h))
                 frame_terpilih = frame_utama_siap
 
             for bc in broll_caps:
@@ -1459,7 +1496,7 @@ def buat_video_split_screen(
     INACTIVE_ALPHA = 0.15  # darkening for inactive speaker panel
     ACTIVE_BORDER = 3  # px, highlight border for active speaker
 
-    video_encoder = detect_video_encoder()
+    video_encoder = detect_video_encoder(cfg)
 
     # Setup face detector
     yolo_model = None
@@ -1920,7 +1957,7 @@ def buat_video_split_screen(
 
             # --- Scene Cut Detection ---
             # Lightweight check: if pixels change drastically, clear stability history to allow instant switch
-            curr_small = cv2.resize(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), (64, 64))
+            curr_small = _resize_frame(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), (64, 64))
             if prev_small_gray is not None:
                 diff = cv2.absdiff(curr_small, prev_small_gray)
                 avg_diff = np.mean(diff)
@@ -2010,7 +2047,7 @@ def buat_video_split_screen(
                 x_full = int(max(0, min(smooth_cx - crop_w_full / 2, width - crop_w_full)))
                 
                 crop = frame[0:crop_h_full, x_full : x_full + crop_w_full]
-                final_frame = cv2.resize(crop, (out_w, out_h))
+                final_frame = _resize_frame(crop, (out_w, out_h))
                 # Log cx for subtitles to follow
                 tracking_log.append((t, smooth_cx))
             else:
@@ -2036,12 +2073,12 @@ def buat_video_split_screen(
                         if spk in last_valid_crop:
                             return last_valid_crop[spk].copy(), True
                         else:
-                            return cv2.resize(frame[0:crop_h, default_x : default_x + crop_w], (panel_w, panel_h)), True
+                            return _resize_frame(frame[0:crop_h, default_x : default_x + crop_w], (panel_w, panel_h)), True
                     else:
                         smooth_cx = _get_cx(spk, t)
                         # Calculate Top-Left X for wide panel crop
                         x_panel = int(max(0, min(smooth_cx - crop_w / 2, width - crop_w)))
-                        crop = cv2.resize(frame[0:crop_h, x_panel : x_panel + crop_w], (panel_w, panel_h))
+                        crop = _resize_frame(frame[0:crop_h, x_panel : x_panel + crop_w], (panel_w, panel_h))
                         if not in_solo_scene or active_speaker == spk:
                             last_valid_crop[spk] = crop.copy()
                         return crop, False
@@ -2075,7 +2112,7 @@ def buat_video_split_screen(
             # Ensure exact output dimensions
             if not dev_visualize:
                 if final_frame.shape[0] != out_h_final or final_frame.shape[1] != out_w_final:
-                    final_frame = cv2.resize(final_frame, (out_w_final, out_h_final))
+                    final_frame = _resize_frame(final_frame, (out_w_final, out_h_final))
             else:
                 # --- DIRECTOR'S CONSOLE (DEV MODE) ---
                 # UI Constants
@@ -2083,7 +2120,7 @@ def buat_video_split_screen(
                 HUD_X, HUD_Y = 30, 50
                 
                 # Base frame: 1920x1080 landscape
-                frame_res = cv2.resize(frame, (1920, 1080))
+                frame_res = _resize_frame(frame, (1920, 1080))
                 frame_dev = (frame_res * 0.35).astype(np.uint8) # Dim background
                 
                 scale_x = 1920 / width
@@ -2168,7 +2205,7 @@ def buat_video_split_screen(
             if dual_output:
                 # Resize normal output as base logic does not guarantee 1080x1920 if resolution is off
                 if final_frame.shape[0] != 1920 or final_frame.shape[1] != 1080:
-                    frm_normal = cv2.resize(final_frame, (1080, 1920))
+                    frm_normal = _resize_frame(final_frame, (1080, 1920))
                 else:
                     frm_normal = final_frame
                 writer_main.stdin.write(frm_normal.tobytes())
@@ -2176,7 +2213,7 @@ def buat_video_split_screen(
                 
             elif merge_output:
                 # Resize normal portrait output to fit the 1080 height evenly
-                frm_normal_small = cv2.resize(final_frame, (608, 1080))
+                frm_normal_small = _resize_frame(final_frame, (608, 1080))
                 
                 # Create dark grey large canvas backdrop
                 frm_merged = np.full((1220, 2648, 3), 30, dtype=np.uint8)
@@ -2199,7 +2236,7 @@ def buat_video_split_screen(
                 # Single Stream Handling
                 output_frm = frame_dev if dev_visualize else final_frame
                 if output_frm.shape[0] != out_h_final or output_frm.shape[1] != out_w_final:
-                    output_frm = cv2.resize(output_frm, (out_w_final, out_h_final))
+                    output_frm = _resize_frame(output_frm, (out_w_final, out_h_final))
                 writer_main.stdin.write(output_frm.tobytes())
 
             frame_count += 1
@@ -2297,7 +2334,7 @@ def buat_video_camera_switch(
     BLUR_KERNEL = 99
     BLUR_SIGMA = 30
 
-    video_encoder = detect_video_encoder()
+    video_encoder = detect_video_encoder(cfg)
 
     # ---------------------------------------------------------------- face detector
     yolo_model = None
@@ -2574,7 +2611,7 @@ def buat_video_camera_switch(
         scale = max(out_w / w, out_h / h)
         new_w = max(out_w, int(w * scale))
         new_h = max(out_h, int(h * scale))
-        bg = cv2.resize(frame, (new_w, new_h))
+        bg = _resize_frame(frame, (new_w, new_h))
         y0 = (new_h - out_h) // 2
         x0 = (new_w - out_w) // 2
         bg = bg[y0 : y0 + out_h, x0 : x0 + out_w]
@@ -2583,7 +2620,7 @@ def buat_video_camera_switch(
         # Foreground: scale frame to width=out_w, preserve aspect ratio
         fg_w = out_w
         fg_h = min(out_h, int(h * out_w / w))
-        fg = cv2.resize(frame, (fg_w, fg_h))
+        fg = _resize_frame(frame, (fg_w, fg_h))
         # Composite: centre foreground vertically on blurred background
         result = bg.copy()
         y_start = (out_h - fg_h) // 2
@@ -2664,7 +2701,7 @@ def buat_video_camera_switch(
 
             if dev_visualize:
                 # Dev visualization for camera-switch
-                frame_base = cv2.resize(frame, (out_w, out_h))
+                frame_base = _resize_frame(frame, (out_w, out_h))
                 frame_dev = (frame_base * 0.35).astype(np.uint8)
                 
                 scale_x = out_w / width
@@ -2739,7 +2776,7 @@ def buat_video_camera_switch(
                         last_switch_time = t
                     cx = _get_x(current_speaker, t)
                     crop_fr = frame[0:crop_h, cx : cx + crop_w]
-                    out_frame = cv2.resize(crop_fr, (out_w, out_h))
+                    out_frame = _resize_frame(crop_fr, (out_w, out_h))
 
             elif len(active_speakers) == 1:
                 new_speaker = active_speakers[0]
@@ -2754,13 +2791,13 @@ def buat_video_camera_switch(
                     last_switch_time = t
                 cx = _get_x(current_speaker, t)
                 crop_fr = frame[0:crop_h, cx : cx + crop_w]
-                out_frame = cv2.resize(crop_fr, (out_w, out_h))
+                out_frame = _resize_frame(crop_fr, (out_w, out_h))
 
             else:
                 if current_speaker is not None:
                     cx = _get_x(current_speaker, t)
                     crop_fr = frame[0:crop_h, cx : cx + crop_w]
-                    out_frame = cv2.resize(crop_fr, (out_w, out_h))
+                    out_frame = _resize_frame(crop_fr, (out_w, out_h))
                 else:
                     cx = (width - crop_w) // 2 # Center for blurred view
                     out_frame = _make_blurred_pillarbox(frame)

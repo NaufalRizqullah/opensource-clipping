@@ -140,7 +140,10 @@ def run_pipeline(cfg) -> list[dict]:
             diarization_data = None
 
     # Step 6 — Video encoder & glitch
-    video_encoder = studio.detect_video_encoder()
+    os.environ["OSC_VIDEO_SCALE_ALGO"] = str(
+        getattr(cfg, "video_scale_algo", "lanczos")
+    )
+    video_encoder = studio.detect_video_encoder(cfg)
 
     file_glitch_ts = None
     if cfg.use_hook_glitch:

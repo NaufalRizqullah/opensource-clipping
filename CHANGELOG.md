@@ -24,6 +24,17 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 
 ---
 
+## [v0.9.9] - 2026-04-25
+
+### Added
+- **Video Quality Tuning Flags**: Added `--video-cq`, `--video-crf`, `--video-preset`, and `--video-scale-algo` for sharper output tuning on both normal and `--dynamic-split` rendering paths.
+
+### Changed
+- **Encoder Selection Integration**: `detect_video_encoder()` now respects runtime config tuning values while preserving backward-compatible defaults when flags are not provided.
+- **Render Scaling Quality**: OpenCV resize operations in Studio rendering now use configurable interpolation (default `lanczos`) to preserve more detail after 16:9 → 9:16 crops.
+
+---
+
 ## [v0.9.7] - 2026-04-23
 
 ### Changed

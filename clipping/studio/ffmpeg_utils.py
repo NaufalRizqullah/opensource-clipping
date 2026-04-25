@@ -71,20 +71,35 @@ def _test_encoder_runtime(encoder_args):
     return result.returncode == 0, result.stderr[-1000:]
 
 
-def detect_video_encoder():
+def detect_video_encoder(cfg=None):
     """
     Select the best available video encoder with conservative fallback.
 
     Returns:
         Dict containing encoder name and FFmpeg args under keys `name` and `args`.
     """
+    nvenc_preset_fast = "p1"
+    nvenc_preset_legacy = "fast"
+    nvenc_cq = 25
+    cpu_preset = "veryfast"
+    cpu_crf = 25
+
+    if cfg is not None:
+        nvenc_cq = int(getattr(cfg, "video_quality_cq", nvenc_cq))
+        cpu_crf = int(getattr(cfg, "video_quality_crf", cpu_crf))
+        preset_override = str(getattr(cfg, "video_preset", "auto")).lower()
+        if preset_override != "auto":
+            nvenc_preset_fast = preset_override
+            nvenc_preset_legacy = preset_override
+            cpu_preset = preset_override
+
     nvenc_args_fastest = [
         "-c:v",
         "h264_nvenc",
         "-preset",
-        "p1",
+        nvenc_preset_fast,
         "-cq",
-        "25",
+        str(nvenc_cq),
         "-b:v",
         "0",
     ]
@@ -92,26 +107,36 @@ def detect_video_encoder():
         "-c:v",
         "h264_nvenc",
         "-preset",
-        "fast",
+        nvenc_preset_legacy,
         "-cq",
-        "25",
+        str(nvenc_cq),
         "-b:v",
         "0",
     ]
-    cpu_args = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "25"]
+    cpu_args = [
+        "-c:v",
+        "libx264",
+        "-preset",
+        cpu_preset,
+        "-crf",
+        str(cpu_crf),
+    ]
 
     if _ffmpeg_has_encoder("h264_nvenc"):
         ok, _ = _test_encoder_runtime(nvenc_args_fastest)
         if ok:
-            print("🚀 Pakai NVIDIA NVENC p1", flush=True)
+            print(f"🚀 Pakai NVIDIA NVENC {nvenc_preset_fast} (CQ {nvenc_cq})", flush=True)
             return {"name": "h264_nvenc", "args": nvenc_args_fastest}
 
         ok, _ = _test_encoder_runtime(nvenc_args_legacy)
         if ok:
-            print("🚀 Pakai NVIDIA NVENC fast", flush=True)
+            print(
+                f"🚀 Pakai NVIDIA NVENC {nvenc_preset_legacy} (CQ {nvenc_cq})",
+                flush=True,
+            )
             return {"name": "h264_nvenc", "args": nvenc_args_legacy}
 
-    print("⚠️ Fallback ke CPU libx264", flush=True)
+    print(f"⚠️ Fallback ke CPU libx264 ({cpu_preset}, CRF {cpu_crf})", flush=True)
     return {"name": "libx264", "args": cpu_args}
 
 

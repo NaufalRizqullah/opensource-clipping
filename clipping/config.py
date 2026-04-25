@@ -143,6 +143,10 @@ WHISPER_MODEL = "large-v3"
 WHISPER_DEVICE = "cuda"
 WHISPER_COMPUTE_TYPE = "float16"
 DOWNLOAD_SOURCE_HEIGHT = "max"
+VIDEO_QUALITY_CQ = 23
+VIDEO_QUALITY_CRF = 20
+VIDEO_PRESET = "auto"
+VIDEO_SCALE_ALGO = "lanczos"
 
 # Gemini
 GEMINI_MODEL = "gemini-3-flash-preview"
@@ -435,6 +439,29 @@ def _build_parser() -> argparse.ArgumentParser:
         default=0.2,
         help="[Experimental] Box overlap threshold to merge duplicate detections (default: 0.2)",
     )
+    p.add_argument(
+        "--video-cq",
+        type=int,
+        default=VIDEO_QUALITY_CQ,
+        help="NVENC constant quality value (lower is sharper, bigger file).",
+    )
+    p.add_argument(
+        "--video-crf",
+        type=int,
+        default=VIDEO_QUALITY_CRF,
+        help="libx264 CRF value (lower is sharper, bigger file).",
+    )
+    p.add_argument(
+        "--video-preset",
+        default=VIDEO_PRESET,
+        help="Override encoder preset for NVENC/libx264, or 'auto' to keep defaults.",
+    )
+    p.add_argument(
+        "--video-scale-algo",
+        choices=["lanczos", "bicubic", "bilinear", "area"],
+        default=VIDEO_SCALE_ALGO,
+        help="Resize algorithm for OpenCV scaling steps during rendering.",
+    )
 
     return p
 
@@ -535,6 +562,10 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         track_smooth_window=args.track_smooth_window,
         scene_cut_threshold=args.scene_cut_threshold,
         track_iou_threshold=args.track_iou_threshold,
+        video_quality_cq=args.video_cq,
+        video_quality_crf=args.video_crf,
+        video_preset=args.video_preset,
+        video_scale_algo=args.video_scale_algo,
         box_face_detection=args.box_face_detection,
         dev_mode=args.dev_mode,
         dev_mode_with_output=args.dev_mode_with_output,

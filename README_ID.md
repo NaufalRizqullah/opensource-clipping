@@ -112,6 +112,14 @@ python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --source-height max
 # Batasi kualitas source hingga 1440p (2K)
 python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --source-height 1440
 
+# Tuning output lebih tajam (mode biasa maupun dynamic-split)
+python main.py --url "https://youtube.com/watch?v=VIDEO_ID" \
+  --source-height 2160 \
+  --video-cq 19 \
+  --video-crf 17 \
+  --video-preset slow \
+  --video-scale-algo lanczos
+
 # Mode Advanced (YOLOv8 GPU Face Tracking & Font Khusus)
 python main.py --url "https://youtube.com/watch?v=VIDEO_ID" \
   --clips 7 \
@@ -155,6 +163,10 @@ python main.py --help
 | `--clips`, `-n` | `7` | Jumlah klip highlight yang dihasilkan |
 | `--ratio`, `-r` | `9:16` | Rasio aspek output (`9:16` atau `16:9`) |
 | `--source-height` | `max` | Batas tinggi resolusi source saat download (`max`, `1080`, `1440`, `2160`, dst.) |
+| `--video-cq` | `23` | Target kualitas CQ untuk NVENC (lebih kecil = lebih tajam, ukuran file naik) |
+| `--video-crf` | `20` | Target kualitas CRF untuk libx264 (lebih kecil = lebih tajam, ukuran file naik) |
+| `--video-preset` | `auto` | Override preset encoder NVENC/libx264 (`auto` untuk default perilaku lama) |
+| `--video-scale-algo` | `lanczos` | Algoritma resize saat render (`lanczos`, `bicubic`, `bilinear`, `area`) |
 | `--words-per-sub` | `5` | Maks kata per grup subtitle karaoke |
 | `--hook-duration` | `3` | Durasi hook teaser (detik) |
 | `--font-style` | `HORMOZI` | Preset font (`DEFAULT`, `STORYTELLER`, `HORMOZI`, `CINEMATIC`) |
@@ -317,6 +329,10 @@ Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 - `--clips` : Berapa banyak klip yang ingin dihasilkan
 - `--ratio` : `9:16` untuk TikTok/Reels/Shorts, `16:9` untuk YouTube biasa
 - `--source-height` : Batas resolusi source saat download (`max` = ambil kualitas tertinggi yang tersedia)
+- `--video-cq` : Nilai CQ untuk NVENC (default `23`)
+- `--video-crf` : Nilai CRF untuk libx264 (default `20`)
+- `--video-preset` : Override preset encoder (`auto` menjaga preset default lama)
+- `--video-scale-algo` : Algoritma scaling render (disarankan `lanczos` untuk hasil paling tajam)
 
 **🎬 Pengaturan Konten & Hook**
 - `--words-per-sub` : Jumlah maksimal kata yang muncul di layar (karaoke style)
