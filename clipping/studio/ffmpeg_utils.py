@@ -71,72 +71,78 @@ def _test_encoder_runtime(encoder_args):
     return result.returncode == 0, result.stderr[-1000:]
 
 
-def detect_video_encoder(cfg=None):
+def _get_auto_bitrate(height: int) -> str:
+    """Determine a safe target bitrate based on output height."""
+    if height >= 2160: return "20M"
+    if height >= 1440: return "12M"
+    if height >= 1080: return "8M"
+    return "4M"
+
+
+def detect_video_encoder(cfg=None, target_h=1080):
     """
     Select the best available video encoder with conservative fallback.
-
-    Returns:
-        Dict containing encoder name and FFmpeg args under keys `name` and `args`.
+    Now supports dynamic bitrate scaling for TikTok optimization.
     """
     nvenc_preset_fast = "p1"
     nvenc_preset_legacy = "fast"
     nvenc_cq = 25
     cpu_preset = "veryfast"
     cpu_crf = 25
+    
+    target_bitrate = "auto"
 
     if cfg is not None:
         nvenc_cq = int(getattr(cfg, "video_quality_cq", nvenc_cq))
         cpu_crf = int(getattr(cfg, "video_quality_crf", cpu_crf))
+        target_bitrate = str(getattr(cfg, "video_bitrate", "auto")).lower()
         preset_override = str(getattr(cfg, "video_preset", "auto")).lower()
         if preset_override != "auto":
             nvenc_preset_fast = preset_override
             nvenc_preset_legacy = preset_override
             cpu_preset = preset_override
 
+    if target_bitrate == "auto":
+        target_bitrate = _get_auto_bitrate(target_h)
+
     nvenc_args_fastest = [
-        "-c:v",
-        "h264_nvenc",
-        "-preset",
-        nvenc_preset_fast,
-        "-cq",
-        str(nvenc_cq),
-        "-b:v",
-        "0",
+        "-c:v", "h264_nvenc",
+        "-preset", nvenc_preset_fast,
+        "-rc", "vbr",
+        "-cq", str(nvenc_cq),
+        "-b:v", target_bitrate,
+        "-maxrate", f"{int(float(target_bitrate.replace('M', '')) * 1.5)}M",
+        "-bufsize", f"{int(float(target_bitrate.replace('M', '')) * 2)}M",
     ]
     nvenc_args_legacy = [
-        "-c:v",
-        "h264_nvenc",
-        "-preset",
-        nvenc_preset_legacy,
-        "-cq",
-        str(nvenc_cq),
-        "-b:v",
-        "0",
+        "-c:v", "h264_nvenc",
+        "-preset", nvenc_preset_legacy,
+        "-rc", "vbr",
+        "-cq", str(nvenc_cq),
+        "-b:v", target_bitrate,
+        "-maxrate", f"{int(float(target_bitrate.replace('M', '')) * 1.5)}M",
+        "-bufsize", f"{int(float(target_bitrate.replace('M', '')) * 2)}M",
     ]
     cpu_args = [
-        "-c:v",
-        "libx264",
-        "-preset",
-        cpu_preset,
-        "-crf",
-        str(cpu_crf),
+        "-c:v", "libx264",
+        "-preset", cpu_preset,
+        "-crf", str(cpu_crf),
+        "-maxrate", target_bitrate,
+        "-bufsize", f"{int(float(target_bitrate.replace('M', '')) * 2)}M",
     ]
 
     if _ffmpeg_has_encoder("h264_nvenc"):
         ok, _ = _test_encoder_runtime(nvenc_args_fastest)
         if ok:
-            print(f"🚀 Pakai NVIDIA NVENC {nvenc_preset_fast} (CQ {nvenc_cq})", flush=True)
+            print(f"🚀 Pakai NVIDIA NVENC {nvenc_preset_fast} (Bitrate {target_bitrate}, CQ {nvenc_cq})", flush=True)
             return {"name": "h264_nvenc", "args": nvenc_args_fastest}
 
         ok, _ = _test_encoder_runtime(nvenc_args_legacy)
         if ok:
-            print(
-                f"🚀 Pakai NVIDIA NVENC {nvenc_preset_legacy} (CQ {nvenc_cq})",
-                flush=True,
-            )
+            print(f"🚀 Pakai NVIDIA NVENC {nvenc_preset_legacy} (Bitrate {target_bitrate}, CQ {nvenc_cq})", flush=True)
             return {"name": "h264_nvenc", "args": nvenc_args_legacy}
 
-    print(f"⚠️ Fallback ke CPU libx264 ({cpu_preset}, CRF {cpu_crf})", flush=True)
+    print(f"⚠️ Fallback ke CPU libx264 ({cpu_preset}, CRF {cpu_crf}, Max {target_bitrate})", flush=True)
     return {"name": "libx264", "args": cpu_args}
 
 

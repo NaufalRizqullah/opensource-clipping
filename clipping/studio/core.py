@@ -3086,10 +3086,15 @@ def proses_klip(
                 print("   🎬 [Hook] FFmpeg burn subtitle + audio...")
                 esc_ass_hook = escape_ffmpeg_filter_value(os.path.abspath(a_hook))
                 esc_fontsdir = escape_ffmpeg_filter_value(os.path.abspath(cfg.font_dir))
-                vf_hook = f"subtitles={esc_ass_hook}:fontsdir={esc_fontsdir}"
+                vf_hook_list = [f"subtitles={esc_ass_hook}:fontsdir={esc_fontsdir}"]
             else:
                 print(f"   🎬 [Hook] Skip subtitle rendering {'(Custom Hook)' if custom_hook else ''}...")
-                vf_hook = None
+                vf_hook_list = []
+            
+            if cfg.video_sharpen:
+                vf_hook_list.append("unsharp=5:5:0.5:5:5:0.0")
+            
+            vf_hook = ",".join(vf_hook_list) if vf_hook_list else None
 
             cmd_h_base = [
                 "ffmpeg",
@@ -3206,7 +3211,11 @@ def proses_klip(
             lbl_suffix = "" if input_silent_ts == m_silent else " (DEV)"
             
             if aktif_bgm and os.path.exists(file_bgm):
-                v_filter = f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}" if not cfg.no_subs else "null"
+                v_filter_parts = [f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"] if not cfg.no_subs else ["null"]
+                if cfg.video_sharpen:
+                    v_filter_parts.append("unsharp=5:5:0.5:5:5:0.0")
+                v_filter = ",".join(v_filter_parts)
+                
                 filter_complex = (
                     f"[0:v]{v_filter}[v_out]; "
                     f"[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume=1.2[voc]; "
@@ -3262,8 +3271,15 @@ def proses_klip(
                     "1:a:0",
                 ]
                 if not cfg.no_subs:
-                    vf_main = f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"
-                    cmd_m_base += ["-vf", vf_main]
+                    vf_main_parts = [f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"]
+                else:
+                    vf_main_parts = []
+                
+                if cfg.video_sharpen:
+                    vf_main_parts.append("unsharp=5:5:0.5:5:5:0.0")
+                
+                if vf_main_parts:
+                    cmd_m_base += ["-vf", ",".join(vf_main_parts)]
                 cmd_m_base += std_p
 
             cmd_m = build_ffmpeg_progress_cmd(cmd_m_base, output_final_ts)

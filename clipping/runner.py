@@ -143,7 +143,15 @@ def run_pipeline(cfg) -> list[dict]:
     os.environ["OSC_VIDEO_SCALE_ALGO"] = str(
         getattr(cfg, "video_scale_algo", "lanczos")
     )
-    video_encoder = studio.detect_video_encoder(cfg)
+    
+    # Get target dimensions for auto-bitrate calculation
+    import cv2
+    cap_e = cv2.VideoCapture(cfg.file_video_asli)
+    src_h_e = int(cap_e.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    cap_e.release()
+    
+    target_w_e, target_h_e = studio._get_render_dims(cfg, cfg.pilihan_rasio, source_h=src_h_e)
+    video_encoder = studio.detect_video_encoder(cfg, target_h=target_h_e)
 
     file_glitch_ts = None
     if cfg.use_hook_glitch:

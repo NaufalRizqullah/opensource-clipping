@@ -446,6 +446,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="[Experimental] Box overlap threshold to merge duplicate detections (default: 0.2)",
     )
     p.add_argument(
+        "--video-bitrate",
+        default="auto",
+        help="Target video bitrate (e.g. 8M, 12M, auto). 'auto' scales based on resolution.",
+    )
+    p.add_argument(
+        "--video-sharpen",
+        action="store_true",
+        help="Apply a subtle sharpening filter for clearer output.",
+    )
+    p.add_argument(
         "--video-cq",
         type=int,
         default=VIDEO_QUALITY_CQ,
@@ -571,6 +581,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         track_iou_threshold=args.track_iou_threshold,
         video_quality_cq=args.video_cq,
         video_quality_crf=args.video_crf,
+        video_bitrate=args.video_bitrate,
+        video_sharpen=args.video_sharpen,
         video_preset=args.video_preset,
         video_scale_algo=args.video_scale_algo,
         box_face_detection=args.box_face_detection,

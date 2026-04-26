@@ -150,8 +150,8 @@ python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
 # Custom Hook Manual (menggunakan klip .mp4 eksternal)
 python main.py --url "URL_VIDEO" --hook-source "URL_DRIVE_ATAU_PATH" --hook-source-start 5.0 --hook-duration 4
 
-# Rendering Ultra-HD 2K (Download 1440p dan render resolusi vertikal 1440p native)
-python main.py --url "URL_VIDEO" --source-height 1440 --render-height source
+# Rendering Ultra-HD 2K (Download 1440p dan render resolusi vertikal 1440p native dengan penajaman)
+python main.py --url "URL_VIDEO" --source-height 1440 --render-height source --video-sharpen
 ```
 
 ## ⚙️ Opsi CLI
@@ -167,6 +167,8 @@ python main.py --help
 | `--ratio`, `-r` | `9:16` | Rasio aspek output (`9:16` atau `16:9`) |
 | `--source-height` | `max` | Batas tinggi resolusi source saat download (`max`, `1080`, `1440`, `2160`, dst.) |
 | `--render-height` | `1080` | Target tinggi output render (`1080`, `1440`, `2160`, `source`) |
+| `--video-bitrate` | `auto` | Target bitrate video (misal 8M, 12M, auto). 'auto' menyesuaikan resolusi. |
+| `--video-sharpen` | — | Aktifkan filter penajaman (sharpening) ringan untuk hasil lebih jernih. |
 | `--video-cq` | `23` | Target kualitas CQ untuk NVENC (lebih kecil = lebih tajam). [Range: 15-20 (Sangat Tajam), 21-25 (Standar), 26-50 (Buram)] |
 | `--video-crf` | `20` | Target kualitas CRF untuk libx264 (lebih kecil = lebih tajam). [Range: 15-20 (Sangat Tajam), 21-25 (Standar), 26-50 (Buram)] |
 | `--video-preset` | `auto` | Override preset encoder (NVENC: `p1`-`p7`, x264: `ultrafast`-`veryslow`). Gunakan `auto` untuk default. |

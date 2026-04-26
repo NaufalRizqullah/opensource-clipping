@@ -24,6 +24,15 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 
 ---
 
+## [v0.9.12] - 2026-04-26
+
+### Added
+- **Auto-Bitrate Management**: Implemented resolution-aware bitrate selection (4M/8M/12M/20M) to optimize files for TikTok/Reels algorithms.
+- **Subtle Sharpening Filter**: Added `--video-sharpen` flag to enhance clarity and texture detail in final renders.
+- **NVENC Quality Tuning**: Switched to VBR (Variable Bitrate) mode with peak rate headroom for better motion handling.
+
+---
+
 ## [v0.9.11] - 2026-04-26
 
 ### Fixed
