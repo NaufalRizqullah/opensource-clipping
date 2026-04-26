@@ -551,15 +551,15 @@ ATURAN OUTPUT:
 
 STRUKTUR JSON WAJIB (Ikuti nama field ini secara kaku):
 [
-  {
+  {{
     "rank": 1,
     "start_time": 30.5,
     "end_time": 90.0,
     "hook_start_time": 30.5,
     "hook_end_time": 35.0,
     "bgm_mood": "mood_here",
-    "typography_plan": [{"kata_utama": "...", "scale_level": 2, "style": "utama", "animasi": "bounce_pop"}],
-    "broll_list": [{"start_time": 40.0, "end_time": 45.0, "search_query": "..."}],
+    "typography_plan": [{{ "kata_utama": "...", "scale_level": 2, "style": "utama", "animasi": "bounce_pop" }}],
+    "broll_list": [{{ "start_time": 40.0, "end_time": 45.0, "search_query": "..." }}],
     "title_indonesia": "...",
     "title_inggris": "...",
     "hastag": "#hastag1 #hastag2",
@@ -570,7 +570,7 @@ STRUKTUR JSON WAJIB (Ikuti nama field ini secara kaku):
     "tiktok_caption_id": "...",
     "tiktok_caption": "...",
     "alasan": "..."
-  }
+  }}
 ]
 
 Transkrip:
