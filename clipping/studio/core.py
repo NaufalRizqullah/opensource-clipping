@@ -635,6 +635,37 @@ def crop_center_broll(img, target_w, target_h):
 # ==============================================================================
 
 
+def _get_render_dims(cfg, rasio, source_h=1080):
+    """
+    Calculate target output resolution based on config and aspect ratio.
+    If mode is 'source', it uses the provided source_h as the base dimension.
+    """
+    mode = str(getattr(cfg, "render_output_height", "1080")).lower()
+    if mode == "source":
+        target_h_base = source_h
+    else:
+        try:
+            target_h_base = int(mode)
+        except (ValueError, TypeError):
+            target_h_base = 1080
+
+    if rasio == "9:16":
+        # Horizontal 1080p source -> Vertical 1080x1920 output
+        # Here target_h_base is treated as the 'short' side for 9:16
+        out_h = int(target_h_base * 16 / 9)
+        if out_h % 2 != 0:
+            out_h += 1
+        out_w = target_h_base
+    else:
+        # 16:9
+        out_w = int(target_h_base * 16 / 9)
+        if out_w % 2 != 0:
+            out_w += 1
+        out_h = target_h_base
+
+    return out_w, out_h
+
+
 def buat_video_hybrid(
     input_video,
     output_video,
@@ -857,7 +888,7 @@ def buat_video_hybrid(
         return default_x
 
     # FASE 3: RENDER FRAME
-    out_w, out_h = (1080, 1920) if rasio == "9:16" else (1920, 1080)
+    out_w, out_h = _get_render_dims(cfg, rasio, source_h=height)
     
     # DEV MODE: Force 16:9 to show context
     dev_visualize = cfg.dev_mode and rasio == "9:16"
@@ -1088,11 +1119,15 @@ def buat_file_ass(
     def fmt_time(d):
         return f"{int(d // 3600)}:{int((d % 3600) // 60):02d}:{int(d % 60):02d}.{int((d - int(d)) * 100):02d}"
 
-    play_res_x, play_res_y = (1080, 1920) if rasio == "9:16" else (1920, 1080)
+    play_res_x, play_res_y = _get_render_dims(cfg, rasio, source_h=source_dim[1] if source_dim else 1080)
+    
+    # Calculate scale relative to standard 1080p vertical (1920 height)
+    # This ensures typography looks consistent across different render resolutions
+    scale_factor = play_res_y / (1920 if rasio == "9:16" else 1080)
     align = cfg.ass_align_916 if rasio == "9:16" else cfg.ass_align_169
-    margin_v = cfg.ass_margin_916 if rasio == "9:16" else cfg.ass_margin_169
-    font_sz = cfg.ass_font_916 if rasio == "9:16" else cfg.ass_font_169
-    margin_lr = 60 if rasio == "9:16" else 40
+    margin_v = int((cfg.ass_margin_916 if rasio == "9:16" else cfg.ass_margin_169) * scale_factor)
+    font_sz = int((cfg.ass_font_916 if rasio == "9:16" else cfg.ass_font_169) * scale_factor)
+    margin_lr = int((60 if rasio == "9:16" else 40) * scale_factor)
 
     header = (
         f"[Script Info]\n"
@@ -1522,8 +1557,8 @@ def buat_video_split_screen(
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     duration = end_clip - start_clip
 
-    # Output dimensions: 1080x1920 for 9:16
-    out_w, out_h = 1080, 1920
+    # Output dimensions calculated dynamically
+    out_w, out_h = _get_render_dims(cfg, "9:16", source_h=height)
     out_w_final, out_h_final = out_w, out_h
     
     dev_visualize = cfg.dev_mode or cfg.dev_mode_with_output or cfg.dev_mode_with_output_merge
@@ -1540,8 +1575,8 @@ def buat_video_split_screen(
     # Calculate panel dimensions based on the 1080x1920 orientation
     # regardless of whether dev mode is on, because the internal layout arithmetic
     # must still think in terms of the target 9:16 portrait canvas.
-    panel_h = (1920 - DIVIDER_HEIGHT) // 2
-    panel_w = 1080
+    panel_h = (out_h - DIVIDER_HEIGHT) // 2
+    panel_w = out_w
 
     # --- Panel Crop dimensions (wider aspect for half-height panels) ---
     panel_ratio = panel_w / panel_h
@@ -2655,7 +2690,7 @@ def buat_video_camera_switch(
         return []
 
     # FASE 3: RENDER FRAME
-    out_w, out_h = (1080, 1920) # Assume 9:16 target
+    out_w, out_h = _get_render_dims(cfg, "9:16", source_h=height)
     
     dev_visualize = cfg.dev_mode # Assume only for 9:16 as described
     if dev_visualize:

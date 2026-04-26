@@ -149,6 +149,9 @@ python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
 
 # Manual Custom Hook (using external .mp4 clip)
 python main.py --url "VIDEO_URL" --hook-source "DRIVE_URL_OR_PATH" --hook-source-start 5.0 --hook-duration 4
+
+# Ultra-HD 2K Rendering (Fetch 1440p and render at native 1440p vertical resolution)
+python main.py --url "VIDEO_URL" --source-height 1440 --render-height source
 ```
 
 ## ⚙️ CLI Options
@@ -163,6 +166,7 @@ python main.py --help
 | `--clips`, `-n` | `7` | Number of highlight clips to generate |
 | `--ratio`, `-r` | `9:16` | Output aspect ratio (`9:16` or `16:9`) |
 | `--source-height` | `max` | Preferred source download max height (`max`, `1080`, `1440`, `2160`, etc.) |
+| `--render-height` | `1080` | Target render output height (`1080`, `1440`, `2160`, `source`) |
 | `--video-cq` | `23` | NVENC CQ quality target (lower is sharper). [Range: 15-20 (Ultra Sharp), 21-25 (Standard), 26-50 (Blurry)] |
 | `--video-crf` | `20` | libx264 CRF quality target (lower is sharper). [Range: 15-20 (Ultra Sharp), 21-25 (Standard), 26-50 (Blurry)] |
 | `--video-preset` | `auto` | Encoder preset override (NVENC: `p1`-`p7`, x264: `ultrafast`-`veryslow`). Use `auto` for default. |

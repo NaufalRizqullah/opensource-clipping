@@ -24,6 +24,18 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 
 ---
 
+## [v0.9.10] - 2026-04-26
+
+### Added
+- **Dynamic Render Resolution**: Added `--render-height` flag to allow custom output heights (e.g. `1080`, `1440`, `2160`, or `source`).
+- **Smart Result Scaling**: Subtitles, layouts, and tracking windows now scale proportionally when rendering at high resolutions (2K/4K).
+- **Download Verification**: Added real-time logging of the actual resolution and codec selected by `yt-dlp` to ensure quality targets are met.
+
+### Fixed
+- **AV1 Codec Incompatibility**: Explicitly excluded AV1 codec (`av01`) from download selection to prevent rendering crashes on platforms without hardware AV1 decoding (e.g., Colab T4). Prioritizes VP9 for high-res assets.
+
+---
+
 ## [v0.9.9] - 2026-04-25
 
 ### Added

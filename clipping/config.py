@@ -147,6 +147,7 @@ VIDEO_QUALITY_CQ = 23
 VIDEO_QUALITY_CRF = 20
 VIDEO_PRESET = "auto"
 VIDEO_SCALE_ALGO = "lanczos"
+RENDER_OUTPUT_HEIGHT = 1080
 
 # Gemini
 GEMINI_MODEL = "gemini-3-flash-preview"
@@ -216,6 +217,11 @@ def _build_parser() -> argparse.ArgumentParser:
         type=_parse_download_height,
         default=DOWNLOAD_SOURCE_HEIGHT,
         help="Preferred source download max height. Use 'max' to fetch highest available quality.",
+    )
+    p.add_argument(
+        "--render-height",
+        default=str(RENDER_OUTPUT_HEIGHT),
+        help="Target output height for the render. Use 'source' to match the source video height, or a number (e.g. 1080, 1440).",
     )
 
     # --- Konten & Hook ---
@@ -505,6 +511,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         jumlah_clip=args.clips,
         pilihan_rasio=args.ratio,
         download_source_height=args.source_height,
+        render_output_height=args.render_height,
         # Konten & Hook
         max_kata_per_subtitle=args.words_per_sub,
         durasi_hook=args.hook_duration,
