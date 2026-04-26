@@ -1823,32 +1823,54 @@ def buat_video_split_screen(
         if nf == 0:
             continue
 
-        # In split-screen, we need to track EVERY speaker in the clip in EVERY frame
-        # to ensure the "silent fallback" panels have up-to-date positions and distances.
-        remaining_faces = list(fc_list)
-        
-        # Priority: active speakers get their nearest faces first
-        spk_to_face = {}
-        for spk in sorted(act_list, key=lambda s: _get_canonical_x(s)):
-            if not remaining_faces or spk not in raw_data:
-                continue
-            best = min(remaining_faces, key=lambda fc: abs(fc[0] - _get_canonical_x(spk)))
-            spk_to_face[spk] = best
-            remaining_faces.remove(best)
+        if nf == 1:
+            # Only 1 face detected — we need to figure out WHOSE face this is.
+            # Don't blindly assign to the active speaker; use canonical position.
+            the_face = fc_list[0]
             
-        # Others (silent speakers): assign from remaining faces using canonical positions
-        for spk in all_speakers_in_clip:
-            if spk in spk_to_face or not remaining_faces or spk not in raw_data:
-                continue
-            best = min(remaining_faces, key=lambda fc: abs(fc[0] - _get_canonical_x(spk)))
-            spk_to_face[spk] = best
-            remaining_faces.remove(best)
+            # Find the speaker whose canonical_cx is closest to this face
+            best_spk = None
+            best_dist = float('inf')
+            for spk in all_speakers_in_clip:
+                if spk not in raw_data:
+                    continue
+                canon_cx = _get_canonical_x(spk)
+                d = abs(the_face[0] - canon_cx)
+                if d < best_dist:
+                    best_dist = d
+                    best_spk = spk
             
-        # Record data for everyone who was assigned a face
-        for spk, face in spk_to_face.items():
-            others = [fc for fc in fc_list if fc != face]
-            d_near = min([abs(fc[0] - face[0]) for fc in others]) if others else width
-            raw_data[spk].append({"time": fd["time"], "cx": face[0], "cy": face[1], "dist": d_near})
+            if best_spk:
+                # This face belongs to best_spk. Distance to "other" is large (solo frame).
+                raw_data[best_spk].append({
+                    "time": fd["time"], "cx": the_face[0], "cy": the_face[1], "dist": width
+                })
+        else:
+            # 2+ faces: assign ALL speakers to their nearest face
+            remaining_faces = list(fc_list)
+            
+            # Priority: active speakers get their nearest faces first
+            spk_to_face = {}
+            for spk in sorted(act_list, key=lambda s: _get_canonical_x(s)):
+                if not remaining_faces or spk not in raw_data:
+                    continue
+                best = min(remaining_faces, key=lambda fc: abs(fc[0] - _get_canonical_x(spk)))
+                spk_to_face[spk] = best
+                remaining_faces.remove(best)
+                
+            # Silent speakers: assign from remaining faces using canonical positions
+            for spk in all_speakers_in_clip:
+                if spk in spk_to_face or not remaining_faces or spk not in raw_data:
+                    continue
+                best = min(remaining_faces, key=lambda fc: abs(fc[0] - _get_canonical_x(spk)))
+                spk_to_face[spk] = best
+                remaining_faces.remove(best)
+                
+            # Record data for everyone who was assigned a face
+            for spk, face in spk_to_face.items():
+                others = [fc for fc in fc_list if fc != face]
+                d_near = min([abs(fc[0] - face[0]) for fc in others]) if others else width
+                raw_data[spk].append({"time": fd["time"], "cx": face[0], "cy": face[1], "dist": d_near})
 
     # ================================================================
     # FASE 1.5 — Determine Stable Global Zoom
@@ -1875,6 +1897,15 @@ def buat_video_split_screen(
         return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 2.5)))
 
     clip_fixed_zoom = _calc_clip_zoom(global_min_dist)
+    
+    # Debug: show zoom decision values
+    print(f"   🔍 Split Auto-Zoom: global_min_dist={global_min_dist:.0f}px, "
+          f"panel_ratio={panel_w/panel_h:.3f}, clip_fixed_zoom={clip_fixed_zoom:.2f}x", flush=True)
+    for spk in all_speakers_in_clip:
+        n_pts = len(raw_data[spk])
+        avg_cx = sum(d["cx"] for d in raw_data[spk]) / n_pts if n_pts else 0
+        print(f"      Speaker {spk}: {n_pts} tracking points, avg_cx={avg_cx:.0f}, "
+              f"canonical_cx={speaker_canonical_cx.get(spk, 'N/A')}", flush=True)
 
     # ---- FASE 2: SMOOTH CAMERA PER SPEAKER (Centering CX) ----
     def _smooth_positions(raw_list):
