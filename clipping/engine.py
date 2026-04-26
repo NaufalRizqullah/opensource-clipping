@@ -373,34 +373,9 @@ def _generate_json_with_retry(client, model, fallback_model, contents, config):
     ) from last_exc
 
 
-def analyze_with_gemini(
-    transkrip_lengkap: str,
-    cfg,
-) -> list[dict]:
-    """
-    Analyse transcript with Gemini AI to pick best clip moments.
-
-    Parameters
-    ----------
-    transkrip_lengkap : str
-        The full transcript text.
-    cfg : SimpleNamespace
-        Config object (must have api_key_gemini, jumlah_clip, durasi_hook, gemini_model).
-
-    Returns
-    -------
-    list[dict]
-        List of clip dicts parsed from Gemini JSON response.
-    """
-    import google.genai as genai
-    from google.genai import types
-
-    jumlah_clip = cfg.jumlah_clip
-    durasi_hook = cfg.durasi_hook
-
-    print(f"[3/3] Menganalisis Top {jumlah_clip} momen terbaik + Typography Plan menggunakan Gemini...")
-
-    prompt = f"""
+def get_analysis_prompt(transkrip_lengkap: str, jumlah_clip: int, durasi_hook: int) -> str:
+    """Centralized prompt for both Gemini and NVIDIA providers."""
+    return f"""
 Kamu adalah Art Director, Editor Video, dan Strategist Metadata Short-Form Content untuk TikTok, Reels, dan YouTube Shorts.
 
 Baca transkrip video berikut. Format transkrip:
@@ -457,7 +432,7 @@ BGM MOOD (BACKGROUND MUSIC):
 - Pastikan mood selaras dengan cerita. (Contoh: cerita perjuangan berat = sad/epic, cerita lucu/santai = chill/upbeat).
 
 SLOW CLOSING:
-- end_time HARUS ditambah padding +0.20 sampai +0.85 detik setelah kata terakhir agar ending terasa lega dan tidak kepotong kasar.
+- end_time HARUS ditambah padding +0.10 sampai +0.85 detik setelah kata terakhir agar ending terasa lega dan tidak kepotong kasar.
 
 ALASAN PEMILIHAN:
 - Isi field 'alasan' dengan penjelasan singkat mengapa klip ini layak dipilih.
@@ -578,7 +553,73 @@ Transkrip:
 {transkrip_lengkap}
 """
 
-    # JSON Schema definitions
+
+def analyze_with_nvidia(transkrip_lengkap: str, cfg) -> list[dict]:
+    """Analyze transcript using NVIDIA NIM API (OpenAI compatible)."""
+    from openai import OpenAI
+    
+    print(f"[3/3] Menganalisis Top {cfg.jumlah_clip} momen menggunakan NVIDIA ({cfg.nvidia_model})...")
+    
+    if not cfg.api_key_nvidia:
+        raise ValueError("NVIDIA_API_KEY tidak ditemukan di environment.")
+
+    client = OpenAI(
+        base_url="https://integrate.api.nvidia.com/v1",
+        api_key=cfg.api_key_nvidia
+    )
+    
+    prompt = get_analysis_prompt(transkrip_lengkap, cfg.jumlah_clip, cfg.durasi_hook)
+    
+    completion = client.chat.completions.create(
+        model=cfg.nvidia_model,
+        messages=[
+            {"role": "system", "content": "You are a professional video editor and strategist. Always output valid JSON array ONLY. Do not explain."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=1,
+        max_tokens=16384,
+        extra_body={"chat_template_kwargs":{"thinking":False}},
+        response_format={"type": "json_object"} if "deepseek" in cfg.nvidia_model.lower() else None
+    )
+    
+    content = completion.choices[0].message.content
+    
+    if "```" in content:
+        content = re.sub(r"```(json)?", "", content).strip()
+        content = content.split("```")[0].strip()
+        
+    return json.loads(content)
+
+
+def analyze_with_ai(transkrip_lengkap: str, cfg) -> list[dict]:
+    """Dispatcher for AI analysis based on provider."""
+    provider = getattr(cfg, "ai_provider", "gemini")
+    
+    if provider == "nvidia":
+        if not cfg.api_key_nvidia:
+            print("⚠️ NVIDIA_API_KEY tidak ditemukan! Mencoba fallback ke Gemini...")
+        else:
+            try:
+                return analyze_with_nvidia(transkrip_lengkap, cfg)
+            except Exception as e:
+                print(f"⚠️ NVIDIA API gagal: {e}. Fallback ke Gemini...")
+    
+    return analyze_with_gemini(transkrip_lengkap, cfg)
+
+
+def analyze_with_gemini(
+    transkrip_lengkap: str,
+    cfg,
+) -> list[dict]:
+    """Analyse transcript with Gemini AI."""
+    import google.genai as genai
+    from google.genai import types
+
+    print(f"[3/3] Menganalisis Top {cfg.jumlah_clip} momen terbaik menggunakan Gemini...")
+
+    prompt = get_analysis_prompt(transkrip_lengkap, cfg.jumlah_clip, cfg.durasi_hook)
+
+    # JSON Schema definitions (same as before)
     schema_broll = {
         "type": "ARRAY",
         "items": {
@@ -656,12 +697,13 @@ Transkrip:
         },
     )
 
-    hasil_json = _generate_json_with_retry(
+    return _generate_json_with_retry(
         client=client,
         model=cfg.gemini_model,
         fallback_model=getattr(cfg, "gemini_fallback_model", None),
         contents=prompt,
         config=gemini_config,
     )
+
 
     return hasil_json

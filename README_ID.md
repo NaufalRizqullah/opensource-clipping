@@ -152,6 +152,9 @@ python main.py --url "URL_VIDEO" --hook-source "URL_DRIVE_ATAU_PATH" --hook-sour
 
 # Rendering Ultra-HD 2K (Download 1440p dan render resolusi vertikal 1440p native dengan penajaman)
 python main.py --url "URL_VIDEO" --source-height 1440 --render-height source --video-sharpen
+
+# Menggunakan NVIDIA NIM (DeepSeek-V3) sebagai pengganti Gemini
+python main.py --url "URL_VIDEO" --ai-provider nvidia --nvidia-model "deepseek-ai/deepseek-v3"
 ```
 
 ## ⚙️ Opsi CLI
@@ -166,6 +169,8 @@ python main.py --help
 | `--clips`, `-n` | `7` | Jumlah klip highlight yang dihasilkan |
 | `--ratio`, `-r` | `9:16` | Rasio aspek output (`9:16` atau `16:9`) |
 | `--source-height` | `max` | Batas tinggi resolusi source saat download (`max`, `1080`, `1440`, `2160`, dst.) |
+| `--ai-provider` | `gemini` | Provider AI untuk analisis (`gemini` atau `nvidia`). |
+| `--nvidia-model` | `deepseek...` | Nama model untuk NVIDIA NIM API (misal `deepseek-ai/deepseek-v3`). |
 | `--render-height` | `1080` | Target tinggi output render (`1080`, `1440`, `2160`, `source`) |
 | `--video-bitrate` | `auto` | Target bitrate video (misal 8M, 12M, auto). 'auto' menyesuaikan resolusi. |
 | `--video-sharpen` | — | Aktifkan filter penajaman (sharpening) ringan untuk hasil lebih jernih. |

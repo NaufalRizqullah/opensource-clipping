@@ -152,6 +152,9 @@ python main.py --url "VIDEO_URL" --hook-source "DRIVE_URL_OR_PATH" --hook-source
 
 # Ultra-HD 2K Rendering (Fetch 1440p and render at native 1440p vertical resolution with sharpening)
 python main.py --url "VIDEO_URL" --source-height 1440 --render-height source --video-sharpen
+
+# Use NVIDIA NIM (DeepSeek-V3) instead of Gemini
+python main.py --url "VIDEO_URL" --ai-provider nvidia --nvidia-model "deepseek-ai/deepseek-v4-pro"
 ```
 
 ## ⚙️ CLI Options
@@ -166,6 +169,8 @@ python main.py --help
 | `--clips`, `-n` | `7` | Number of highlight clips to generate |
 | `--ratio`, `-r` | `9:16` | Output aspect ratio (`9:16` or `16:9`) |
 | `--source-height` | `max` | Preferred source download max height (`max`, `1080`, `1440`, `2160`, etc.) |
+| `--ai-provider` | `gemini` | AI provider for analysis (`gemini` or `nvidia`). |
+| `--nvidia-model` | `deepseek...` | Model name for NVIDIA NIM API (e.g. `deepseek-ai/deepseek-v3`). |
 | `--render-height` | `1080` | Target render output height (`1080`, `1440`, `2160`, `source`) |
 | `--video-bitrate` | `auto` | Target video bitrate (e.g. 8M, 12M, auto). 'auto' scales based on resolution. |
 | `--video-sharpen` | — | Apply a subtle sharpening filter for clearer output. |

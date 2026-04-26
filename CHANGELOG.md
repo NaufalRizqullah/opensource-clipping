@@ -24,6 +24,14 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 
 ---
 
+## [v0.9.13] - 2026-04-26
+
+### Added
+- **Multi-Cloud AI Providers**: Integrated NVIDIA NIM API support. Users can now choose between Gemini and NVIDIA (DeepSeek/Llama) for video analysis.
+- **Failover Logic**: Automated failover from NVIDIA to Gemini if the provider is unavailable.
+
+---
+
 ## [v0.9.12] - 2026-04-26
 
 ### Added

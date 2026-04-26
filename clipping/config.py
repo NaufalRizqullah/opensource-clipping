@@ -149,7 +149,9 @@ VIDEO_PRESET = "auto"
 VIDEO_SCALE_ALGO = "lanczos"
 RENDER_OUTPUT_HEIGHT = 1080
 
-# Gemini
+# AI Provider
+AI_PROVIDER = "gemini"
+NVIDIA_MODEL = "deepseek-ai/deepseek-v4-pro"
 GEMINI_MODEL = "gemini-3-flash-preview"
 GEMINI_FALLBACK_MODEL = "gemini-2.5-flash"
 
@@ -352,6 +354,17 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=["8n", "8s", "8m", "8n_v2", "9c"],
         default="8m",
         help="YOLO face model version/size (8n, 8s, 8m, 8n_v2, 9c). Only active if --face-detector yolo",
+    )
+    p.add_argument(
+        "--ai-provider",
+        choices=["gemini", "nvidia"],
+        default=AI_PROVIDER,
+        help="AI provider for video analysis (gemini or nvidia).",
+    )
+    p.add_argument(
+        "--nvidia-model",
+        default=NVIDIA_MODEL,
+        help="Model name for NVIDIA NIM API (e.g. deepseek-ai/deepseek-v3).",
     )
     p.add_argument("--gemini-model", default=GEMINI_MODEL, help="Gemini model name")
     p.add_argument(
@@ -565,7 +578,10 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         whisper_model=args.whisper_model,
         whisper_device=args.whisper_device,
         whisper_compute_type=args.whisper_compute_type,
-        # Gemini
+        # AI
+        ai_provider=args.ai_provider,
+        api_key_nvidia=os.environ.get("NVIDIA_API_KEY", ""),
+        nvidia_model=args.nvidia_model,
         gemini_model=args.gemini_model,
         gemini_fallback_model=args.gemini_fallback_model,
         load_gemini_json=args.load_gemini_json,
