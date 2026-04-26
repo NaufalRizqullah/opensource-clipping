@@ -1379,7 +1379,7 @@ def buat_file_ass(
 # ==============================================================================
 
 
-def siapkan_glitch_video(rasio, cfg, video_encoder):
+def siapkan_glitch_video(rasio, cfg, video_encoder, source_h=1080):
     """
     Prepare or reuse short glitch transition video in TS format.
 
@@ -1387,11 +1387,14 @@ def siapkan_glitch_video(rasio, cfg, video_encoder):
         rasio: Target ratio string.
         cfg: Runtime config with glitch source URL.
         video_encoder: Encoder descriptor dict.
+        source_h: Height of the source video for dynamic scaling.
 
     Returns:
         Path to prepared glitch TS file.
     """
-    glitch_ts = f"glitch_ready_{rasio.replace(':', '')}.ts"
+    out_w, out_h = _get_render_dims(cfg, rasio, source_h=source_h)
+    
+    glitch_ts = f"glitch_ready_{rasio.replace(':', '')}_{out_w}x{out_h}.ts"
     if os.path.exists(glitch_ts):
         return glitch_ts
 
@@ -1404,10 +1407,11 @@ def siapkan_glitch_video(rasio, cfg, video_encoder):
             }
         ).download([cfg.url_glitch_video])
 
+    algo = getattr(cfg, "video_scale_algo", "lanczos")
     filter_g = (
-        "crop=ih*9/16:ih:(iw-ih*9/16)/2:0,scale=1080:1920,setsar=1"
+        f"crop=ih*9/16:ih:(iw-ih*9/16)/2:0,scale={out_w}:{out_h}:flags={algo},setsar=1"
         if rasio == "9:16"
-        else "scale=1920:1080,setsar=1"
+        else f"scale={out_w}:{out_h}:flags={algo},setsar=1"
     )
 
     cmd = (

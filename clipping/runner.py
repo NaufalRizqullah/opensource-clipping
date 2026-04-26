@@ -148,8 +148,15 @@ def run_pipeline(cfg) -> list[dict]:
     file_glitch_ts = None
     if cfg.use_hook_glitch:
         print("⚙️ Menyiapkan Video Glitch Transisi...")
+        
+        # Get source dimensions for proper glitch scaling
+        import cv2
+        cap_g = cv2.VideoCapture(cfg.file_video_asli)
+        source_h_g = int(cap_g.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        cap_g.release()
+
         file_glitch_ts = studio.siapkan_glitch_video(
-            cfg.pilihan_rasio, cfg, video_encoder
+            cfg.pilihan_rasio, cfg, video_encoder, source_h=source_h_g
         )
 
     # Step 6 — Render each clip

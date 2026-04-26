@@ -24,6 +24,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 
 ---
 
+## [v0.9.11] - 2026-04-26
+
+### Fixed
+- **Glitch Transition Resolution Bug**: Fixed an issue where the glitch teaser disappeared when using high-resolution rendering (2K/4K). The glitch video is now dynamically scaled to match the main video's output dimensions before concatenation.
+
+---
+
 ## [v0.9.10] - 2026-04-26
 
 ### Added
