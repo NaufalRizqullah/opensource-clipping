@@ -1912,8 +1912,13 @@ def buat_video_split_screen(
         smooth_list = []
         if not raw_list:
             return smooth_list
-        cam_cx = raw_list[0]["cx"]
-        cam_cy = raw_list[0]["cy"]
+        # Pre-settle: use MEDIAN position so camera starts at its stable center.
+        # This eliminates the "slide from bottom to top" animation at clip start.
+        import statistics as _st
+        all_cxs = [d["cx"] for d in raw_list]
+        all_cys = [d["cy"] for d in raw_list]
+        cam_cx = _st.median(all_cxs)
+        cam_cy = _st.median(all_cys)
         
         # In split mode, we now use the STABLE fixed zoom for the entire clip.
         # This eliminates "zoom-in" lag and jittery camera movement.
@@ -2067,14 +2072,15 @@ def buat_video_split_screen(
 
             # --- Scene Cut Detection ---
             # Lightweight check: if pixels change drastically, clear stability history to allow instant switch
+            scene_cut_this_frame = False
             curr_small = _resize_frame(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), (64, 64))
             if prev_small_gray is not None:
                 diff = cv2.absdiff(curr_small, prev_small_gray)
                 avg_diff = np.mean(diff)
                 if avg_diff > SCENE_CUT_THRESHOLD:
                     face_count_history.clear()
-                    # Also temporarily lower MIN_HOLD requirement for this frame to cut instantly
-                    last_switch_time = t - MIN_HOLD 
+                    last_switch_time = t - MIN_HOLD
+                    scene_cut_this_frame = True
             prev_small_gray = curr_small
 
             timestamp_abs = start_clip + t
@@ -2098,13 +2104,21 @@ def buat_video_split_screen(
                         stable_count = now_count
 
                     # FAST PATH: split→full is instant (no ghost frames)
-                    # But NOT in the first 1s — detection may still be settling.
-                    # Early false-positive (1 face when 2 exist) causes layout glitch.
-                    if current_layout == "split" and now_count == 1 and t > 1.0:
+                    # 1) Mid-clip: when only 1 face is visible, switch immediately
+                    # 2) After scene cut: when only 1 speaker active, switch immediately
+                    #    (scene cuts can confuse face detector into seeing 2 faces)
+                    force_full = False
+                    if current_layout == "split" and t > 1.0:
+                        if now_count == 1:
+                            force_full = True
+                        elif scene_cut_this_frame and len(active_speakers) == 1:
+                            force_full = True
+                    
+                    if force_full:
                         current_layout = "full"
-                        current_speaker = ranked[0]
+                        current_speaker = active_speaker or ranked[0]
                         last_switch_time = t
-                        face_count_history.clear()  # Reset for clean state
+                        face_count_history.clear()
                     else:
                         # Normal path: use stable_count (guarded by MIN_HOLD)
                         if stable_count == 1:
