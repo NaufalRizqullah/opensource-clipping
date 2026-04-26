@@ -61,4 +61,5 @@ siapkan_glitch_video = _core.siapkan_glitch_video
 buat_thumbnail = _core.buat_thumbnail
 buat_video_split_screen = _core.buat_video_split_screen
 buat_video_camera_switch = _core.buat_video_camera_switch
+_get_render_dims = _core._get_render_dims
 proses_klip = _core.proses_klip
