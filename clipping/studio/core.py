@@ -1896,14 +1896,20 @@ def buat_video_split_screen(
         def _calc_target_zoom(dist_val):
             if not cfg.split_auto_zoom:
                 return 1.0
-            # More aggressive separation: assume face takes some width
-            # We want half-width of crop to be less than distance to neighboring face
-            buffer = ref_crop_w * 0.08
+            # Aggressive separation multiplier: 1.6
+            buffer = ref_crop_w * 0.10
             effective_dist = max(50, dist_val - buffer)
-            t_zoom = (ref_crop_w / (2 * effective_dist)) * 1.4
+            t_zoom = (ref_crop_w / (2 * effective_dist)) * 1.6
             return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 2.5)))
 
-        cam_zoom = _calc_target_zoom(raw_data[0].get("dist", width))
+        # Look ahead at first few frames to avoid "zoom-in" lag at start
+        initial_dist = width
+        for d in raw_data[:10]:
+            d_val = d.get("dist", width)
+            if d_val < initial_dist:
+                initial_dist = d_val
+        
+        cam_zoom = _calc_target_zoom(initial_dist)
         
         deadzone_px = ref_crop_w * DEADZONE_RATIO
         snap_px = width * SNAP_THRESHOLD
@@ -2701,13 +2707,20 @@ def buat_video_camera_switch(
         def _calc_target_zoom(dist_val):
             if not cfg.split_auto_zoom:
                 return 1.0
-            # More aggressive separation: assume face takes some width
-            buffer = ref_crop_w * 0.08
+            # Aggressive separation multiplier: 1.6
+            buffer = ref_crop_w * 0.10
             effective_dist = max(50, dist_val - buffer)
-            t_zoom = (ref_crop_w / (2 * effective_dist)) * 1.4
+            t_zoom = (ref_crop_w / (2 * effective_dist)) * 1.6
             return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 2.5)))
 
-        cam_zoom = _calc_target_zoom(raw_list[0].get("dist", width))
+        # Look ahead at first few frames to avoid "zoom-in" lag at start
+        initial_dist = width
+        for d in raw_list[:10]:
+            d_val = d.get("dist", width)
+            if d_val < initial_dist:
+                initial_dist = d_val
+        
+        cam_zoom = _calc_target_zoom(initial_dist)
         
         deadzone_px = crop_w * DEADZONE_RATIO
         snap_px = width * SNAP_THRESHOLD
