@@ -7,6 +7,19 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.9.15] - 2026-04-26
+
+### Added
+- **Smart Separation Auto-Zoom**: Implemented dynamic zoom for split-screen and camera-switch modes. The system now adjusts individual panel zoom levels based on neighboring face proximity to ensure the main subject remains isolated and centered, even in crowded podcast shots.
+- **Dynamic Vertical Tracking**: Added vertical alignment support across all podcast rendering pipelines. The camera now tracks both X and Y coordinates with configurable biasing via `--split-v-align`.
+- **Exposed Split Controls**: Added manual controls for split-screen optimization including `--split-zoom`, `--split-v-align`, `--split-auto-zoom`, and `--split-max-zoom`.
+
+### Fixed
+- **Standardized Face Tracking Data**: Overhauled the internal tracking dictionary structure to use absolute center coordinates (`cx`, `cy`) and distance metrics (`dist`) consistently. This definitively resolves the `KeyError` bugs encountered during rapid layout transitions.
+- **Robust Auto-Zoom Smoothing**: Integrated independent zoom smoothing for each panel, preventing "vignetting" or sudden jumps in framing during chaotic multi-person scenes.
+
+---
+
 ## [v0.9.6] - 2026-04-22
 
 ### Fixed

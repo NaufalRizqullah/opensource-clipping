@@ -301,6 +301,32 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
 
+    # --- Split Screen Optimizations ---
+    p.add_argument(
+        "--split-zoom",
+        type=float,
+        default=1.0,
+        help="Zoom factor for split-screen panels (e.g. 1.2, 1.5). Default is 1.0 (no zoom).",
+    )
+    p.add_argument(
+        "--split-v-align",
+        type=float,
+        default=0.5,
+        help="Vertical alignment for split-screen panels (0.0=top, 0.5=center, 1.0=bottom). Default is 0.5 (center).",
+    )
+    p.add_argument(
+        "--split-auto-zoom",
+        action="store_true",
+        help="Automatically zoom in each split-screen panel until only one person is visible in each frame.",
+    )
+    p.add_argument(
+        "--split-max-zoom",
+        type=float,
+        default=2.5,
+        help="Maximum zoom factor allowed for auto-zoom (default: 2.5).",
+    )
+
+
     # --- Subtitle & Tipografi ---
     p.add_argument(
         "--font-style",
@@ -550,6 +576,10 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         use_camera_switch=args.camera_switch,
         diarization_num_speakers=args.diarization_speakers,
         switch_hold_duration=args.switch_hold_duration,
+        split_zoom=args.split_zoom,
+        split_v_align=args.split_v_align,
+        split_auto_zoom=args.split_auto_zoom,
+        split_max_zoom=args.split_max_zoom,
         # Subtitle & Tipografi
         no_subs=args.no_subs,
         gaya_font_aktif=args.font_style,

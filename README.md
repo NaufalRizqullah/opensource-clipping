@@ -210,6 +210,10 @@ python main.py --help
 | `--diarization-speakers` | `auto` | Number of speakers for diarization (set to `3` for exact 3 speakers, or `auto` for visual AI auto-detection) |
 | `--camera-switch` | `False` | Enable camera-switch mode for podcasts — full 9:16 crop switches to the active speaker; blurred pillarbox on simultaneous speech (9:16 only, requires `HF_TOKEN`) |
 | `--switch-hold-duration` | `2.0` | Min seconds to hold on current speaker before switching (camera-switch only) |
+| `--split-zoom` | `1.0` | Manual zoom factor for split-screen panels (e.g. 1.2, 1.5) |
+| `--split-v-align` | `0.5` | Vertical alignment for split-screen panels (0.0=top, 0.5=center, 1.0=bottom) |
+| `--split-auto-zoom` | `False` | **[New]** Automatically zoom into each panel to separate speakers for a clean frameless look |
+| `--split-max-zoom` | `2.5` | Maximum zoom limit allowed for auto-zoom (default: 2.5) |
 | `--track-step` | `None` | Face detection frequency in seconds (default: `0.25`) |
 | `--track-deadzone` | `None` | Camera deadzone ratio where subject stays centered (default: `0.15`) |
 | `--track-smooth` | `None` | Camera catch-up speed factor (default: `0.30`) |
@@ -231,6 +235,9 @@ Divides the screen into panels to show multiple speakers simultaneously.
 *   **Trigger Modes (`--split-trigger`):**
     *   **`diarization` (Default):** Uses audio to know who is talking. Requires `HF_TOKEN`. Dimming effect on inactive speaker.
     *   **`face`:** Uses visual face count. **No token required**. No dimming effect.
+*   **Optimization Features:**
+    *   **Smart Separation Zoom (`--split-auto-zoom`):** Dynamically adjusts the zoom level of each panel to keep the framing tight on the speaker while excluding other detected faces. Ensures no "overlap" even when subjects are sitting close together.
+    *   **Vertical Tracking:** Automatically follows face height, keeping the subject centered vertically (adjustable via `--split-v-align`).
 *   **Best for:** Educational podcasts or when reaction shots are important.
 
 ### 2. **`--camera-switch` (Cinematic Switching)**
@@ -270,6 +277,9 @@ python main.py --url "VIDEO_URL" --split-screen --dynamic-split --split-trigger 
 
 # 4. Cinematic Camera Switch (Needs HF_TOKEN)
 python main.py --url "VIDEO_URL" --camera-switch
+
+# 5. Smart Separation Split-Screen (Auto-Zoom & Vertical Track)
+python main.py --url "VIDEO_URL" --split-screen --dynamic-split --split-trigger face --split-auto-zoom --split-v-align 0.4
 ```
 
 > [!IMPORTANT]

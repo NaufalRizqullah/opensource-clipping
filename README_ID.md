@@ -208,6 +208,10 @@ python main.py --help
 | `--diarization-speakers` | `auto` | Jumlah speaker untuk diarization (set ke `3` untuk fix 3 orang, atau `auto` untuk deteksi visual AI otomatis) |
 | `--camera-switch` | `False` | Aktifkan mode camera-switch untuk podcast — crop full 9:16 berpindah ke speaker aktif; blurred pillarbox saat kedua speaker bicara bersamaan (hanya 9:16, butuh `HF_TOKEN`) |
 | `--switch-hold-duration` | `2.0` | Durasi minimum (detik) sebelum berpindah speaker (hanya untuk camera-switch) |
+| `--split-zoom` | `1.0` | Faktor zoom manual untuk panel split-screen (misal 1.2, 1.5) |
+| `--split-v-align` | `0.5` | Perataan vertikal untuk panel split-screen (0.0=atas, 0.5=tengah, 1.0=bawah) |
+| `--split-auto-zoom` | `False` | **[Baru]** Aktifkan zoom otomatis untuk memisahkan speaker agar frame tetap bersih dan fokus |
+| `--split-max-zoom` | `2.5` | Batas zoom maksimal yang diperbolehkan untuk auto-zoom (default: 2.5) |
 | `--track-step` | `None` | Frekuensi pengecekan wajah dalam detik (default: `0.25`) |
 | `--track-deadzone` | `None` | Rasio area "aman" di mana kamera tidak bergerak (default: `0.15`) |
 | `--track-smooth` | `None` | Faktor kecepatan kamera mengejar wajah (default: `0.30`) |
@@ -229,6 +233,9 @@ Membagi layar menjadi beberapa panel untuk menampilkan pembicara sekaligus.
 *   **Mode Pemicu (`--split-trigger`):**
     *   **`diarization` (Default):** Menggunakan audio (siapa yang bicara). Butuh `HF_TOKEN`. Ada efek redup pada speaker pasif.
     *   **`face`:** Menggunakan deteksi wajah visual. **Tanpa token**. Tidak ada efek redup.
+*   **Fitur Optimasi:**
+    *   **Smart Separation Zoom (`--split-auto-zoom`):** Menyesuaikan tingkat zoom panel secara dinamis untuk menjaga komposisi tetap padat pada pembicara dan membuang wajah orang lain yang ikut terdeteksi di panel yang sama. Sangat efektif jika pembicara duduk berdekatan.
+    *   **Vertical Tracking:** Secara otomatis mengikuti ketinggian wajah target sehingga pembicara selalu berada di tengah secara vertikal (bisa diatur manual via `--split-v-align`).
 *   **Cocok Untuk:** Podcast edukasi atau saat reaksi lawan bicara sangat penting.
 
 ### 2. **`--camera-switch` (Switching Sinematik)**
@@ -268,6 +275,9 @@ python main.py --url "URL_VIDEO" --split-screen --dynamic-split --split-trigger 
 
 # 4. Camera Switch Sinematik (Butuh HF_TOKEN)
 python main.py --url "URL_VIDEO" --camera-switch
+
+# 5. Smart Separation Split-Screen (Auto-Zoom & Vertical Tracking)
+python main.py --url "URL_VIDEO" --split-screen --dynamic-split --split-trigger face --split-auto-zoom --split-v-align 0.4
 ```
 
 > [!IMPORTANT]

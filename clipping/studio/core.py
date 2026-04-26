@@ -1600,6 +1600,8 @@ def buat_video_split_screen(
         crop_w_full = width
         crop_h_full = int(width / full_ratio)
 
+    zoom = getattr(cfg, "split_zoom", 1.0)
+
     default_x = (width - crop_w) // 2
     default_y = (height - crop_h) // 2
     default_x_full = (width - crop_w_full) // 2
@@ -1735,7 +1737,8 @@ def buat_video_split_screen(
         # Full assignment happens in Pass B after canonical_cx is built from entire clip.
         if n_faces == 1 and n_active == 1:
             spk = active_now[0]
-            speaker_solo_cxs.setdefault(spk, []).append(face_centers[0][0])
+            speaker_solo_cxs.setdefault(spk, []).append((face_centers[0][0], face_centers[0][1]))
+
             solo_counts[spk] = solo_counts.get(spk, 0) + 1
         elif n_faces >= 2 and n_active >= 1:
             for spk in active_now:
@@ -1763,7 +1766,7 @@ def buat_video_split_screen(
     import statistics as _stats
 
     speaker_canonical_cx: dict[str, float] = {
-        spk: _stats.median(cxs) for spk, cxs in speaker_solo_cxs.items() if cxs
+        spk: _stats.median([c[0] for c in cxs]) for spk, cxs in speaker_solo_cxs.items() if cxs
     }
 
     if not diarization_data:
@@ -1808,7 +1811,9 @@ def buat_video_split_screen(
         if nf == 1 and na == 1:
             spk = act_list[0]
             if spk in raw_data:
-                raw_data[spk].append({"time": fd["time"], "cx": fc_list[0][0]})
+                others = [fc for fc in fc_list if fc != fc_list[0]]
+                d_near = min([abs(fc[0] - fc_list[0][0]) for fc in others]) if others else width
+                raw_data[spk].append({"time": fd["time"], "cx": fc_list[0][0], "cy": fc_list[0][1], "dist": d_near})
 
         elif nf >= 2 and na >= 2:
             # Greedy canonical assignment: sort active speakers by canonical X,
@@ -1818,7 +1823,7 @@ def buat_video_split_screen(
                 act_list, key=lambda s: _get_canonical_x(s)
             ):
                 if not remaining or spk not in raw_data:
-                    break
+                    continue
                 best = min(
                     remaining,
                     key=lambda fc: abs(
@@ -1826,7 +1831,9 @@ def buat_video_split_screen(
                     ),
                 )
                 remaining.remove(best)
-                raw_data[spk].append({"time": fd["time"], "cx": best[0]})
+                others = [fc for fc in fc_list if fc != best]
+                d_near = min([abs(fc[0] - best[0]) for fc in others]) if others else width
+                raw_data[spk].append({"time": fd["time"], "cx": best[0], "cy": best[1], "dist": d_near})
 
         elif nf >= 2 and na == 1:
             spk = act_list[0]
@@ -1844,13 +1851,16 @@ def buat_video_split_screen(
             # Step 2: from remaining (or full list if exhausted), pick best for this speaker
             pool = remaining if remaining else fc_list
             if raw_data[spk]:
-                last_cx = raw_data[spk][-1]["x"] + crop_w / 2
+                last_cx = raw_data[spk][-1]["cx"]
                 best = min(pool, key=lambda fc: abs(fc[0] - last_cx))
             elif spk in speaker_canonical_cx:
                 best = min(pool, key=lambda fc: abs(fc[0] - speaker_canonical_cx[spk]))
             else:
                 best = pool[len(pool) // 2]
-            raw_data[spk].append({"time": fd["time"], "cx": best[0]})
+            
+            others = [fc for fc in fc_list if fc != best]
+            d_near = min([abs(fc[0] - best[0]) for fc in others]) if others else width
+            raw_data[spk].append({"time": fd["time"], "cx": best[0], "cy": best[1], "dist": d_near})
 
     # ---- FASE 2: SMOOTH CAMERA PER SPEAKER (Centering CX) ----
     def _smooth_positions(raw_data):
@@ -1858,12 +1868,22 @@ def buat_video_split_screen(
         if not raw_data:
             return smooth
         cam_cx = raw_data[0]["cx"]
-        # Use crop_w_full (the 9:16 solo width) for deadzone to match standard behavior
-        deadzone_px = crop_w_full * DEADZONE_RATIO
+        cam_cy = raw_data[0]["cy"]
+        cam_zoom = 1.0
+        
+        # Reference crop width before any zoom is applied
+        p_ratio = panel_w / panel_h
+        if (width / height) > p_ratio:
+            ref_crop_w = int(height * p_ratio)
+        else:
+            ref_crop_w = width
+
+        deadzone_px = ref_crop_w * DEADZONE_RATIO
         snap_px = width * SNAP_THRESHOLD
 
         for d in raw_data:
             face_cx = d["cx"]
+            face_cy = d["cy"]
             if abs(face_cx - cam_cx) > snap_px:
                 cam_cx = face_cx
             else:
@@ -1872,31 +1892,49 @@ def buat_video_split_screen(
                 elif face_cx < cam_cx - deadzone_px:
                     cam_cx += (face_cx - (cam_cx - deadzone_px)) * SMOOTH_FACTOR
 
-            final_cx = cam_cx
-            # No jitter clamping here, we'll do it during render-time clamping
-            smooth.append({"time": d["time"], "cx": final_cx})
+            # Vertical smoothing
+            cam_cy += (face_cy - cam_cy) * SMOOTH_FACTOR
+            
+            # Auto-zoom logic
+            if cfg.split_auto_zoom:
+                safety_margin = 1.15
+                d_near = d.get("dist", width)
+                target_zoom = (ref_crop_w / (2 * d_near)) * safety_margin
+                target_zoom = max(1.0, min(target_zoom, getattr(cfg, "split_max_zoom", 2.5)))
+                cam_zoom += (target_zoom - cam_zoom) * SMOOTH_FACTOR
+            else:
+                cam_zoom = 1.0
+            
+            smooth.append({"time": d["time"], "cx": cam_cx, "cy": cam_cy, "zoom": cam_zoom})
         return smooth
 
     smooth: dict[str, list] = {
         spk: _smooth_positions(raw_data[spk]) for spk in all_speakers_in_clip
     }
 
-    def _get_cx(speaker: str, t: float) -> float:
+    def _get_pos_full(speaker: str, t: float) -> tuple[float, float, float]:
         sd = smooth.get(speaker, [])
         if not sd:
-            return width / 2
+            return width / 2, height / 2, 1.0
         if t <= sd[0]["time"]:
-            return sd[0]["cx"]
+            return sd[0]["cx"], sd[0]["cy"], sd[0]["zoom"]
         if t >= sd[-1]["time"]:
-            return sd[-1]["cx"]
+            return sd[-1]["cx"], sd[-1]["cy"], sd[-1]["zoom"]
         for i in range(len(sd) - 1):
             if sd[i]["time"] <= t <= sd[i + 1]["time"]:
                 t1, t2 = sd[i]["time"], sd[i + 1]["time"]
                 cx1, cx2 = sd[i]["cx"], sd[i + 1]["cx"]
+                cy1, cy2 = sd[i]["cy"], sd[i + 1]["cy"]
+                z1, z2 = sd[i]["zoom"], sd[i + 1]["zoom"]
                 if t1 == t2:
-                    return cx1
-                return cx1 + (cx2 - cx1) * (t - t1) / (t2 - t1)
-        return width / 2
+                    return cx1, cy1, z1
+                frac = (t - t1) / (t2 - t1)
+                return (
+                    cx1 + (cx2 - cx1) * frac,
+                    cy1 + (cy2 - cy1) * frac,
+                    z1 + (z2 - z1) * frac
+                )
+        return width / 2, height / 2, 1.0
 
     def _get_all_boxes(t):
         if not all_frame_data:
@@ -2081,11 +2119,12 @@ def buat_video_split_screen(
             if current_layout == "full":
                 # Solo mode: Render full 9:16 crop
                 spk = current_speaker or (speaker_top if speaker_top in ranked else ranked[0])
-                smooth_cx = _get_cx(spk, t)
+                smooth_cx, smooth_cy, _ = _get_pos_full(spk, t)
                 # Calculate Top-Left X for full 9:16 crop
                 x_full = int(max(0, min(smooth_cx - crop_w_full / 2, width - crop_w_full)))
+                y_full = int(max(0, min(smooth_cy - crop_h_full / 2, height - crop_h_full)))
                 
-                crop = frame[0:crop_h_full, x_full : x_full + crop_w_full]
+                crop = frame[y_full:y_full+crop_h_full, x_full : x_full + crop_w_full]
                 final_frame = _resize_frame(crop, (out_w, out_h))
                 # Log cx for subtitles to follow
                 tracking_log.append((t, smooth_cx))
@@ -2114,10 +2153,26 @@ def buat_video_split_screen(
                         else:
                             return _resize_frame(frame[0:crop_h, default_x : default_x + crop_w], (panel_w, panel_h)), True
                     else:
-                        smooth_cx = _get_cx(spk, t)
+                        smooth_cx, smooth_cy, s_zoom = _get_pos_full(spk, t)
+                        # Combine auto-zoom with manual split-zoom
+                        total_zoom = s_zoom * zoom
+                        
+                        # Apply dynamic zoom to the baseline crop dimensions
+                        if (width / height) > (panel_w / panel_h):
+                            b_crop_h, b_crop_w = height, int(height * (panel_w / panel_h))
+                        else:
+                            b_crop_w, b_crop_h = width, int(width / (panel_w / panel_h))
+                            
+                        eff_crop_w = int(b_crop_w / total_zoom)
+                        eff_crop_h = int(b_crop_h / total_zoom)
+
                         # Calculate Top-Left X for wide panel crop
-                        x_panel = int(max(0, min(smooth_cx - crop_w / 2, width - crop_w)))
-                        crop = _resize_frame(frame[0:crop_h, x_panel : x_panel + crop_w], (panel_w, panel_h))
+                        x_panel = int(max(0, min(smooth_cx - eff_crop_w / 2, width - eff_crop_w)))
+                        # Vertical alignment with configurable bias
+                        v_align = getattr(cfg, "split_v_align", 0.5)
+                        y_panel = int(max(0, min(smooth_cy - (eff_crop_h * v_align), height - eff_crop_h)))
+                        
+                        crop = _resize_frame(frame[y_panel : y_panel + eff_crop_h, x_panel : x_panel + eff_crop_w], (panel_w, panel_h))
                         if not in_solo_scene or active_speaker == spk:
                             last_valid_crop[spk] = crop.copy()
                         return crop, False
@@ -2488,7 +2543,7 @@ def buat_video_camera_switch(
         # Full assignment happens in Pass B after canonical_cx is built from entire clip.
         if n_faces == 1 and n_active == 1:
             spk = active_now[0]
-            speaker_solo_cxs.setdefault(spk, []).append(face_centers[0][0])
+            speaker_solo_cxs.setdefault(spk, []).append((face_centers[0][0], face_centers[0][1]))
             solo_counts[spk] = solo_counts.get(spk, 0) + 1
         elif n_faces >= 2 and n_active >= 1:
             for spk in active_now:
@@ -2516,7 +2571,7 @@ def buat_video_camera_switch(
     import statistics as _stats
 
     speaker_canonical_cx: dict[str, float] = {
-        spk: _stats.median(cxs) for spk, cxs in speaker_solo_cxs.items() if cxs
+        spk: _stats.median([c[0] for c in cxs]) for spk, cxs in speaker_solo_cxs.items() if cxs
     }
 
     if not diarization_data:
@@ -2542,7 +2597,7 @@ def buat_video_camera_switch(
     raw_data: dict[str, list] = {spk: [] for spk in speakers}
 
     for fd in all_frame_data:
-        fc_list = fd["face_centers"]
+        fc_list = fd["face_centers"]  # list of (cx, cy), sorted left → right
         act_list = fd["active_now"]
         nf = len(fc_list)
         na = len(act_list)
@@ -2553,9 +2608,9 @@ def buat_video_camera_switch(
         if nf == 1 and na == 1:
             spk = act_list[0]
             if spk in raw_data:
-                raw_data[spk].append(
-                    {"time": fd["time"], "x": _clamp_x_cs(fc_list[0][0])}
-                )
+                others = [fc for fc in fc_list if fc != fc_list[0]]
+                d_near = min([abs(fc[0] - fc_list[0][0]) for fc in others]) if others else width
+                raw_data[spk].append({"time": fd["time"], "cx": fc_list[0][0], "cy": fc_list[0][1], "dist": d_near})
 
         elif nf >= 2 and na >= 2:
             remaining = list(fc_list)
@@ -2571,7 +2626,9 @@ def buat_video_camera_switch(
                     ),
                 )
                 remaining.remove(best)
-                raw_data[spk].append({"time": fd["time"], "x": _clamp_x_cs(best[0])})
+                others = [fc for fc in fc_list if fc != best]
+                d_near = min([abs(fc[0] - best[0]) for fc in others]) if others else width
+                raw_data[spk].append({"time": fd["time"], "cx": best[0], "cy": best[1], "dist": d_near})
 
         elif nf >= 2 and na == 1:
             spk = act_list[0]
@@ -2587,59 +2644,92 @@ def buat_video_camera_switch(
                 remaining.remove(claimed)
             pool = remaining if remaining else fc_list
             if raw_data[spk]:
-                last_cx = raw_data[spk][-1]["x"] + crop_w / 2
+                last_cx = raw_data[spk][-1]["cx"]
                 best = min(pool, key=lambda fc: abs(fc[0] - last_cx))
             elif spk in speaker_canonical_cx:
                 best = min(pool, key=lambda fc: abs(fc[0] - speaker_canonical_cx[spk]))
             else:
                 best = pool[len(pool) // 2]
-            raw_data[spk].append({"time": fd["time"], "x": _clamp_x_cs(best[0])})
+            
+            others = [fc for fc in fc_list if fc != best]
+            d_near = min([abs(fc[0] - best[0]) for fc in others]) if others else width
+            raw_data[spk].append({"time": fd["time"], "cx": best[0], "cy": best[1], "dist": d_near})
 
     # ================================================================
     # FASE 2 — Smooth per-speaker camera positions
     # ================================================================
-    def _smooth_positions(raw_list):
-        smooth = []
+    def _smooth_positions_cs(raw_list):
+        smooth_list = []
         if not raw_list:
-            return smooth
-        cam_x = raw_list[0]["x"]
+            return smooth_list
+        cam_cx = raw_list[0]["cx"]
+        cam_cy = raw_list[0]["cy"]
+        cam_zoom = 1.0
+        
+        # Reference crop width before any zoom is applied
+        p_ratio = crop_w / crop_h
+        if (width / height) > p_ratio:
+            ref_crop_w = int(height * p_ratio)
+        else:
+            ref_crop_w = width
+
         deadzone_px = crop_w * DEADZONE_RATIO
         snap_px = width * SNAP_THRESHOLD
+        
         for d in raw_list:
-            face_x = d["x"]
-            if abs(face_x - cam_x) > snap_px:
-                cam_x = face_x
+            face_cx = d["cx"]
+            face_cy = d["cy"]
+            if abs(face_cx - cam_cx) > snap_px:
+                cam_cx = face_cx
             else:
-                if face_x > cam_x + deadzone_px:
-                    cam_x += (face_x - (cam_x + deadzone_px)) * SMOOTH_FACTOR
-                elif face_x < cam_x - deadzone_px:
-                    cam_x += (face_x - (cam_x - deadzone_px)) * SMOOTH_FACTOR
-            final_x = int(max(0, min(cam_x, width - crop_w)))
-            if smooth and abs(final_x - smooth[-1]["x"]) <= JITTER_THRESHOLD:
-                final_x = smooth[-1]["x"]
-            smooth.append({"time": d["time"], "x": final_x})
-        return smooth
+                if face_cx > cam_cx + deadzone_px:
+                    cam_cx += (face_cx - (cam_cx + deadzone_px)) * SMOOTH_FACTOR
+                elif face_cx < cam_cx - deadzone_px:
+                    cam_cx += (face_cx - (cam_cx - deadzone_px)) * SMOOTH_FACTOR
+            
+            # Vertical smoothing
+            cam_cy += (face_cy - cam_cy) * SMOOTH_FACTOR
+            
+            # Auto-zoom logic
+            if cfg.split_auto_zoom:
+                safety_margin = 1.15
+                d_near = d.get("dist", width)
+                target_zoom = (ref_crop_w / (2 * d_near)) * safety_margin
+                target_zoom = max(1.0, min(target_zoom, getattr(cfg, "split_max_zoom", 2.5)))
+                cam_zoom += (target_zoom - cam_zoom) * SMOOTH_FACTOR
+            else:
+                cam_zoom = 1.0
+            
+            smooth_list.append({"time": d["time"], "cx": cam_cx, "cy": cam_cy, "zoom": cam_zoom})
+        return smooth_list
 
     smooth: dict[str, list] = {
-        spk: _smooth_positions(raw_data[spk]) for spk in speakers
+        spk: _smooth_positions_cs(raw_data[spk]) for spk in speakers
     }
 
-    def _get_x(speaker, t):
+    def _get_pos_cs(speaker, t):
         sd = smooth.get(speaker, [])
         if not sd:
-            return default_x
+            return width / 2, height / 2, 1.0
         if t <= sd[0]["time"]:
-            return sd[0]["x"]
+            return sd[0]["cx"], sd[0]["cy"], sd[0]["zoom"]
         if t >= sd[-1]["time"]:
-            return sd[-1]["x"]
+            return sd[-1]["cx"], sd[-1]["cy"], sd[-1]["zoom"]
         for i in range(len(sd) - 1):
             if sd[i]["time"] <= t <= sd[i + 1]["time"]:
                 t1, t2 = sd[i]["time"], sd[i + 1]["time"]
-                x1, x2 = sd[i]["x"], sd[i + 1]["x"]
+                cx1, cx2 = sd[i]["cx"], sd[i + 1]["cx"]
+                cy1, cy2 = sd[i]["cy"], sd[i + 1]["cy"]
+                z1, z2 = sd[i]["zoom"], sd[i + 1]["zoom"]
                 if t1 == t2:
-                    return x1
-                return int(x1 + (x2 - x1) * (t - t1) / (t2 - t1))
-        return default_x
+                    return cx1, cy1, z1
+                frac = (t - t1) / (t2 - t1)
+                return (
+                    cx1 + (cx2 - cx1) * frac,
+                    cy1 + (cy2 - cy1) * frac,
+                    z1 + (z2 - z1) * frac
+                )
+        return width / 2, height / 2, 1.0
 
     # ----------------------------------------------------------------
     # Helper: blurred pillarbox for wide-shot / simultaneous speech
@@ -2761,12 +2851,15 @@ def buat_video_camera_switch(
                 else:
                     # It's a crop on current_speaker
                     if current_speaker is not None:
-                        cx = _get_x(current_speaker, t)
+                        cx, cy, s_zoom = _get_pos_cs(current_speaker, t)
                         cx_scaled = int(cx * scale_x)
                         cw_scaled = int(crop_w * scale_x)
                         
                         # Paste bright crop
-                        frame_dev[:, cx_scaled : cx_scaled + cw_scaled] = frame_base[:, cx_scaled : cx_scaled + cw_scaled]
+                        eff_cw = int(crop_w / s_zoom)
+                        lb, rb = int(max(0, min(cx - eff_cw / 2, width - eff_cw))), int(max(0, min(cx + eff_cw / 2, width)))
+                        lb_s, rb_s = int(lb * scale_x), int(rb * scale_x)
+                        frame_dev[:, lb_s : rb_s] = frame_base[:, lb_s : rb_s]
                         # Vertical lines
                         cv2.line(frame_dev, (cx_scaled, 0), (cx_scaled, out_h), (255, 255, 255), 2)
                         cv2.line(frame_dev, (cx_scaled + cw_scaled, 0), (cx_scaled + cw_scaled, out_h), (255, 255, 255), 2)
@@ -2784,9 +2877,11 @@ def buat_video_camera_switch(
                     if (cfg.track_lines or cfg.dev_mode) and not is_wide:
                         # Current crop boundaries
                         if current_speaker is not None:
-                            cx = _get_x(current_speaker, t)
-                            cx_scaled = int(cx * scale_x)
-                            cw_scaled = int(crop_w * scale_x)
+                            cx, cy, s_zoom = _get_pos_cs(current_speaker, t)
+                            eff_cw = int(crop_w / s_zoom)
+                            lb = int(max(0, min(cx - eff_cw / 2, width - eff_cw)))
+                            cx_scaled = int(lb * scale_x)
+                            cw_scaled = int(eff_cw * scale_x)
                             
                             mid_x = (fb1 + fb3) // 2
                             mid_y = (fb2 + fb4) // 2
@@ -2813,8 +2908,12 @@ def buat_video_camera_switch(
                     if current_speaker is None or current_speaker not in active_speakers:
                         current_speaker = active_speakers[0]
                         last_switch_time = t
-                    cx = _get_x(current_speaker, t)
-                    crop_fr = frame[0:crop_h, cx : cx + crop_w]
+                    cx, cy, s_zoom = _get_pos_cs(current_speaker, t)
+                    eff_cw = int(crop_w / s_zoom)
+                    eff_ch = int(crop_h / s_zoom)
+                    x_full = int(max(0, min(cx - eff_cw / 2, width - eff_cw)))
+                    y_full = int(max(0, min(cy - eff_ch / 2, height - eff_ch)))
+                    crop_fr = frame[y_full : y_full + eff_ch, x_full : x_full + eff_cw]
                     out_frame = _resize_frame(crop_fr, (out_w, out_h))
 
             elif len(active_speakers) == 1:
@@ -2828,8 +2927,12 @@ def buat_video_camera_switch(
                 ):
                     current_speaker = new_speaker
                     last_switch_time = t
-                cx = _get_x(current_speaker, t)
-                crop_fr = frame[0:crop_h, cx : cx + crop_w]
+                cx, cy, s_zoom = _get_pos_cs(current_speaker, t)
+                eff_cw = int(crop_w / s_zoom)
+                eff_ch = int(crop_h / s_zoom)
+                x_full = int(max(0, min(cx - eff_cw / 2, width - eff_cw)))
+                y_full = int(max(0, min(cy - eff_ch / 2, height - eff_ch)))
+                crop_fr = frame[y_full : y_full + eff_ch, x_full : x_full + eff_cw]
                 out_frame = _resize_frame(crop_fr, (out_w, out_h))
 
             else:
