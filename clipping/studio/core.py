@@ -1896,10 +1896,10 @@ def buat_video_split_screen(
         def _calc_target_zoom(dist_val):
             if not cfg.split_auto_zoom:
                 return 1.0
-            # Aggressive separation multiplier: 1.6
-            buffer = ref_crop_w * 0.10
+            # Even more aggressive separation: 2.0
+            buffer = ref_crop_w * 0.12
             effective_dist = max(50, dist_val - buffer)
-            t_zoom = (ref_crop_w / (2 * effective_dist)) * 1.6
+            t_zoom = (ref_crop_w / (2 * effective_dist)) * 2.0
             return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 2.5)))
 
         # Look ahead at first few frames to avoid "zoom-in" lag at start
@@ -2085,22 +2085,22 @@ def buat_video_split_screen(
                     if len(face_count_history) > LAYOUT_SMOOTH_WINDOW:
                         face_count_history.pop(0)
                     
-                    # Majority vote face count
-                    if face_count_history:
-                        stable_count = max(set(face_count_history), key=face_count_history.count)
-                    else:
+                    # FAST START: For the first 0.5s, trust immediate face count to avoid "layout glitches"
+                    if t < 0.5:
                         stable_count = now_count
+                    else:
+                        stable_count = max(set(face_count_history), key=face_count_history.count) if face_count_history else now_count
 
                     # FAST PATH: split→full is instant (no ghost frames)
-                    # When currently in split and this frame sees only 1 face,
-                    # force immediate switch without majority vote or MIN_HOLD.
-                    # Rationale: a split layout showing 1 person looks broken;
-                    # the transition must be imperceptible.
                     if current_layout == "split" and now_count == 1:
                         current_layout = "full"
                         current_speaker = ranked[0]
                         last_switch_time = t
-                        face_count_history.clear()  # Reset for clean state
+                        face_count_history.clear()
+                    elif t < 0.1 and now_count >= 2:
+                        # Force split at start if multiple people detected
+                        current_layout = "split"
+                        last_switch_time = t
                     else:
                         # Normal path: use stable_count (guarded by MIN_HOLD)
                         if stable_count == 1:
@@ -2146,12 +2146,16 @@ def buat_video_split_screen(
             if current_layout == "full":
                 # Solo mode: Render full 9:16 crop
                 spk = current_speaker or (speaker_top if speaker_top in ranked else ranked[0])
-                smooth_cx, smooth_cy, _ = _get_pos_full(spk, t)
-                # Calculate Top-Left X for full 9:16 crop
-                x_full = int(max(0, min(smooth_cx - crop_w_full / 2, width - crop_w_full)))
-                y_full = int(max(0, min(smooth_cy - crop_h_full / 2, height - crop_h_full)))
+                smooth_cx, smooth_cy, s_zoom = _get_pos_full(spk, t)
                 
-                crop = frame[y_full:y_full+crop_h_full, x_full : x_full + crop_w_full]
+                # Apply auto-zoom even in solo mode to keep other person out of frame
+                eff_cw = int(crop_w_full / s_zoom)
+                eff_ch = int(crop_h_full / s_zoom)
+                
+                x_full = int(max(0, min(smooth_cx - eff_cw / 2, width - eff_cw)))
+                y_full = int(max(0, min(smooth_cy - eff_ch / 2, height - eff_ch)))
+                
+                crop = frame[y_full : y_full + eff_ch, x_full : x_full + eff_cw]
                 final_frame = _resize_frame(crop, (out_w, out_h))
                 # Log cx for subtitles to follow
                 tracking_log.append((t, smooth_cx))
@@ -2707,10 +2711,10 @@ def buat_video_camera_switch(
         def _calc_target_zoom(dist_val):
             if not cfg.split_auto_zoom:
                 return 1.0
-            # Aggressive separation multiplier: 1.6
-            buffer = ref_crop_w * 0.10
+            # Even more aggressive separation: 2.0
+            buffer = ref_crop_w * 0.12
             effective_dist = max(50, dist_val - buffer)
-            t_zoom = (ref_crop_w / (2 * effective_dist)) * 1.6
+            t_zoom = (ref_crop_w / (2 * effective_dist)) * 2.0
             return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 2.5)))
 
         # Look ahead at first few frames to avoid "zoom-in" lag at start
