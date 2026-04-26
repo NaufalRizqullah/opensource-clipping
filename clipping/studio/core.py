@@ -1379,7 +1379,7 @@ def buat_file_ass(
 # ==============================================================================
 
 
-def siapkan_glitch_video(rasio, cfg, video_encoder, source_h=1080):
+def siapkan_glitch_video(rasio, cfg, video_encoder, source_h=1080, custom_dims=None):
     """
     Prepare or reuse short glitch transition video in TS format.
 
@@ -1388,13 +1388,18 @@ def siapkan_glitch_video(rasio, cfg, video_encoder, source_h=1080):
         cfg: Runtime config with glitch source URL.
         video_encoder: Encoder descriptor dict.
         source_h: Height of the source video for dynamic scaling.
+        custom_dims: Optional (w, h) to override ratio-based dims.
 
     Returns:
         Path to prepared glitch TS file.
     """
-    out_w, out_h = _get_render_dims(cfg, rasio, source_h=source_h)
+    if custom_dims:
+        out_w, out_h = custom_dims
+    else:
+        out_w, out_h = _get_render_dims(cfg, rasio, source_h=source_h)
     
-    glitch_ts = f"glitch_ready_{rasio.replace(':', '')}_{out_w}x{out_h}.ts"
+    # Use dimensions in filename to allow multiple cached versions
+    glitch_ts = f"glitch_ready_{out_w}x{out_h}.ts"
     if os.path.exists(glitch_ts):
         return glitch_ts
 
@@ -1408,11 +1413,16 @@ def siapkan_glitch_video(rasio, cfg, video_encoder, source_h=1080):
         ).download([cfg.url_glitch_video])
 
     algo = getattr(cfg, "video_scale_algo", "lanczos")
-    filter_g = (
-        f"crop=ih*9/16:ih:(iw-ih*9/16)/2:0,scale={out_w}:{out_h}:flags={algo},setsar=1"
-        if rasio == "9:16"
-        else f"scale={out_w}:{out_h}:flags={algo},setsar=1"
-    )
+    
+    # If custom dims provided, we just scale. If ratio is 9:16, we crop.
+    if custom_dims:
+        filter_g = f"scale={out_w}:{out_h}:flags={algo},setsar=1"
+    else:
+        filter_g = (
+            f"crop=ih*9/16:ih:(iw-ih*9/16)/2:0,scale={out_w}:{out_h}:flags={algo},setsar=1"
+            if rasio == "9:16"
+            else f"scale={out_w}:{out_h}:flags={algo},setsar=1"
+        )
 
     cmd = (
         [
@@ -3404,16 +3414,29 @@ def proses_klip(
         # FINAL CONCAT
         print("   🔗 [Final] Menyelesaikan clip akhir...")
         
-        concat_runs = [(out_vid, m_ts, h_ts)]
+        # Calculate target dimensions for each run
+        out_w_std, out_h_std = _get_render_dims(cfg, rasio, source_h=sh)
+        if getattr(cfg, "dev_mode_with_output_merge", False):
+            out_w_std, out_h_std = 2648, 1220
+        elif getattr(cfg, "dev_mode", False) and not dev_dual:
+            # Single stream pure dev mode
+            out_w_std, out_h_std = 1920, 1080
+            
+        concat_runs = [(out_vid, m_ts, h_ts, (out_w_std, out_h_std))]
         if dev_dual:
             out_vid_dev = os.path.join(cfg.outputs_dir, f"highlight_rank_{rank}_dev_mode_ready.mp4")
             # Usually hook doesn't generate dual, so we fallback to standard hook for dev if missing
             h_dev_target = h_ts_dev if os.path.exists(h_ts_dev) else h_ts 
-            concat_runs.append((out_vid_dev, m_ts_dev, h_dev_target))
+            concat_runs.append((out_vid_dev, m_ts_dev, h_dev_target, (1920, 1080)))
             
-        for final_path, main_vid_ts, hook_vid_ts in concat_runs:
-            if aktif_hook and glitch_ts and os.path.exists(glitch_ts) and os.path.exists(hook_vid_ts):
-                concat_str = f"concat:{hook_vid_ts}|{glitch_ts}|{main_vid_ts}"
+        for final_path, main_vid_ts, hook_vid_ts, dims in concat_runs:
+            # Dynamically prepare glitch for THIS run's dimensions
+            cur_glitch = None
+            if aktif_hook:
+                cur_glitch = siapkan_glitch_video(rasio, cfg, video_encoder, source_h=sh, custom_dims=dims)
+            
+            if aktif_hook and cur_glitch and os.path.exists(cur_glitch) and os.path.exists(hook_vid_ts):
+                concat_str = f"concat:{hook_vid_ts}|{cur_glitch}|{main_vid_ts}"
             else:
                 concat_str = f"concat:{main_vid_ts}"
 
