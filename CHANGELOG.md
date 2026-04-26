@@ -7,6 +7,22 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.9.16] - 2026-04-26
+
+### Added
+- **Instant Smart Framing**: Refined the initial state for split-screen and camera-switch modes. Camera zoom now snaps to the optimal separation level on the first frame, eliminating the gradual "zoom-in" effect at the start of clips.
+- **Aggressive Face Separation**: Increased the auto-zoom safety margin and added a head-width buffer. This ensures neighboring faces are completely cropped out of frame for a professional, distraction-free view.
+- **Dynamic Glitch Scaling**: Transition videos (glitch) now dynamically scale to match the specific resolution of each output stream (Standard, Dev Mode, or Merged Dashboard).
+- **Solo Vertical Tracking**: Standardized `buat_video_hybrid` to support full center-point tracking and vertical centering, matching the quality of the podcast pipelines.
+
+### Changed
+- **Unified Tracking API**: Standardized internal helper functions to return absolute center coordinates. This simplifies and stabilizes coordinate math for subtitle generation and AI visualization.
+
+### Fixed
+- **NameError 'ref_crop_w'**: Resolved a critical runtime error in the smoothing logic where a variable reference was missing.
+
+---
+
 ## [v0.9.15] - 2026-04-26
 
 ### Added

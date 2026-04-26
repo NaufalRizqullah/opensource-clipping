@@ -742,7 +742,9 @@ def buat_video_hybrid(
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     crop_w = int(height * 9 / 16)
-    default_x = (width - crop_w) // 2
+    crop_h = height
+    default_cx = width // 2
+    default_cy = height // 2
     duration = end_clip - start_clip
 
     broll_caps = []
@@ -779,7 +781,7 @@ def buat_video_hybrid(
                 largest_idx = areas.argmax()
                 x1, y1, x2, y2 = boxes[largest_idx]
                 center_x = x1 + (x2 - x1) / 2
-                best_x = center_x - (crop_w / 2)
+                center_y = y1 + (y2 - y1) / 2
                 face_box = (x1, y1, x2, y2)
         else:
             results = detector.detect(
@@ -794,9 +796,8 @@ def buat_video_hybrid(
                     results.detections,
                     key=lambda d: d.bounding_box.width * d.bounding_box.height,
                 ).bounding_box
-                best_x = (largest_face.origin_x + (largest_face.width / 2)) - (
-                    crop_w // 2
-                )
+                center_x = largest_face.origin_x + (largest_face.width / 2)
+                center_y = largest_face.origin_y + (largest_face.height / 2)
                 face_box = (
                     largest_face.origin_x,
                     largest_face.origin_y,
@@ -807,7 +808,8 @@ def buat_video_hybrid(
         raw_data.append(
             {
                 "time": current_time,
-                "x": max(0, min(best_x, width - crop_w)),
+                "cx": center_x if face_box else default_cx,
+                "cy": center_y if face_box else default_cy,
                 "box": face_box,
             }
         )
@@ -824,68 +826,65 @@ def buat_video_hybrid(
     # FASE 2: SMOOTH CAMERA
     smooth_data = []
     if raw_data:
-        cam_x = raw_data[0]["x"]
+        cam_cx = raw_data[0]["cx"]
+        cam_cy = raw_data[0]["cy"]
+        
         deadzone_px = crop_w * DEADZONE_RATIO
         snap_px = width * SNAP_THRESHOLD
 
         for d in raw_data:
-            face_x = d["x"]
+            face_cx = d["cx"]
+            face_cy = d["cy"]
 
-            if abs(face_x - cam_x) > snap_px:
-                cam_x = face_x
+            if abs(face_cx - cam_cx) > snap_px:
+                cam_cx = face_cx
             else:
-                if face_x > cam_x + deadzone_px:
-                    cam_x += (face_x - (cam_x + deadzone_px)) * SMOOTH_FACTOR
-                elif face_x < cam_x - deadzone_px:
-                    cam_x += (face_x - (cam_x - deadzone_px)) * SMOOTH_FACTOR
+                if face_cx > cam_cx + deadzone_px:
+                    cam_cx += (face_cx - (cam_cx + deadzone_px)) * SMOOTH_FACTOR
+                elif face_cx < cam_cx - deadzone_px:
+                    cam_cx += (face_cx - (cam_cx - deadzone_px)) * SMOOTH_FACTOR
 
-            final_x = int(max(0, min(cam_x, width - crop_w)))
-            if smooth_data and abs(final_x - smooth_data[-1]["x"]) <= JITTER_THRESHOLD:
-                final_x = smooth_data[-1]["x"]
+            # Vertical smoothing
+            cam_cy += (face_cy - cam_cy) * SMOOTH_FACTOR
 
-            smooth_data.append({"time": d["time"], "x": final_x})
-
-    def get_box(t):
-        if not raw_data:
-            return None
-        if t <= raw_data[0]["time"]:
-            return raw_data[0]["box"]
-        if t >= raw_data[-1]["time"]:
-            return raw_data[-1]["box"]
-
-        for i in range(len(raw_data) - 1):
-            if raw_data[i]["time"] <= t <= raw_data[i + 1]["time"]:
-                b1 = raw_data[i]["box"]
-                b2 = raw_data[i + 1]["box"]
-                if b1 is None or b2 is None:
-                    return b1 if b1 else b2
-                t1, t2 = raw_data[i]["time"], raw_data[i + 1]["time"]
-                frac = (t - t1) / (t2 - t1)
-                return (
-                    b1[0] + (b2[0] - b1[0]) * frac,
-                    b1[1] + (b2[1] - b1[1]) * frac,
-                    b1[2] + (b2[2] - b1[2]) * frac,
-                    b1[3] + (b2[3] - b1[3]) * frac,
-                )
-        return None
+            smooth_data.append({"time": d["time"], "cx": cam_cx, "cy": cam_cy})
 
     def get_x(t):
         if not smooth_data:
-            return default_x
+            return default_cx
         if t <= smooth_data[0]["time"]:
-            return smooth_data[0]["x"]
+            return smooth_data[0]["cx"]
         if t >= smooth_data[-1]["time"]:
-            return smooth_data[-1]["x"]
+            return smooth_data[-1]["cx"]
+        for i in range(len(smooth_data) - 1):
+            if smooth_data[i]["time"] <= t <= smooth_data[i + 1]["time"]:
+                t1, t2 = smooth_data[i]["time"], smooth_data[i + 1]["time"]
+                cx1, cx2 = smooth_data[i]["cx"], smooth_data[i + 1]["cx"]
+                if t1 == t2: return cx1
+                return cx1 + (cx2 - cx1) * (t - t1) / (t2 - t1)
+        return default_cx
+
+    def _get_pos(t):
+        if not smooth_data:
+            return default_cx, default_cy
+        if t <= smooth_data[0]["time"]:
+            return smooth_data[0]["cx"], smooth_data[0]["cy"]
+        if t >= smooth_data[-1]["time"]:
+            return smooth_data[-1]["cx"], smooth_data[-1]["cy"]
 
         for i in range(len(smooth_data) - 1):
             if smooth_data[i]["time"] <= t <= smooth_data[i + 1]["time"]:
                 t1, t2 = smooth_data[i]["time"], smooth_data[i + 1]["time"]
-                x1, x2 = smooth_data[i]["x"], smooth_data[i + 1]["x"]
+                cx1, cx2 = smooth_data[i]["cx"], smooth_data[i + 1]["cx"]
+                cy1, cy2 = smooth_data[i]["cy"], smooth_data[i + 1]["cy"]
                 if t1 == t2:
-                    return x1
-                return int(x1 + (x2 - x1) * (t - t1) / (t2 - t1))
-
-        return default_x
+                    return cx1, cy1
+                frac = (t - t1) / (t2 - t1)
+                return (
+                    cx1 + (cx2 - cx1) * frac,
+                    cy1 + (cy2 - cy1) * frac
+                )
+        return default_cx, default_cy
 
     # FASE 3: RENDER FRAME
     out_w, out_h = _get_render_dims(cfg, rasio, source_h=height)
@@ -932,15 +931,22 @@ def buat_video_hybrid(
                 # Highlight 9:16 window
                 # Current source width/height vs canvas out_w/out_h
                 scale_x = out_w / width
+                scale_y = out_h / height
+                
+                cx, cy = _get_pos(t)
                 cx_scaled = int(cx * scale_x)
+                cy_scaled = int(cy * scale_y)
                 cw_scaled = int(crop_w * scale_x)
+                ch_scaled = int(crop_h * scale_y)
+                
+                x1 = int(max(0, min(cx_scaled - cw_scaled // 2, out_w - cw_scaled)))
+                y1 = int(max(0, min(cy_scaled - ch_scaled // 2, out_h - ch_scaled)))
                 
                 # Paste bright crop
-                frame_dev[:, cx_scaled : cx_scaled + cw_scaled] = frame_base[:, cx_scaled : cx_scaled + cw_scaled]
+                frame_dev[y1 : y1 + ch_scaled, x1 : x1 + cw_scaled] = frame_base[y1 : y1 + ch_scaled, x1 : x1 + cw_scaled]
                 
-                # Draw vertical border lines
-                cv2.line(frame_dev, (cx_scaled, 0), (cx_scaled, out_h), (255, 255, 255), 2)
-                cv2.line(frame_dev, (cx_scaled + cw_scaled, 0), (cx_scaled + cw_scaled, out_h), (255, 255, 255), 2)
+                # Draw border lines
+                cv2.rectangle(frame_dev, (x1, y1), (x1+cw_scaled, y1+ch_scaled), (255, 255, 255), 2)
                 
                 # Draw face box if detected
                 if cfg.box_face_detection or cfg.track_lines or True: # Force in dev mode
@@ -968,8 +974,10 @@ def buat_video_hybrid(
                 frame_utama_siap = frame_dev # Ensure this is defined for B-roll transitions
 
             elif rasio == "9:16":
-                cx = get_x(t)
-                cropped = frame_utama[:, cx : cx + crop_w]
+                cx, cy = _get_pos(t)
+                x1 = int(max(0, min(cx - crop_w // 2, width - crop_w)))
+                y1 = int(max(0, min(cy - crop_h // 2, height - crop_h)))
+                cropped = frame_utama[y1 : y1 + crop_h, x1 : x1 + crop_w]
                 frame_utama_siap = _resize_frame(cropped, (out_w, out_h))
                 frame_terpilih = frame_utama_siap
             else:
@@ -1303,12 +1311,9 @@ def buat_file_ass(
                 
                 if get_x_func and cfg.dev_mode and source_dim:
                     sw, sh = source_dim
-                    # Calculate center of 9:16 window in source pixels
-                    crop_w_src = sh * 9 // 16
                     # Reference time: midpoint of the current segment/line
                     t_ref = line["words"][0]["start"] + start_clip
-                    cx = get_x_func(t_ref)
-                    center_x_src = cx + (crop_w_src / 2)
+                    center_x_src = get_x_func(t_ref)
                     # Target center in PlayResX (1920)
                     target_center_x = center_x_src * (play_res_x / sw)
                     start_x = target_center_x - (line["width"] / 2)
@@ -1879,7 +1884,6 @@ def buat_video_split_screen(
             return smooth
         cam_cx = raw_data[0]["cx"]
         cam_cy = raw_data[0]["cy"]
-        cam_zoom = 1.0
         
         # Reference crop width before any zoom is applied
         p_ratio = panel_w / panel_h
@@ -1888,6 +1892,19 @@ def buat_video_split_screen(
         else:
             ref_crop_w = width
 
+        # Auto-zoom logic setup
+        def _calc_target_zoom(dist_val):
+            if not cfg.split_auto_zoom:
+                return 1.0
+            # More aggressive separation: assume face takes some width
+            # We want half-width of crop to be less than distance to neighboring face
+            buffer = ref_crop_w * 0.08
+            effective_dist = max(50, dist_val - buffer)
+            t_zoom = (ref_crop_w / (2 * effective_dist)) * 1.4
+            return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 2.5)))
+
+        cam_zoom = _calc_target_zoom(raw_data[0].get("dist", width))
+        
         deadzone_px = ref_crop_w * DEADZONE_RATIO
         snap_px = width * SNAP_THRESHOLD
 
@@ -1906,14 +1923,8 @@ def buat_video_split_screen(
             cam_cy += (face_cy - cam_cy) * SMOOTH_FACTOR
             
             # Auto-zoom logic
-            if cfg.split_auto_zoom:
-                safety_margin = 1.15
-                d_near = d.get("dist", width)
-                target_zoom = (ref_crop_w / (2 * d_near)) * safety_margin
-                target_zoom = max(1.0, min(target_zoom, getattr(cfg, "split_max_zoom", 2.5)))
-                cam_zoom += (target_zoom - cam_zoom) * SMOOTH_FACTOR
-            else:
-                cam_zoom = 1.0
+            target_zoom = _calc_target_zoom(d.get("dist", width))
+            cam_zoom += (target_zoom - cam_zoom) * SMOOTH_FACTOR
             
             smooth.append({"time": d["time"], "cx": cam_cx, "cy": cam_cy, "zoom": cam_zoom})
         return smooth
@@ -2388,10 +2399,9 @@ def buat_video_split_screen(
                 t1, t2 = tracking_log[i][0], tracking_log[i+1][0]
                 cx1, cx2 = tracking_log[i][1], tracking_log[i+1][1]
                 cx = cx1 + (cx2 - cx1) * (t - t1) / (t2 - t1)
-                return int(max(0, min(cx - crop_w_full / 2, width - crop_w_full)))
+                return int(cx)
         
-        last_cx = tracking_log[-1][1]
-        return int(max(0, min(last_cx - crop_w_full / 2, width - crop_w_full)))
+        return int(tracking_log[-1][1])
 
     return get_x_final
 
@@ -2679,7 +2689,6 @@ def buat_video_camera_switch(
             return smooth_list
         cam_cx = raw_list[0]["cx"]
         cam_cy = raw_list[0]["cy"]
-        cam_zoom = 1.0
         
         # Reference crop width before any zoom is applied
         p_ratio = crop_w / crop_h
@@ -2688,6 +2697,18 @@ def buat_video_camera_switch(
         else:
             ref_crop_w = width
 
+        # Auto-zoom logic setup
+        def _calc_target_zoom(dist_val):
+            if not cfg.split_auto_zoom:
+                return 1.0
+            # More aggressive separation: assume face takes some width
+            buffer = ref_crop_w * 0.08
+            effective_dist = max(50, dist_val - buffer)
+            t_zoom = (ref_crop_w / (2 * effective_dist)) * 1.4
+            return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 2.5)))
+
+        cam_zoom = _calc_target_zoom(raw_list[0].get("dist", width))
+        
         deadzone_px = crop_w * DEADZONE_RATIO
         snap_px = width * SNAP_THRESHOLD
         
@@ -2706,14 +2727,8 @@ def buat_video_camera_switch(
             cam_cy += (face_cy - cam_cy) * SMOOTH_FACTOR
             
             # Auto-zoom logic
-            if cfg.split_auto_zoom:
-                safety_margin = 1.15
-                d_near = d.get("dist", width)
-                target_zoom = (ref_crop_w / (2 * d_near)) * safety_margin
-                target_zoom = max(1.0, min(target_zoom, getattr(cfg, "split_max_zoom", 2.5)))
-                cam_zoom += (target_zoom - cam_zoom) * SMOOTH_FACTOR
-            else:
-                cam_zoom = 1.0
+            target_zoom = _calc_target_zoom(d.get("dist", width))
+            cam_zoom += (target_zoom - cam_zoom) * SMOOTH_FACTOR
             
             smooth_list.append({"time": d["time"], "cx": cam_cx, "cy": cam_cy, "zoom": cam_zoom})
         return smooth_list
@@ -2984,6 +2999,24 @@ def buat_video_camera_switch(
             raise RuntimeError(f"FFmpeg writer gagal: {stderr_data[-1000:]}")
 
         print(f"✅ {label} selesai.", flush=True)
+
+        # Helper for subtitle positioning
+        def get_x_final(t):
+            if not tracking_log:
+                return default_x
+            if t <= tracking_log[0][0]:
+                return int(tracking_log[0][1])
+            
+            for i in range(len(tracking_log)-1):
+                if tracking_log[i][0] <= t <= tracking_log[i+1][0]:
+                    t1, t2 = tracking_log[i][0], tracking_log[i+1][0]
+                    cx1, cx2 = tracking_log[i][1], tracking_log[i+1][1]
+                    cx = cx1 + (cx2 - cx1) * (t - t1) / (t2 - t1)
+                    return int(cx)
+            
+            return int(tracking_log[-1][1])
+
+        return get_x_final
 
     finally:
         cap.release()
