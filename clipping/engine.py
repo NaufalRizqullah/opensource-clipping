@@ -549,6 +549,30 @@ ATURAN OUTPUT:
 - Semua field wajib terisi.
 - Jika ragu, prioritaskan akurasi isi klip daripada kreativitas berlebihan.
 
+STRUKTUR JSON WAJIB (Ikuti nama field ini secara kaku):
+[
+  {
+    "rank": 1,
+    "start_time": 30.5,
+    "end_time": 90.0,
+    "hook_start_time": 30.5,
+    "hook_end_time": 35.0,
+    "bgm_mood": "mood_here",
+    "typography_plan": [{"kata_utama": "...", "scale_level": 2, "style": "utama", "animasi": "bounce_pop"}],
+    "broll_list": [{"start_time": 40.0, "end_time": 45.0, "search_query": "..."}],
+    "title_indonesia": "...",
+    "title_inggris": "...",
+    "hastag": "#hastag1 #hastag2",
+    "description_hook": "...",
+    "description_context": "...",
+    "keyword_tags": ["tag1", "tag2"],
+    "tiktok_title_id": "...",
+    "tiktok_caption_id": "...",
+    "tiktok_caption": "...",
+    "alasan": "..."
+  }
+]
+
 Transkrip:
 {transkrip_lengkap}
 """
@@ -570,16 +594,88 @@ def analyze_with_nvidia(transkrip_lengkap: str, cfg) -> list[dict]:
     
     prompt = get_analysis_prompt(transkrip_lengkap, cfg.jumlah_clip, cfg.durasi_hook)
     
+    # Define the strict schema for Guided JSON (NVIDIA NIM specific)
+    clips_schema = {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "rank": {"type": "integer"},
+                "start_time": {"type": "number"},
+                "end_time": {"type": "number"},
+                "hook_start_time": {"type": "number"},
+                "hook_end_time": {"type": "number"},
+                "bgm_mood": {
+                    "type": "string",
+                    "enum": ["chill", "epic", "sad", "upbeat", "suspense"]
+                },
+                "typography_plan": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "kata_utama": {"type": "string"},
+                            "scale_level": {"type": "integer", "enum": [1, 2, 3]},
+                            "style": {"type": "string", "enum": ["utama", "khusus"]},
+                            "animasi": {"type": "string", "enum": ["bounce_pop", "stagger_up"]}
+                        },
+                        "required": ["kata_utama", "scale_level", "style", "animasi"]
+                    }
+                },
+                "broll_list": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "start_time": {"type": "number"},
+                            "end_time": {"type": "number"},
+                            "search_query": {"type": "string"}
+                        },
+                        "required": ["start_time", "end_time", "search_query"]
+                    }
+                },
+                "title_indonesia": {"type": "string"},
+                "title_inggris": {"type": "string"},
+                "hastag": {"type": "string"},
+                "description_hook": {"type": "string"},
+                "description_context": {"type": "string"},
+                "keyword_tags": {
+                    "type": "array",
+                    "items": {"type": "string"}
+                },
+                "tiktok_title_id": {"type": "string"},
+                "tiktok_caption_id": {"type": "string"},
+                "tiktok_caption": {"type": "string"},
+                "alasan": {"type": "string"}
+            },
+            "required": [
+                "rank", "start_time", "end_time", "hook_start_time", "hook_end_time",
+                "bgm_mood", "typography_plan", "broll_list", "title_indonesia",
+                "title_inggris", "hastag", "description_hook", "description_context",
+                "keyword_tags", "tiktok_title_id", "tiktok_caption_id", "tiktok_caption",
+                "alasan"
+            ]
+        }
+    }
+
     completion = client.chat.completions.create(
         model=cfg.nvidia_model,
         messages=[
-            {"role": "system", "content": "You are a professional video editor and strategist. Always output valid JSON array ONLY. Do not explain."},
+            {"role": "system", "content": "You are a professional video editor and strategist. Return JSON only. Follow the provided JSON schema exactly."},
             {"role": "user", "content": prompt}
         ],
-        temperature=1,
+        temperature=0.5,
+        top_p=1,
         max_tokens=16384,
-        extra_body={"chat_template_kwargs":{"thinking":False}},
-        response_format={"type": "json_object"} if "deepseek" in cfg.nvidia_model.lower() else None
+        extra_body={
+            "chat_template_kwargs": {"thinking": False},
+            "nvext": {
+                "guided_json": clips_schema
+            }
+        }
     )
     
     content = completion.choices[0].message.content
@@ -590,7 +686,8 @@ def analyze_with_nvidia(transkrip_lengkap: str, cfg) -> list[dict]:
         
     hasil = json.loads(content)
     
-    # Unwrap if the model returned { "clips": [...] } or { "data": [...] }
+    # Guided JSON should return an array directly if schema says type: array
+    # but we keep the unwrapper just in case of non-conforming fallbacks
     if isinstance(hasil, dict):
         for key in ["clips", "data", "highlights"]:
             if key in hasil and isinstance(hasil[key], list):
@@ -598,9 +695,9 @@ def analyze_with_nvidia(transkrip_lengkap: str, cfg) -> list[dict]:
                 break
                 
     if not isinstance(hasil, list):
-        # If it's still a dict but doesn't have the standard keys, 
-        # it might be the clip object itself wrapped once.
-        return [hasil]
+        if isinstance(hasil, dict):
+            return [hasil]
+        raise ValueError(f"Provider NVIDIA mengembalikan format non-list/dict: {type(hasil)}")
         
     return hasil
 

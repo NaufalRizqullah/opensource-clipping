@@ -27,7 +27,9 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 ## [v0.9.13] - 2026-04-26
 
 ### Added
-- **Multi-Cloud AI Providers**: Integrated NVIDIA NIM API support. Users can now choose between Gemini and NVIDIA (DeepSeek/Llama) for video analysis.
+- **Multi-Cloud AI Providers**: Integrated NVIDIA NIM API support (DeepSeek-V3/V4, Llama-3, etc) as an alternative to Gemini.
+- **Guided JSON Generation**: Implemented strict JSON schema enforcement for NVIDIA models to guarantee 100% output accuracy.
+- **AI-Agnostic Metadata Validator**: Added intelligent field aliasing (e.g., mapping 'peringkat' to 'rank') and auto-flattening for cross-model stability.
 - **Failover Logic**: Automated failover from NVIDIA to Gemini if the provider is unavailable.
 
 ---

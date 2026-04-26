@@ -109,18 +109,45 @@ def normalize_and_validate(hasil_json: list[dict]) -> list[dict]:
             print(f"⚠️ Melewati item metadata yang tidak valid (bukan dict): {type(item)}")
             continue
 
-        rank = item.get("rank", "?")
+        # 1. FLATTENING: If model put everything in a "metadata" key, bring it up
+        if isinstance(item.get("metadata"), dict):
+            for k, v in item["metadata"].items():
+                if k not in item:
+                    item[k] = v
+
+        # 2. ALIASING: Handle variations in field names (especially for non-Gemini providers)
+        rank = item.get("rank") or item.get("peringkat") or item.get("no") or "?"
+        item["rank"] = rank
+        
+        # Timing aliases
+        it_st = item.get("start_time") or item.get("timing_klip_start") or item.get("clip_start") or item.get("start")
+        it_en = item.get("end_time") or item.get("timing_klip_end") or item.get("clip_end") or item.get("end")
+        item["start_time"] = float(it_st) if it_st is not None else 0.0
+        item["end_time"] = float(it_en) if it_en is not None else 0.0
+
+        # Hook aliases (DeepSeek sometimes returns hook as string + hook_start_time at root)
+        if isinstance(item.get("hook"), str) and "hook_start_time" in item:
+            item["hook"] = {
+                "text": item["hook"],
+                "start_time": item.get("hook_start_time", item["start_time"]),
+                "end_time": item.get("hook_end_time", item["end_time"]),
+            }
+        
+        # Ensure hook exists as dict for later code
+        if not isinstance(item.get("hook"), dict):
+            item["hook"] = {"text": str(item.get("hook", "")), "start_time": item["start_time"], "end_time": item["start_time"] + 3.0}
 
         item["title_indonesia"] = _trim_title(item.get("title_indonesia", ""))
         item["title_inggris"] = _trim_title(item.get("title_inggris", ""))
         item["description_hook"] = _normalize_spaces(item.get("description_hook", ""))
         item["description_context"] = _normalize_spaces(item.get("description_context", ""))
+        item["hastag"] = _normalize_spaces(item.get("hastag") or item.get("hashtag") or "")
         item["tiktok_title_id"] = _normalize_spaces(item.get("tiktok_title_id", ""))
         item["tiktok_caption_id"] = _normalize_spaces(item.get("tiktok_caption_id", ""))
         item["tiktok_caption"] = _normalize_spaces(item.get("tiktok_caption", ""))
         item["keyword_tags"] = _normalize_keyword_tags(item.get("keyword_tags", []))
 
-        hastag_clean, hashtag_count = _normalize_hashtags(item.get("hastag", ""))
+        hastag_clean, hashtag_count = _normalize_hashtags(item["hastag"])
         item["hastag"] = hastag_clean
 
         # Enriched fields
