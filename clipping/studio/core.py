@@ -1859,15 +1859,18 @@ def buat_video_split_screen(
             if d.get("dist", width) < global_min_dist:
                 global_min_dist = d["dist"]
     
-    # Calculate a FIXED zoom for the entire clip to avoid "zoom2-an" (movement)
+    # Calculate a FIXED zoom for the entire clip — no per-frame zoom changes.
+    # This ensures split panels are zoomed-in from frame 0, with no camera "movement".
     def _calc_clip_zoom(min_dist):
-        if not cfg.split_auto_zoom or min_dist >= width:
+        if not cfg.split_auto_zoom or min_dist >= width * 0.9:
             return 1.0
-        p_ratio = out_w / out_h
+        # Use PANEL ratio (wider aspect, ~9:8) — NOT 9:16 full-frame ratio
+        p_ratio = panel_w / panel_h
         ref_w = int(height * p_ratio) if (width / height) > p_ratio else width
-        # Use a consistent multiplier for stable framing
-        buffer = ref_w * 0.08
+        # Buffer for face width so we don't just barely clip the neighbor
+        buffer = ref_w * 0.10
         eff_dist = max(80, min_dist - buffer)
+        # Multiplier 1.8: needs to be aggressive enough to fully hide neighbor
         t_zoom = (ref_w / (2 * eff_dist)) * 1.8
         return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 2.5)))
 
@@ -2058,19 +2061,15 @@ def buat_video_split_screen(
                         face_count_history.pop(0)
                     
                     # Majority vote face count
-                    stable_count = max(set(face_count_history), key=face_count_history.count) if face_count_history else now_count
-                    
-                    # FAST START: snap to split at T=0 to avoid layout glitch
-                    if t < 0.1 and now_count >= 2:
-                        current_layout = "split"
-                        last_switch_time = t
-                    
+                    if face_count_history:
+                        stable_count = max(set(face_count_history), key=face_count_history.count)
+                    else:
+                        stable_count = now_count
+
                     # FAST PATH: split→full is instant (no ghost frames)
-                    # When currently in split and this frame sees only 1 face,
-                    # force immediate switch without majority vote or MIN_HOLD.
-                    # Rationale: a split layout showing 1 person looks broken;
-                    # the transition must be imperceptible.
-                    if current_layout == "split" and now_count == 1:
+                    # But NOT in the first 1s — detection may still be settling.
+                    # Early false-positive (1 face when 2 exist) causes layout glitch.
+                    if current_layout == "split" and now_count == 1 and t > 1.0:
                         current_layout = "full"
                         current_speaker = ranked[0]
                         last_switch_time = t
@@ -2661,29 +2660,6 @@ def buat_video_camera_switch(
             raw_data[spk].append({"time": fd["time"], "cx": best[0], "cy": best[1], "dist": d_near})
 
     # ================================================================
-    # FASE 1.5 — Determine Stable Global Zoom for Camera Switch
-    # ================================================================
-    global_min_dist = width
-    for spk_list in raw_data.values():
-        for d in spk_list:
-            d_val = d.get("dist", width)
-            if d_val < global_min_dist:
-                global_min_dist = d_val
-    
-    def _calc_cs_zoom(min_dist):
-        if not cfg.split_auto_zoom or min_dist >= width:
-            return 1.0
-        # Use more conservative zoom for solo shots
-        p_ratio = out_w / out_h
-        ref_w = int(height * p_ratio) if (width / height) > p_ratio else width
-        buffer = ref_w * 0.08
-        eff_dist = max(100, min_dist - buffer)
-        t_zoom = (ref_w / (2 * eff_dist)) * 1.3
-        return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 2.5)))
-
-    clip_fixed_zoom = _calc_cs_zoom(global_min_dist)
-
-    # ================================================================
     # FASE 2 — Smooth per-speaker camera positions
     # ================================================================
     def _smooth_positions_cs(raw_list):
@@ -2693,13 +2669,35 @@ def buat_video_camera_switch(
         cam_cx = raw_list[0]["cx"]
         cam_cy = raw_list[0]["cy"]
         
-        # Use fixed zoom for entire session to prevent "zoom-out" effects
-        cam_zoom = clip_fixed_zoom
-        
+        # Reference crop width before any zoom is applied
         p_ratio = crop_w / crop_h
+        if (width / height) > p_ratio:
+            ref_crop_w = int(height * p_ratio)
+        else:
+            ref_crop_w = width
+
+        # Auto-zoom logic setup
+        def _calc_target_zoom(dist_val):
+            if not cfg.split_auto_zoom:
+                return 1.0
+            # Aggressive separation multiplier: 1.6
+            buffer = ref_crop_w * 0.10
+            effective_dist = max(50, dist_val - buffer)
+            t_zoom = (ref_crop_w / (2 * effective_dist)) * 1.6
+            return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 2.5)))
+
+        # Look ahead at first few frames to avoid "zoom-in" lag at start
+        initial_dist = width
+        for d in raw_list[:10]:
+            d_val = d.get("dist", width)
+            if d_val < initial_dist:
+                initial_dist = d_val
+        
+        cam_zoom = _calc_target_zoom(initial_dist)
+        
         deadzone_px = crop_w * DEADZONE_RATIO
         snap_px = width * SNAP_THRESHOLD
-
+        
         for d in raw_list:
             face_cx = d["cx"]
             face_cy = d["cy"]
@@ -2710,9 +2708,13 @@ def buat_video_camera_switch(
                     cam_cx += (face_cx - (cam_cx + deadzone_px)) * SMOOTH_FACTOR
                 elif face_cx < cam_cx - deadzone_px:
                     cam_cx += (face_cx - (cam_cx - deadzone_px)) * SMOOTH_FACTOR
-
+            
             # Vertical smoothing
             cam_cy += (face_cy - cam_cy) * SMOOTH_FACTOR
+            
+            # Auto-zoom logic
+            target_zoom = _calc_target_zoom(d.get("dist", width))
+            cam_zoom += (target_zoom - cam_zoom) * SMOOTH_FACTOR
             
             smooth_list.append({"time": d["time"], "cx": cam_cx, "cy": cam_cy, "zoom": cam_zoom})
         return smooth_list
