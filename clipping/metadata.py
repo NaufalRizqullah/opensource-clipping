@@ -101,10 +101,14 @@ def normalize_and_validate(hasil_json: list[dict]) -> list[dict]:
 
     Mutates items in-place and returns sorted list.
     """
+    valid_items = []
     laporan = []
     semua_warning = []
-
     for item in hasil_json:
+        if not isinstance(item, dict):
+            print(f"⚠️ Melewati item metadata yang tidak valid (bukan dict): {type(item)}")
+            continue
+
         rank = item.get("rank", "?")
 
         item["title_indonesia"] = _trim_title(item.get("title_indonesia", ""))
@@ -196,11 +200,11 @@ def normalize_and_validate(hasil_json: list[dict]) -> list[dict]:
 
         if warning:
             semua_warning.append((rank, warning))
+            
+        valid_items.append(item)
 
-    hasil_json = sorted(hasil_json, key=lambda x: x.get("rank", 9999))
     laporan = sorted(laporan, key=lambda x: x["rank"])
-
-    return hasil_json
+    return sorted(valid_items, key=lambda x: x.get("rank", 9999))
 
 
 def print_preview(hasil_json: list[dict]) -> None:

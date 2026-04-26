@@ -588,7 +588,21 @@ def analyze_with_nvidia(transkrip_lengkap: str, cfg) -> list[dict]:
         content = re.sub(r"```(json)?", "", content).strip()
         content = content.split("```")[0].strip()
         
-    return json.loads(content)
+    hasil = json.loads(content)
+    
+    # Unwrap if the model returned { "clips": [...] } or { "data": [...] }
+    if isinstance(hasil, dict):
+        for key in ["clips", "data", "highlights"]:
+            if key in hasil and isinstance(hasil[key], list):
+                hasil = hasil[key]
+                break
+                
+    if not isinstance(hasil, list):
+        # If it's still a dict but doesn't have the standard keys, 
+        # it might be the clip object itself wrapped once.
+        return [hasil]
+        
+    return hasil
 
 
 def analyze_with_ai(transkrip_lengkap: str, cfg) -> list[dict]:
