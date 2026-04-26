@@ -2223,11 +2223,16 @@ def buat_video_split_screen(
                 # PREcalculate coordinates for BOTH layouts
                 # 1. solo (9:16)
                 spk_solo = current_speaker or (speaker_top if speaker_top in ranked else ranked[0])
-                cx_solo = _get_cx(spk_solo, t)
+                cx_solo, cy_solo, _ = _get_pos_full(spk_solo, t)
                 cx_s_scaled = int(cx_solo * scale_x)
+                cy_s_scaled = int(cy_solo * scale_y)
                 cw_s_scaled = int(crop_w_full * scale_x)
+                ch_s_scaled = int(crop_h_full * scale_y)
+                
                 x1s = max(0, cx_s_scaled - cw_s_scaled // 2)
                 x2s = min(1919, x1s + cw_s_scaled)
+                y1s = int(max(0, min(cy_s_scaled - ch_s_scaled // 2, 1080 - ch_s_scaled)))
+                y2s = y1s + ch_s_scaled
                 
                 # 2. split boxes (horizontal)
                 cx_split = width / 2
@@ -2240,7 +2245,7 @@ def buat_video_split_screen(
                 # --- APPLY CLEAR WINDOW (Active) ---
                 if current_layout == "full":
                     # Clear solo window
-                    frame_dev[0:1080, x1s:x2s] = frame_res[0:1080, x1s:x2s]
+                    frame_dev[y1s:y2s, x1s:x2s] = frame_res[y1s:y2s, x1s:x2s]
                 else:
                     # Clear split windows
                     frame_dev[0:mid_h, x1p:x2p] = frame_res[0:mid_h, x1p:x2p]
@@ -2253,7 +2258,7 @@ def buat_video_split_screen(
                 thick_solo = 3 if current_layout == "full" else 1
                 thick_split = 2 if current_layout == "split" else 1
 
-                cv2.rectangle(frame_dev, (x1s, 0), (x2s, 1079), color_solo, thick_solo)
+                cv2.rectangle(frame_dev, (x1s, y1s), (x2s, y2s), color_solo, thick_solo)
                 cv2.rectangle(frame_dev, (x1p, 0), (x2p, mid_h), color_split, thick_split)
                 cv2.rectangle(frame_dev, (x1p, mid_h + DIVIDER_HEIGHT), (x2p, 1079), color_split, thick_split)
 
@@ -2937,8 +2942,12 @@ def buat_video_camera_switch(
 
             else:
                 if current_speaker is not None:
-                    cx = _get_x(current_speaker, t)
-                    crop_fr = frame[0:crop_h, cx : cx + crop_w]
+                    cx, cy, s_zoom = _get_pos_cs(current_speaker, t)
+                    eff_cw = int(crop_w / s_zoom)
+                    eff_ch = int(crop_h / s_zoom)
+                    x_full = int(max(0, min(cx - eff_cw / 2, width - eff_cw)))
+                    y_full = int(max(0, min(cy - eff_ch / 2, height - eff_ch)))
+                    crop_fr = frame[y_full : y_full + eff_ch, x_full : x_full + eff_cw]
                     out_frame = _resize_frame(crop_fr, (out_w, out_h))
                 else:
                     cx = (width - crop_w) // 2 # Center for blurred view
