@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.0.3] - 2026-04-27
+
+### Fixed
+- **Standard Dev Mode Crash**: Fixed a `NameError: name 'get_box' is not defined` crash when running the standard Hybrid 9:16 layout in Developer Visualization Mode (`--dev-mode`). The visualization helper function is now properly declared.
+
+---
+
 ## [v1.0.2] - 2026-04-27
 
 ### Fixed

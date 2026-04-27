@@ -855,6 +855,20 @@ def buat_video_hybrid(
 
             smooth_data.append({"time": d["time"], "cx": cam_cx, "cy": cam_cy})
 
+    def get_box(t):
+        if not raw_data:
+            return None
+        if t <= raw_data[0]["time"]:
+            return raw_data[0].get("box")
+        if t >= raw_data[-1]["time"]:
+            return raw_data[-1].get("box")
+        for i in range(len(raw_data) - 1):
+            if raw_data[i]["time"] <= t <= raw_data[i + 1]["time"]:
+                if abs(t - raw_data[i]["time"]) < abs(t - raw_data[i+1]["time"]):
+                    return raw_data[i].get("box")
+                return raw_data[i+1].get("box")
+        return None
+
     def get_x(t):
         if not smooth_data:
             return default_cx
