@@ -1955,13 +1955,14 @@ def buat_video_split_screen(
         ref_w = int(height * p_ratio) if (width / height) > p_ratio else width
         max_zoom = getattr(cfg, "split_max_zoom", 4.5)
         
-        # Use tracking data median for position — this comes from actual
-        # face assignments using _get_canonical_x, which is reliable.
-        import statistics as _st_z
-        spk_median_cx = {}
-        for spk in all_speakers_in_clip:
-            if raw_data[spk]:
-                spk_median_cx[spk] = _st_z.median([d["cx"] for d in raw_data[spk]])
+        if robust_cx:
+            spk_median_cx = robust_cx
+        else:
+            import statistics as _st_z
+            spk_median_cx = {}
+            for spk in all_speakers_in_clip:
+                if raw_data[spk]:
+                    spk_median_cx[spk] = _st_z.median([d["cx"] for d in raw_data[spk]])
         
         if len(spk_median_cx) >= 2:
             spk_list = sorted(spk_median_cx.keys(), key=lambda s: spk_median_cx[s])
@@ -2007,12 +2008,13 @@ def buat_video_split_screen(
         smooth_list = []
         if not raw_list:
             return smooth_list
-        # Pre-settle: use MEDIAN position so camera starts at its stable center.
+        # Pre-settle: use median of the FIRST few positions so camera starts at its initial scene
+        # instead of the global median (which blends different camera setups).
         import statistics as _st
-        all_cxs = [d["cx"] for d in raw_list]
-        all_cys = [d["cy"] for d in raw_list]
-        cam_cx = _st.median(all_cxs)
-        cam_cy = _st.median(all_cys)
+        initial_cxs = [d["cx"] for d in raw_list[:5]]
+        initial_cys = [d["cy"] for d in raw_list[:5]]
+        cam_cx = _st.median(initial_cxs) if initial_cxs else 0
+        cam_cy = _st.median(initial_cys) if initial_cys else 0
         
         # Per-speaker zoom — fixed for the entire clip, no movement.
         cam_zoom = speaker_zoom.get(spk_name, clip_fixed_zoom)
@@ -2020,7 +2022,9 @@ def buat_video_split_screen(
         p_ratio = panel_w / panel_h
         ref_w = int(height * p_ratio) if (width / height) > p_ratio else width
         deadzone_px = ref_w * DEADZONE_RATIO
-        snap_px = width * SNAP_THRESHOLD
+        # Snap if distance is > 8% of frame width (~150px). Crucial for instantly
+        # jumping between wide shots and tight shots without slowly panning.
+        snap_px = width * getattr(cfg, "snap_threshold", 0.08)
 
         for d in raw_list:
             face_cx = d["cx"]
