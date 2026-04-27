@@ -1894,57 +1894,88 @@ def buat_video_split_screen(
         eff_dist = max(80, min_dist - buffer)
         # Multiplier 1.8: needs to be aggressive enough to fully hide neighbor
         t_zoom = (ref_w / (2 * eff_dist)) * 1.8
-        return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 2.5)))
+        return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 4.5)))
 
     clip_fixed_zoom = _calc_clip_zoom(global_min_dist)
     
-    # Also compute "centering zoom": minimum zoom so that each speaker's face
-    # can be placed at the CENTER of the crop without edge-clamping.
-    # Without this, faces near the frame edge get pushed to panel corners.
-    if cfg.split_auto_zoom:
+    # ================================================================
+    # Per-speaker zoom: ensures face is CENTERED and neighbor is HIDDEN
+    # ================================================================
+    # Strategy: compute the midpoint between the two speakers.
+    # Each speaker's crop should not cross this midpoint.
+    # Zoom = ref_w / (2 * distance_from_face_to_midpoint)
+    # This guarantees face is at 50% of the crop.
+    # ================================================================
+    speaker_zoom: dict[str, float] = {}
+    
+    if cfg.split_auto_zoom and len(all_speakers_in_clip) >= 2:
         p_ratio = panel_w / panel_h
         ref_w = int(height * p_ratio) if (width / height) > p_ratio else width
-        max_zoom = getattr(cfg, "split_max_zoom", 2.5)
+        max_zoom = getattr(cfg, "split_max_zoom", 4.5)
         
+        # Get median cx per speaker for stable calculation
+        import statistics as _st_z
+        spk_median_cx = {}
         for spk in all_speakers_in_clip:
-            if not raw_data[spk]:
-                continue
-            import statistics as _st2
-            median_cx = _st2.median([d["cx"] for d in raw_data[spk]])
-            # Distance from face to nearest frame edge
-            edge_dist = min(median_cx, width - median_cx)
-            if edge_dist > 0:
-                # Zoom needed so that half the crop width <= edge_dist
-                centering_zoom = ref_w / (2 * edge_dist)
-                centering_zoom = min(centering_zoom, max_zoom)
-                if centering_zoom > clip_fixed_zoom:
-                    clip_fixed_zoom = centering_zoom
+            if raw_data[spk]:
+                spk_median_cx[spk] = _st_z.median([d["cx"] for d in raw_data[spk]])
+        
+        # Also use canonical if available (more reliable)
+        for spk in all_speakers_in_clip:
+            if spk in speaker_canonical_cx:
+                spk_median_cx[spk] = speaker_canonical_cx[spk]
+        
+        if len(spk_median_cx) >= 2:
+            spk_list = sorted(spk_median_cx.keys(), key=lambda s: spk_median_cx[s])
+            # Global midpoint between the two main speakers
+            cx_left = spk_median_cx[spk_list[0]]
+            cx_right = spk_median_cx[spk_list[1]]
+            midpoint = (cx_left + cx_right) / 2
+            
+            for spk in all_speakers_in_clip:
+                cx = spk_median_cx.get(spk, width / 2)
+                # Distance from this face to the midpoint
+                dist_to_mid = abs(cx - midpoint)
+                # Distance from this face to the nearest frame edge
+                dist_to_edge = min(cx, width - cx)
+                # The crop half-width must be <= both constraints
+                max_half_crop = min(dist_to_mid, dist_to_edge)
+                max_half_crop = max(max_half_crop, 50)  # safety floor
+                
+                needed_zoom = ref_w / (2 * max_half_crop)
+                needed_zoom = max(1.0, min(needed_zoom, max_zoom))
+                
+                # Use the most aggressive zoom (per-speaker or global separation)
+                speaker_zoom[spk] = max(needed_zoom, clip_fixed_zoom)
+        else:
+            for spk in all_speakers_in_clip:
+                speaker_zoom[spk] = clip_fixed_zoom
+    else:
+        for spk in all_speakers_in_clip:
+            speaker_zoom[spk] = clip_fixed_zoom
     
     # Debug: show zoom decision values
-    print(f"   🔍 Split Auto-Zoom: global_min_dist={global_min_dist:.0f}px, "
-          f"panel_ratio={panel_w/panel_h:.3f}, clip_fixed_zoom={clip_fixed_zoom:.2f}x", flush=True)
+    print(f"   🔍 Split Auto-Zoom: separation_zoom={clip_fixed_zoom:.2f}x", flush=True)
     for spk in all_speakers_in_clip:
         n_pts = len(raw_data[spk])
-        avg_cx = sum(d["cx"] for d in raw_data[spk]) / n_pts if n_pts else 0
-        print(f"      Speaker {spk}: {n_pts} tracking points, avg_cx={avg_cx:.0f}, "
-              f"canonical_cx={speaker_canonical_cx.get(spk, 'N/A')}", flush=True)
+        canon = speaker_canonical_cx.get(spk)
+        sz = speaker_zoom.get(spk, 1.0)
+        print(f"      {spk}: {n_pts} pts, canonical_cx={canon}, per_spk_zoom={sz:.2f}x", flush=True)
 
     # ---- FASE 2: SMOOTH CAMERA PER SPEAKER (Centering CX) ----
-    def _smooth_positions(raw_list):
+    def _smooth_positions(raw_list, spk_name):
         smooth_list = []
         if not raw_list:
             return smooth_list
         # Pre-settle: use MEDIAN position so camera starts at its stable center.
-        # This eliminates the "slide from bottom to top" animation at clip start.
         import statistics as _st
         all_cxs = [d["cx"] for d in raw_list]
         all_cys = [d["cy"] for d in raw_list]
         cam_cx = _st.median(all_cxs)
         cam_cy = _st.median(all_cys)
         
-        # In split mode, we now use the STABLE fixed zoom for the entire clip.
-        # This eliminates "zoom-in" lag and jittery camera movement.
-        cam_zoom = clip_fixed_zoom
+        # Per-speaker zoom — fixed for the entire clip, no movement.
+        cam_zoom = speaker_zoom.get(spk_name, clip_fixed_zoom)
         
         p_ratio = panel_w / panel_h
         ref_w = int(height * p_ratio) if (width / height) > p_ratio else width
@@ -1969,7 +2000,7 @@ def buat_video_split_screen(
         return smooth_list
 
     smooth: dict[str, list] = {
-        spk: _smooth_positions(raw_data[spk]) for spk in all_speakers_in_clip
+        spk: _smooth_positions(raw_data[spk], spk) for spk in all_speakers_in_clip
     }
 
     def _get_pos_full(speaker: str, t: float) -> tuple[float, float, float]:
@@ -2221,7 +2252,7 @@ def buat_video_split_screen(
                             return _resize_frame(frame[0:crop_h, default_x : default_x + crop_w], (panel_w, panel_h)), True
                     else:
                         smooth_cx, smooth_cy, s_zoom = _get_pos_full(spk, t)
-                        # Combine auto-zoom with manual split-zoom
+                        # Combine per-speaker auto-zoom with manual split-zoom
                         total_zoom = s_zoom * zoom
                         
                         # Apply dynamic zoom to the baseline crop dimensions
@@ -2233,7 +2264,7 @@ def buat_video_split_screen(
                         eff_crop_w = int(b_crop_w / total_zoom)
                         eff_crop_h = int(b_crop_h / total_zoom)
 
-                        # Calculate Top-Left X for wide panel crop
+                        # Calculate Top-Left X centered on face
                         x_panel = int(max(0, min(smooth_cx - eff_crop_w / 2, width - eff_crop_w)))
                         # Vertical alignment with configurable bias
                         v_align = getattr(cfg, "split_v_align", 0.5)
@@ -2751,7 +2782,7 @@ def buat_video_camera_switch(
             buffer = ref_crop_w * 0.10
             effective_dist = max(50, dist_val - buffer)
             t_zoom = (ref_crop_w / (2 * effective_dist)) * 1.6
-            return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 2.5)))
+            return max(1.0, min(t_zoom, getattr(cfg, "split_max_zoom", 4.5)))
 
         # Look ahead at first few frames to avoid "zoom-in" lag at start
         initial_dist = width
