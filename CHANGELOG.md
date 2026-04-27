@@ -7,10 +7,18 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
-## [v1.0.3] - 2026-04-27
+## [v1.0.4] - 2026-04-28
+
+### Added
+- **Hybrid Merge Output Dev UI**: The basic Hybrid 9:16 layout now fully supports the sophisticated side-by-side `--dev-mode-with-output-merge` developer user interface. It draws the `DIRECTOR'S CONSOLE (Raw 16:9)` alongside the `FINAL OUTPUT (Crop 9:16)` with the dynamic neon green HUD text (tracking layout status and timestamps), achieving full visual parity with the podcast Split-Screen debugging view!
+
+---
+
+## [v1.0.3] - 2026-04-28
 
 ### Fixed
-- **Standard Dev Mode Crash**: Fixed a `NameError: name 'get_box' is not defined` crash when running the standard Hybrid 9:16 layout in Developer Visualization Mode (`--dev-mode`). The visualization helper function is now properly declared.
+- **Dev-Mode Hybrid Visuals Crash**: Fixed another leftover reference bug (`name 'get_box' is not defined`) in standard 9:16 mode rendering when Developer Visualization mode (`--dev-mode`) is enabled. Added the missing box-retrieval function to the hybrid engine.
+- **Dev-Mode Aim Lines Geometry**: Fixed a visual bug in standard Hybrid Dev Mode where the yellow tracking crosshairs ("aim lines") extending from the face bounding box scaled incorrectly, causing them to shoot past the right boundary and invert inwardly on the left boundary. They now perfectly anchor themselves strictly from the face's bounding box edges to the outer edges of the 9:16 focus window.
 
 ---
 

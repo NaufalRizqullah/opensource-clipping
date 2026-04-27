@@ -855,20 +855,6 @@ def buat_video_hybrid(
 
             smooth_data.append({"time": d["time"], "cx": cam_cx, "cy": cam_cy})
 
-    def get_box(t):
-        if not raw_data:
-            return None
-        if t <= raw_data[0]["time"]:
-            return raw_data[0].get("box")
-        if t >= raw_data[-1]["time"]:
-            return raw_data[-1].get("box")
-        for i in range(len(raw_data) - 1):
-            if raw_data[i]["time"] <= t <= raw_data[i + 1]["time"]:
-                if abs(t - raw_data[i]["time"]) < abs(t - raw_data[i+1]["time"]):
-                    return raw_data[i].get("box")
-                return raw_data[i+1].get("box")
-        return None
-
     def get_x(t):
         if not smooth_data:
             return default_cx
@@ -883,6 +869,18 @@ def buat_video_hybrid(
                 if t1 == t2: return cx1
                 return cx1 + (cx2 - cx1) * (t - t1) / (t2 - t1)
         return default_cx
+
+    def get_box(t):
+        if not raw_data:
+            return None
+        if t <= raw_data[0]["time"]:
+            return raw_data[0]["box"]
+        if t >= raw_data[-1]["time"]:
+            return raw_data[-1]["box"]
+        for i in range(len(raw_data) - 1):
+            if raw_data[i]["time"] <= t <= raw_data[i + 1]["time"]:
+                return raw_data[i]["box"]
+        return None
 
     def _get_pos(t):
         if not smooth_data:
@@ -907,15 +905,21 @@ def buat_video_hybrid(
         return default_cx, default_cy
 
     # FASE 3: RENDER FRAME
-    out_w, out_h = _get_render_dims(cfg, rasio, source_h=height)
+    base_out_w, base_out_h = _get_render_dims(cfg, rasio, source_h=height)
     
-    # DEV MODE: Force 16:9 to show context
+    # DEV MODE: Force 16:9 to show context or 2648 ultrawide for merge
     dev_visualize = cfg.dev_mode and rasio == "9:16"
-    if dev_visualize:
-        out_w, out_h = (1920, 1080)
+    merge_output = dev_visualize and getattr(cfg, "dev_mode_with_output_merge", False)
+    
+    if merge_output:
+        writer_w, writer_h = 2648, 1220
+    elif dev_visualize:
+        writer_w, writer_h = 1920, 1080
+    else:
+        writer_w, writer_h = base_out_w, base_out_h
 
     writer = open_ffmpeg_video_writer(
-        output_video, out_w, out_h, orig_fps, video_encoder
+        output_video, writer_w, writer_h, orig_fps, video_encoder
     )
 
     TRANSITION_DUR = 0.3
@@ -939,71 +943,76 @@ def buat_video_hybrid(
 
             waktu_absolut = start_clip + t
 
+            # --- 1. ALWAYS CREATE NORMAL 9:16 OUTPUT ---
+            if rasio == "9:16":
+                cx_base, cy_base = _get_pos(t)
+                x1_crop = int(max(0, min(cx_base - crop_w // 2, width - crop_w)))
+                y1_crop = int(max(0, min(cy_base - crop_h // 2, height - crop_h)))
+                cropped = frame_utama[y1_crop : y1_crop + crop_h, x1_crop : x1_crop + crop_w]
+                frame_normal = _resize_frame(cropped, (base_out_w, base_out_h))
+            else:
+                cx_base, cy_base = default_cx, default_cy
+                frame_normal = _resize_frame(frame_utama, (base_out_w, base_out_h))
+
+            # Base target for filtering (e.g. B-Roll applies to the normal output)
+            frame_terpilih = frame_normal
+
+            # --- 2. CREATE DEV CONTEXT FRAME IF ACTIVE ---
+            frame_dev = None
             if dev_visualize:
-                # Render full context for dev mode
-                cx = get_x(t)
-                # Resize original to 16:9 canvas
-                frame_base = _resize_frame(frame_utama, (out_w, out_h))
-                
-                # Dim background
+                frame_base = _resize_frame(frame_utama, (1920, 1080))
                 frame_dev = (frame_base * 0.35).astype(np.uint8)
                 
-                # Highlight 9:16 window
-                # Current source width/height vs canvas out_w/out_h
-                scale_x = out_w / width
-                scale_y = out_h / height
+                scale_x = 1920 / width
+                scale_y = 1080 / height
                 
-                cx, cy = _get_pos(t)
-                cx_scaled = int(cx * scale_x)
-                cy_scaled = int(cy * scale_y)
-                cw_scaled = int(crop_w * scale_x)
-                ch_scaled = int(crop_h * scale_y)
+                cx_dev = int(cx_base * scale_x)
+                cy_dev = int(cy_base * scale_y)
+                cw_dev = int(crop_w * scale_x)
+                ch_dev = int(crop_h * scale_y)
                 
-                x1 = int(max(0, min(cx_scaled - cw_scaled // 2, out_w - cw_scaled)))
-                y1 = int(max(0, min(cy_scaled - ch_scaled // 2, out_h - ch_scaled)))
+                x1 = int(max(0, min(cx_dev - cw_dev // 2, 1920 - cw_dev)))
+                y1_dev = int(max(0, min(cy_dev - ch_dev // 2, 1080 - ch_dev)))
                 
-                # Paste bright crop
-                frame_dev[y1 : y1 + ch_scaled, x1 : x1 + cw_scaled] = frame_base[y1 : y1 + ch_scaled, x1 : x1 + cw_scaled]
+                # Bright focal crop
+                frame_dev[y1_dev : y1_dev + ch_dev, x1 : x1 + cw_dev] = frame_base[y1_dev : y1_dev + ch_dev, x1 : x1 + cw_dev]
                 
-                # Draw border lines
-                cv2.rectangle(frame_dev, (x1, y1), (x1+cw_scaled, y1+ch_scaled), (255, 255, 255), 2)
+                # Frame borders
+                cv2.rectangle(frame_dev, (x1, y1_dev), (x1+cw_dev, y1_dev+ch_dev), (255, 255, 255), 2)
                 
-                # Draw face box if detected
-                if cfg.box_face_detection or cfg.track_lines or True: # Force in dev mode
+                # Face tracking box & target lines
+                if cfg.box_face_detection or cfg.track_lines or True:
                     box = get_box(t)
                     if box:
-                        scale_y = out_h / height
                         bx1, by1 = int(box[0] * scale_x), int(box[1] * scale_y)
                         bx2, by2 = int(box[2] * scale_x), int(box[3] * scale_y)
                         cv2.rectangle(frame_dev, (bx1, by1), (bx2, by2), (0, 255, 255), 2)
                         
                         if cfg.track_lines or cfg.dev_mode:
-                            # Center points of sides
                             mid_x = (bx1 + bx2) // 2
                             mid_y = (by1 + by2) // 2
-                            
-                            # Horizontal lines to 9:16 boundaries
-                            cv2.line(frame_dev, (cx_scaled, mid_y), (bx1, mid_y), (0, 255, 255), 2)
-                            cv2.line(frame_dev, (bx2, mid_y), (cx_scaled + cw_scaled, mid_y), (0, 255, 255), 2)
-                            
-                            # Vertical lines to frame boundaries (top/bottom)
-                            cv2.line(frame_dev, (mid_x, 0), (mid_x, by1), (0, 255, 255), 2)
-                            cv2.line(frame_dev, (mid_x, by2), (mid_x, out_h), (0, 255, 255), 2)
+                            cv2.line(frame_dev, (x1, mid_y), (bx1, mid_y), (0, 255, 255), 2)
+                            cv2.line(frame_dev, (bx2, mid_y), (x1 + cw_dev, mid_y), (0, 255, 255), 2)
+                            cv2.line(frame_dev, (mid_x, y1_dev), (mid_x, by1), (0, 255, 255), 2)
+                            cv2.line(frame_dev, (mid_x, by2), (mid_x, y1_dev + ch_dev), (0, 255, 255), 2)
                 
-                frame_terpilih = frame_dev
-                frame_utama_siap = frame_dev # Ensure this is defined for B-roll transitions
+                # Dev UI HUD Text
+                import math
+                def format_seconds(s):
+                    mins = math.floor(s / 60)
+                    secs = int(s % 60)
+                    return f"{mins:02d}:{secs:02d}"
 
-            elif rasio == "9:16":
-                cx, cy = _get_pos(t)
-                x1 = int(max(0, min(cx - crop_w // 2, width - crop_w)))
-                y1 = int(max(0, min(cy - crop_h // 2, height - crop_h)))
-                cropped = frame_utama[y1 : y1 + crop_h, x1 : x1 + crop_w]
-                frame_utama_siap = _resize_frame(cropped, (out_w, out_h))
-                frame_terpilih = frame_utama_siap
-            else:
-                frame_utama_siap = _resize_frame(frame_utama, (out_w, out_h))
-                frame_terpilih = frame_utama_siap
+                hud_lines = [
+                    f"MODE: HYBRID STANDARD (DEV)",
+                    f"TIME: {format_seconds(t)}",
+                    f"LAYOUT: FULL 9:16",
+                    f"ANCHOR CX: {int(cx_base)}"
+                ]
+                for i, line in enumerate(hud_lines):
+                    cv2.putText(frame_dev, line, (40, 60 + i*35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
+            # --- 3. B-ROLL OVERLAY OVER NORMAL FRAME ---
             for bc in broll_caps:
                 if bc["start"] <= waktu_absolut <= bc["end"]:
                     elapsed_broll = waktu_absolut - bc["start"]
@@ -1012,19 +1021,12 @@ def buat_video_hybrid(
 
                     if ret_b:
                         durasi_total_broll = bc["end"] - bc["start"]
-                        progress_broll = (
-                            elapsed_broll / durasi_total_broll
-                            if durasi_total_broll > 0
-                            else 0
-                        )
+                        progress_broll = elapsed_broll / durasi_total_broll if durasi_total_broll > 0 else 0
                         zoom_factor = 1.0 + ((MAX_ZOOM - 1.0) * progress_broll)
 
-                        frame_b_crop = crop_center_broll(frame_b, out_w, out_h)
-                        center_x, center_y = out_w / 2, out_h / 2
-                        M = cv2.getRotationMatrix2D(
-                            (center_x, center_y), 0, zoom_factor
-                        )
-                        frame_b_zoomed = cv2.warpAffine(frame_b_crop, M, (out_w, out_h))
+                        frame_b_crop = crop_center_broll(frame_b, base_out_w, base_out_h)
+                        M = cv2.getRotationMatrix2D((base_out_w / 2, base_out_h / 2), 0, zoom_factor)
+                        frame_b_zoomed = cv2.warpAffine(frame_b_crop, M, (base_out_w, base_out_h))
 
                         alpha = 1.0
                         if elapsed_broll < TRANSITION_DUR:
@@ -1035,13 +1037,28 @@ def buat_video_hybrid(
                         if alpha >= 1.0:
                             frame_terpilih = frame_b_zoomed
                         else:
-                            frame_terpilih = cv2.addWeighted(
-                                frame_b_zoomed, alpha, frame_utama_siap, 1.0 - alpha, 0
-                            )
-
+                            frame_terpilih = cv2.addWeighted(frame_b_zoomed, alpha, frame_terpilih, 1.0 - alpha, 0)
                     break
 
-            writer.stdin.write(frame_terpilih.tobytes())
+            # --- 4. OUTPUT WRITING AND MERGING ---
+            if merge_output:
+                frm_normal_small = _resize_frame(frame_terpilih, (608, 1080))
+                frm_merged = np.full((1220, 2648, 3), 30, dtype=np.uint8)
+                
+                cv2.putText(frm_merged, "DIRECTOR'S CONSOLE (16:9 RAW)", (40, 70), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 255), 3)
+                cv2.putText(frm_merged, "FINAL OUTPUT (9:16 CROP)", (2000, 70), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 255), 3)
+                
+                cv2.rectangle(frm_merged, (38, 98), (40+1920+2, 100+1080+2), (255, 255, 255), 4)
+                cv2.rectangle(frm_merged, (1998, 98), (2000+608+2, 100+1080+2), (255, 255, 255), 4)
+                
+                frm_merged[100:1180, 40:1960] = frame_dev
+                frm_merged[100:1180, 2000:2608] = frm_normal_small
+                
+                writer.stdin.write(frm_merged.tobytes())
+            elif dev_visualize:
+                writer.stdin.write(frame_dev.tobytes())
+            else:
+                writer.stdin.write(frame_terpilih.tobytes())
             frame_count += 1
 
             render_percent = (
