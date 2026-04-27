@@ -7,6 +7,14 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.9.17] - 2026-04-27
+
+### Added
+- **Zero-Delay Scene Cut Detection**: Overhauled the `split→full` and `full→split` layout transition logic in Visual-Only mode (`--split-trigger face`). Transitions now instantly trigger on camera cuts (0 seconds delay), eliminating ghosting and layout lag.
+- **Dynamic Tracking Deadzone**: Re-engineered the camera deadzone scale to strictly follow the 9:16 vertical crop width, adapting dynamically to the split zoom level. This dramatically increases tracking responsiveness and prevents faces from remaining stuck near the frame edges in both Full and Split modes.
+
+---
+
 ## [v0.9.16] - 2026-04-26
 
 ### Added

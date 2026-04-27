@@ -2026,7 +2026,8 @@ def buat_video_split_screen(
         
         # Snap if distance is > 8% of frame width (~150px). Crucial for instantly
         # jumping between wide shots and tight shots without slowly panning.
-        snap_px = width * getattr(cfg, "snap_threshold", 0.08)
+        temp_snap = SNAP_THRESHOLD if SNAP_THRESHOLD < 0.1 else 0.08
+        snap_px = width * temp_snap
 
         for d in raw_list:
             face_cx = d["cx"]
