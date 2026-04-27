@@ -1873,23 +1873,31 @@ def buat_video_split_screen(
             raw_data["FACE_L"].append({"time": fd["time"], "cx": left_face[0], "cy": left_face[1], "dist": d_near_l})
             raw_data["FACE_R"].append({"time": fd["time"], "cx": right_face[0], "cy": right_face[1], "dist": d_near_r})
         elif nf == 1:
-            # 1 face: assign to nearest speaker using robust canonical
             the_face = fc_list[0]
-            best_spk = None
-            best_dist = float('inf')
-            for spk in all_speakers_in_clip:
-                if spk not in raw_data:
-                    continue
-                canon_cx = _get_canonical_x(spk)
-                d = abs(the_face[0] - canon_cx)
-                if d < best_dist:
-                    best_dist = d
-                    best_spk = spk
-            
-            if best_spk:
-                raw_data[best_spk].append({
-                    "time": fd["time"], "cx": the_face[0], "cy": the_face[1], "dist": width
-                })
+            if not diarization_data:
+                # Visual-only mode: It's impossible to know confidently if a centered tight-shot
+                # belongs to FACE_L or FACE_R. If we guess wrong, the primary layout camera encounters
+                # a huge "gap" and lazily interpolates. By injecting the position into BOTH tracking streams,
+                # we guarantee whichever stream the Full layout uses will stay locked onto the face!
+                raw_data["FACE_L"].append({"time": fd["time"], "cx": the_face[0], "cy": the_face[1], "dist": width})
+                raw_data["FACE_R"].append({"time": fd["time"], "cx": the_face[0], "cy": the_face[1], "dist": width})
+            else:
+                # 1 face + Diarization: assign to nearest speaker using robust canonical
+                best_spk = None
+                best_dist = float('inf')
+                for spk in all_speakers_in_clip:
+                    if spk not in raw_data:
+                        continue
+                    canon_cx = _get_canonical_x(spk)
+                    d = abs(the_face[0] - canon_cx)
+                    if d < best_dist:
+                        best_dist = d
+                        best_spk = spk
+                
+                if best_spk:
+                    raw_data[best_spk].append({
+                        "time": fd["time"], "cx": the_face[0], "cy": the_face[1], "dist": width
+                    })
         else:
             # Diarization mode with 2+ faces: use canonical-guided assignment
             remaining_faces = list(fc_list)
@@ -2024,9 +2032,10 @@ def buat_video_split_screen(
         # triggers tracking with a very small physical movement, keeping faces centered.
         deadzone_px = (crop_w_full * DEADZONE_RATIO) / cam_zoom
         
-        # Snap if distance is > 8% of frame width (~150px). Crucial for instantly
-        # jumping between wide shots and tight shots without slowly panning.
-        temp_snap = SNAP_THRESHOLD if SNAP_THRESHOLD < 0.1 else 0.08
+        # Snap if distance is > 4% of frame width (~75px). Crucial for instantly
+        # jumping perfectly to center during angle cuts (wide to tight shot)
+        # without slowly panning towards it.
+        temp_snap = SNAP_THRESHOLD if SNAP_THRESHOLD < 0.1 else 0.04
         snap_px = width * temp_snap
 
         for d in raw_list:
