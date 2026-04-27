@@ -2019,9 +2019,11 @@ def buat_video_split_screen(
         # Per-speaker zoom — fixed for the entire clip, no movement.
         cam_zoom = speaker_zoom.get(spk_name, clip_fixed_zoom)
         
-        p_ratio = panel_w / panel_h
-        ref_w = int(height * p_ratio) if (width / height) > p_ratio else width
-        deadzone_px = ref_w * DEADZONE_RATIO
+        # Base the deadzone firmly on the 9:16 narrower crop width, NOT the wider panel
+        # width. Scale the deadzone down by the zoom level, so a zoomed-in shot
+        # triggers tracking with a very small physical movement, keeping faces centered.
+        deadzone_px = (crop_w_full * DEADZONE_RATIO) / cam_zoom
+        
         # Snap if distance is > 8% of frame width (~150px). Crucial for instantly
         # jumping between wide shots and tight shots without slowly panning.
         snap_px = width * getattr(cfg, "snap_threshold", 0.08)
