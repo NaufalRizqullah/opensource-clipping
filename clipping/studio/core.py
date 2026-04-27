@@ -1898,6 +1898,28 @@ def buat_video_split_screen(
 
     clip_fixed_zoom = _calc_clip_zoom(global_min_dist)
     
+    # Also compute "centering zoom": minimum zoom so that each speaker's face
+    # can be placed at the CENTER of the crop without edge-clamping.
+    # Without this, faces near the frame edge get pushed to panel corners.
+    if cfg.split_auto_zoom:
+        p_ratio = panel_w / panel_h
+        ref_w = int(height * p_ratio) if (width / height) > p_ratio else width
+        max_zoom = getattr(cfg, "split_max_zoom", 2.5)
+        
+        for spk in all_speakers_in_clip:
+            if not raw_data[spk]:
+                continue
+            import statistics as _st2
+            median_cx = _st2.median([d["cx"] for d in raw_data[spk]])
+            # Distance from face to nearest frame edge
+            edge_dist = min(median_cx, width - median_cx)
+            if edge_dist > 0:
+                # Zoom needed so that half the crop width <= edge_dist
+                centering_zoom = ref_w / (2 * edge_dist)
+                centering_zoom = min(centering_zoom, max_zoom)
+                if centering_zoom > clip_fixed_zoom:
+                    clip_fixed_zoom = centering_zoom
+    
     # Debug: show zoom decision values
     print(f"   🔍 Split Auto-Zoom: global_min_dist={global_min_dist:.0f}px, "
           f"panel_ratio={panel_w/panel_h:.3f}, clip_fixed_zoom={clip_fixed_zoom:.2f}x", flush=True)
