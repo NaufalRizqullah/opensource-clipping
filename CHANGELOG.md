@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v0.9.18] - 2026-04-27
+
+### Fixed
+- **Phantom Interpolation Gap**: Resolved a major camera tracking bug in Visual-Only mode (`--split-trigger face`) where tight-shots (1 face) were randomly assigned to a single logical speaker stream, causing the fallback layout camera to perceive a "tracking gap". It now perfectly replicates single tight-shot coordinates to both logical tracking streams, completely eliminating the "panning early prior to a scene cut" visual glitch in Full Layout mode.
+
+---
+
 ## [v0.9.17] - 2026-04-27
 
 ### Added

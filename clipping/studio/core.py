@@ -2032,10 +2032,12 @@ def buat_video_split_screen(
         # triggers tracking with a very small physical movement, keeping faces centered.
         deadzone_px = (crop_w_full * DEADZONE_RATIO) / cam_zoom
         
+        # Snap if distance is > 8% of frame width (~150px). Crucial for instantly
         # Snap if distance is > 4% of frame width (~75px). Crucial for instantly
         # jumping perfectly to center during angle cuts (wide to tight shot)
         # without slowly panning towards it.
-        temp_snap = SNAP_THRESHOLD if SNAP_THRESHOLD < 0.1 else 0.04
+        temp_snap = SNAP_THRESHOLD if SNAP_THRESHOLD < 0.1 else 0.08
+        # temp_snap = SNAP_THRESHOLD if SNAP_THRESHOLD < 0.1 else 0.04
         snap_px = width * temp_snap
 
         for d in raw_list:
