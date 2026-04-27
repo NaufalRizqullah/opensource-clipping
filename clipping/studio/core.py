@@ -997,9 +997,8 @@ def buat_video_hybrid(
                             cv2.line(frame_dev, (mid_x, by2), (mid_x, y1_dev + ch_dev), (0, 255, 255), 2)
                 
                 # Dev UI HUD Text
-                import math
                 def format_seconds(s):
-                    mins = math.floor(s / 60)
+                    mins = int(s) // 60
                     secs = int(s % 60)
                     return f"{mins:02d}:{secs:02d}"
 

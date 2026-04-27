@@ -24,7 +24,7 @@ def main():
         print("   Set via: export GOOGLE_API_KEY='your-key' atau buat file .env")
         sys.exit(1)
 
-    version = "1.0.4"
+    version = "1.0.5"
     print("=" * 70)
     print(f"🎬 OpenSource Clipping v{version}")
     print("=" * 70)

@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.0.5] - 2026-04-28
+
+### Fixed
+- **UnboundLocalError Crash**: Fixed a crash inside the newly upgraded Hybrid `dev-mode` (`cannot access local variable 'math' where it is not associated with a value`) caused by an improper inline `import` scope. This logic has been rewritten to native python integers.
+
+---
+
 ## [v1.0.4] - 2026-04-28
 
 ### Added
