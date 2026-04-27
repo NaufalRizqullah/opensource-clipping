@@ -1813,9 +1813,42 @@ def buat_video_split_screen(
     # ================================================================
     raw_data: dict[str, list] = {spk: [] for spk in all_speakers_in_clip}
 
-    # Helper for visual-only assignment
+    # ---- Build ROBUST canonical positions from multi-face frames ----
+    # In nf>=2 frames, fc_list is sorted left→right, so we KNOW:
+    #   fc_list[0]  = leftmost face  → FACE_L
+    #   fc_list[-1] = rightmost face → FACE_R
+    # This is 100% reliable and doesn't depend on any prior canonical.
+    if not diarization_data and len(all_speakers_in_clip) >= 2:
+        multi_left_cxs = []
+        multi_right_cxs = []
+        for fd in all_frame_data:
+            fc_list = fd["face_centers"]
+            if len(fc_list) >= 2:
+                multi_left_cxs.append(fc_list[0][0])   # leftmost face X
+                multi_right_cxs.append(fc_list[-1][0])  # rightmost face X
+        
+        if multi_left_cxs and multi_right_cxs:
+            robust_cx = {
+                "FACE_L": _stats.median(multi_left_cxs),
+                "FACE_R": _stats.median(multi_right_cxs),
+            }
+        else:
+            robust_cx = {
+                "FACE_L": width * 0.25,
+                "FACE_R": width * 0.75,
+            }
+        
+        print(f"   📐 Robust canonical: FACE_L={robust_cx['FACE_L']:.0f}, "
+              f"FACE_R={robust_cx['FACE_R']:.0f} "
+              f"(from {len(multi_left_cxs)} multi-face frames)", flush=True)
+    else:
+        robust_cx = None
+
+    # Helper for face-to-speaker matching
     def _get_canonical_x(spk):
-        if diarization_data:
+        if robust_cx:
+            return robust_cx.get(spk, width / 2)
+        elif diarization_data:
             return speaker_canonical_cx.get(spk, width / 2)
         else:
             return 0 if spk == "FACE_L" else width
@@ -1824,17 +1857,24 @@ def buat_video_split_screen(
         fc_list = fd["face_centers"]  # list of (cx, cy), sorted left → right
         act_list = fd["active_now"]
         nf = len(fc_list)
-        na = len(act_list)
 
         if nf == 0:
             continue
 
-        if nf == 1:
-            # Only 1 face detected — we need to figure out WHOSE face this is.
-            # Don't blindly assign to the active speaker; use canonical position.
+        if not diarization_data and nf >= 2:
+            # Visual-only with 2+ faces: DIRECT positional assignment.
+            # fc_list is sorted left→right, so this is deterministic.
+            left_face = fc_list[0]
+            right_face = fc_list[-1]
+            others_l = [fc for fc in fc_list if fc != left_face]
+            others_r = [fc for fc in fc_list if fc != right_face]
+            d_near_l = min([abs(fc[0] - left_face[0]) for fc in others_l]) if others_l else width
+            d_near_r = min([abs(fc[0] - right_face[0]) for fc in others_r]) if others_r else width
+            raw_data["FACE_L"].append({"time": fd["time"], "cx": left_face[0], "cy": left_face[1], "dist": d_near_l})
+            raw_data["FACE_R"].append({"time": fd["time"], "cx": right_face[0], "cy": right_face[1], "dist": d_near_r})
+        elif nf == 1:
+            # 1 face: assign to nearest speaker using robust canonical
             the_face = fc_list[0]
-            
-            # Find the speaker whose canonical_cx is closest to this face
             best_spk = None
             best_dist = float('inf')
             for spk in all_speakers_in_clip:
@@ -1847,15 +1887,13 @@ def buat_video_split_screen(
                     best_spk = spk
             
             if best_spk:
-                # This face belongs to best_spk. Distance to "other" is large (solo frame).
                 raw_data[best_spk].append({
                     "time": fd["time"], "cx": the_face[0], "cy": the_face[1], "dist": width
                 })
         else:
-            # 2+ faces: assign ALL speakers to their nearest face
+            # Diarization mode with 2+ faces: use canonical-guided assignment
             remaining_faces = list(fc_list)
             
-            # Priority: active speakers get their nearest faces first
             spk_to_face = {}
             for spk in sorted(act_list, key=lambda s: _get_canonical_x(s)):
                 if not remaining_faces or spk not in raw_data:
@@ -1864,7 +1902,6 @@ def buat_video_split_screen(
                 spk_to_face[spk] = best
                 remaining_faces.remove(best)
                 
-            # Silent speakers: assign from remaining faces using canonical positions
             for spk in all_speakers_in_clip:
                 if spk in spk_to_face or not remaining_faces or spk not in raw_data:
                     continue
@@ -1872,7 +1909,6 @@ def buat_video_split_screen(
                 spk_to_face[spk] = best
                 remaining_faces.remove(best)
                 
-            # Record data for everyone who was assigned a face
             for spk, face in spk_to_face.items():
                 others = [fc for fc in fc_list if fc != face]
                 d_near = min([abs(fc[0] - face[0]) for fc in others]) if others else width
@@ -2160,10 +2196,8 @@ def buat_video_split_screen(
                     else:
                         stable_count = now_count
 
-                    # FAST PATH: split→full is instant (no ghost frames)
-                    # 1) Mid-clip: when only 1 face is visible, switch immediately
-                    # 2) After scene cut: when only 1 speaker active, switch immediately
-                    #    (scene cuts can confuse face detector into seeing 2 faces)
+                    # FAST PATH: split→full — instant when 1 face detected
+                    # Guard: not in first 1s (detector may still be settling)
                     force_full = False
                     if current_layout == "split" and t > 1.0:
                         if now_count == 1:
@@ -2171,9 +2205,20 @@ def buat_video_split_screen(
                         elif scene_cut_this_frame and len(active_speakers) == 1:
                             force_full = True
                     
+                    # FAST PATH: full→split — instant when 2 faces detected
+                    # No startup guard needed for this direction (seeing 2 faces is reliable)
+                    force_split = False
+                    if current_layout == "full" and now_count >= 2 and stable_count >= 2:
+                        force_split = True
+                    
                     if force_full:
                         current_layout = "full"
                         current_speaker = active_speaker or ranked[0]
+                        last_switch_time = t
+                        face_count_history.clear()
+                    elif force_split:
+                        current_layout = "split"
+                        current_speaker = ranked[0]
                         last_switch_time = t
                         face_count_history.clear()
                     else:
