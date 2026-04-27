@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.0.1] - 2026-04-27
+
+### Added
+- **Standard Layout Parity**: The standard 9:16 render mode (used when Split-Screen is disabled) has been internally updated to use the exact same responsive `camera snap threshold` and `median startup logic` as the advanced Split-Screen tracking engine. This guarantees perfectly centered teleportation across scene-cuts regardless of rendering mode.
+
+---
+
 ## [v1.0.0] - 2026-04-27
 
 ### Added
