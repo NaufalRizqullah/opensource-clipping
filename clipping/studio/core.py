@@ -2203,19 +2203,20 @@ def buat_video_split_screen(
                         stable_count = now_count
 
                     # FAST PATH: split→full — instant when 1 face detected
-                    # Guard: not in first 1s (detector may still be settling)
+                    # Only trigger instant layout switch if an actual camera cut happened.
+                    # Otherwise, use the stable majority vote to prevent false positives.
                     force_full = False
-                    if current_layout == "split" and t > 1.0:
-                        if now_count == 1:
-                            force_full = True
-                        elif scene_cut_this_frame and len(active_speakers) == 1:
+                    if current_layout == "split":
+                        if scene_cut_this_frame and now_count == 1:
                             force_full = True
                     
                     # FAST PATH: full→split — instant when 2 faces detected
-                    # No startup guard needed for this direction (seeing 2 faces is reliable)
                     force_split = False
-                    if current_layout == "full" and now_count >= 2 and stable_count >= 2:
-                        force_split = True
+                    if current_layout == "full":
+                        if scene_cut_this_frame and now_count >= 2:
+                            force_split = True
+                        elif now_count >= 2 and stable_count >= 2:
+                            force_split = True
                     
                     if force_full:
                         current_layout = "full"
