@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.0.0] - 2026-04-27
+
+### Added
+- **🎉 MAJOR STABLE RELEASE**: The 1.0.0 release graduates the `opensource-clipping` pipeline into a fully production-ready state! It finalizes all major milestone features including the multi-provider AI backend, High-Resolution renders, and the highly robust Dynamic Split-Screen / Camera-Tracking engines.
+
+---
+
 ## [v0.9.18] - 2026-04-27
 
 ### Fixed

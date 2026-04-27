@@ -1,6 +1,6 @@
 [project]
 name = "opensource-clipping"
-version = "0.9.5"
+version = "1.0.0"
 description = "AI Auto-Clipper & Teaser Generator — converts long videos into viral short-form clips"
 readme = "README.md"
 requires-python = ">=3.10"
