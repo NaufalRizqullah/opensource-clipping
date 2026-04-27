@@ -1737,9 +1737,15 @@ def buat_video_split_screen(
             from clipping.diarization import get_active_speakers
             active_now = get_active_speakers(diarization_data, start_clip + current_time)
         else:
-            # Visual-only: base active speakers on face count
+            # Visual-only: identify speakers by face position in frame
             if len(face_centers) == 1:
-                active_now = ["FACE_L"]
+                # Determine if this face belongs to left or right speaker
+                # based on which half of the frame it's in
+                face_x = face_centers[0][0]
+                if face_x < width / 2:
+                    active_now = ["FACE_L"]
+                else:
+                    active_now = ["FACE_R"]
             elif len(face_centers) >= 2:
                 active_now = ["FACE_L", "FACE_R"]
             else:
@@ -1913,17 +1919,13 @@ def buat_video_split_screen(
         ref_w = int(height * p_ratio) if (width / height) > p_ratio else width
         max_zoom = getattr(cfg, "split_max_zoom", 4.5)
         
-        # Get median cx per speaker for stable calculation
+        # Use tracking data median for position — this comes from actual
+        # face assignments using _get_canonical_x, which is reliable.
         import statistics as _st_z
         spk_median_cx = {}
         for spk in all_speakers_in_clip:
             if raw_data[spk]:
                 spk_median_cx[spk] = _st_z.median([d["cx"] for d in raw_data[spk]])
-        
-        # Also use canonical if available (more reliable)
-        for spk in all_speakers_in_clip:
-            if spk in speaker_canonical_cx:
-                spk_median_cx[spk] = speaker_canonical_cx[spk]
         
         if len(spk_median_cx) >= 2:
             spk_list = sorted(spk_median_cx.keys(), key=lambda s: spk_median_cx[s])
@@ -1960,7 +1962,9 @@ def buat_video_split_screen(
         n_pts = len(raw_data[spk])
         canon = speaker_canonical_cx.get(spk)
         sz = speaker_zoom.get(spk, 1.0)
-        print(f"      {spk}: {n_pts} pts, canonical_cx={canon}, per_spk_zoom={sz:.2f}x", flush=True)
+        import statistics as _st_dbg
+        med = _st_dbg.median([d["cx"] for d in raw_data[spk]]) if n_pts else 0
+        print(f"      {spk}: {n_pts} pts, median_cx={med:.0f}, canonical={canon}, zoom={sz:.2f}x", flush=True)
 
     # ---- FASE 2: SMOOTH CAMERA PER SPEAKER (Centering CX) ----
     def _smooth_positions(raw_list, spk_name):
