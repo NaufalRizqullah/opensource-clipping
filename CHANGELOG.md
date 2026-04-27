@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.0.2] - 2026-04-27
+
+### Fixed
+- **Standard Layout Crash**: Fixed a `NameError: name 'default_x' is not defined` crash that affected the basic Hybrid 9:16 layout rendering (`--no-split-screen`). This was an obsolete variable left over from the coordinate mapping refactor. Standard mode rendering is now fully operational again.
+
+---
+
 ## [v1.0.1] - 2026-04-27
 
 ### Added

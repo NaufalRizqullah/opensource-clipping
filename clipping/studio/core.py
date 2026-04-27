@@ -770,7 +770,7 @@ def buat_video_hybrid(
         if not ret:
             break
 
-        best_x = default_x
+
         face_box = None
 
         if cfg.face_detector == "yolo":
