@@ -2454,16 +2454,12 @@ def buat_video_split_screen(
                     frame_dev[0:mid_h, x1p:x2p] = frame_res[0:mid_h, x1p:x2p]
                     frame_dev[mid_h + DIVIDER_HEIGHT:1080, x1p:x2p] = frame_res[mid_h + DIVIDER_HEIGHT:1080, x1p:x2p]
 
-                # --- DRAW BOXES (Both) ---
-                # Inactive boxes are drawn with lower opacity or thinner lines
-                color_solo = (255, 255, 255) if current_layout == "full" else (100, 100, 100)
-                color_split = (255, 255, 255) if current_layout == "split" else (100, 100, 100)
-                thick_solo = 3 if current_layout == "full" else 1
-                thick_split = 2 if current_layout == "split" else 1
-
-                cv2.rectangle(frame_dev, (x1s, y1s), (x2s, y2s), color_solo, thick_solo)
-                cv2.rectangle(frame_dev, (x1p, 0), (x2p, mid_h), color_split, thick_split)
-                cv2.rectangle(frame_dev, (x1p, mid_h + DIVIDER_HEIGHT), (x2p, 1079), color_split, thick_split)
+                # --- DRAW BOXES (Active Only) ---
+                if current_layout == "full":
+                    cv2.rectangle(frame_dev, (x1s, y1s), (x2s, y2s), (255, 255, 255), 3)
+                else:
+                    cv2.rectangle(frame_dev, (x1p, 0), (x2p, mid_h), (255, 255, 255), 2)
+                    cv2.rectangle(frame_dev, (x1p, mid_h + DIVIDER_HEIGHT), (x2p, 1079), (255, 255, 255), 2)
 
                 # Labels
                 if current_layout == "full":

@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.0.7] - 2026-04-28
+
+### Fixed
+- **Dynamic Split Dev Visibility**: Fixed the developer UI in `--split-screen` with `--dynamic-split` enabled. Previously, the inactive "ghost" horizontal Split-screen boundary lines were permanently drawn over the feed even when the system dynamically transitioned into a full single-speaker 9:16 layout. The rendering logic now exclusively toggles and draws only the layout boundaries that are currently active, ensuring a perfectly clean display.
+
+---
+
 ## [v1.0.6] - 2026-04-28
 
 ### Fixed
