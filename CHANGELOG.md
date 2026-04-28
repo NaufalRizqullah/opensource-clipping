@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.0.6] - 2026-04-28
+
+### Fixed
+- **Standard Mode Output Logger Crash**: Fixed a critical bug in standard Hybrid layout where rendering aborted halfway via an `UnboundLocalError`. The progress logger attempted to use the `format_seconds` time helper, which was accidentally isolated only within the `--dev-mode` scope during recent refactoring. The helper has been globally elevated safely.
+
+---
+
 ## [v1.0.5] - 2026-04-28
 
 ### Fixed

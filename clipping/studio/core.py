@@ -901,8 +901,12 @@ def buat_video_hybrid(
                 return (
                     cx1 + (cx2 - cx1) * frac,
                     cy1 + (cy2 - cy1) * frac
-                )
         return default_cx, default_cy
+
+    def format_seconds(s):
+        mins = int(s) // 60
+        secs = int(s % 60)
+        return f"{mins:02d}:{secs:02d}"
 
     # FASE 3: RENDER FRAME
     base_out_w, base_out_h = _get_render_dims(cfg, rasio, source_h=height)
@@ -997,10 +1001,6 @@ def buat_video_hybrid(
                             cv2.line(frame_dev, (mid_x, by2), (mid_x, y1_dev + ch_dev), (0, 255, 255), 2)
                 
                 # Dev UI HUD Text
-                def format_seconds(s):
-                    mins = int(s) // 60
-                    secs = int(s % 60)
-                    return f"{mins:02d}:{secs:02d}"
 
                 hud_lines = [
                     f"MODE: HYBRID STANDARD (DEV)",
