@@ -901,6 +901,7 @@ def buat_video_hybrid(
                 return (
                     cx1 + (cx2 - cx1) * frac,
                     cy1 + (cy2 - cy1) * frac
+                )
         return default_cx, default_cy
 
     def format_seconds(s):
