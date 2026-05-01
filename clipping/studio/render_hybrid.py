@@ -42,9 +42,14 @@ get_mp4_encode_args = _ffmpeg_utils.get_mp4_encode_args
 open_ffmpeg_video_writer = _ffmpeg_utils.open_ffmpeg_video_writer
 build_ffmpeg_progress_cmd = _ffmpeg_utils.build_ffmpeg_progress_cmd
 run_ffmpeg_with_progress = _ffmpeg_utils.run_ffmpeg_with_progress
+
 utils = _load_studio_internal_module("utils.py", "clipping_studio_utils")
+_get_cv2_interpolation = utils._get_cv2_interpolation
 _resize_frame = utils._resize_frame
 _get_render_dims = utils._get_render_dims
+
+broll = _load_studio_internal_module("broll.py", "clipping_studio_broll")
+crop_center_broll = broll.crop_center_broll
 face_detection = _load_studio_internal_module("face_detection.py", "clipping_studio_face_detection")
 get_face_detector = face_detection.get_face_detector
 
