@@ -7,8 +7,16 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
-## [v1.0.7] - 2026-04-28
+## [v1.1.0] - 2026-05-01
 
+### Changed
+- **Core Engine Modularization**: Completed the second phase of the Studio architecture refactoring. The massive 3700-line `clipping/studio/core.py` file has been cleanly split into 11 specialized sub-modules (e.g., `face_detection.py`, `typography.py`, `render_hybrid.py`, `subtitles.py`).
+- **Preserved Public API**: `core.py` was converted into a pure orchestrator that dynamically imports these sub-modules. The execution flow, business logic, FFMPEG operations, and public interfaces remain 100% untouched to guarantee perfect backward compatibility.
+- **Enhanced Code Documentation**: Added comprehensive docstrings to all major functions across the newly created internal modules, detailing their arguments, return values, and side effects.
+
+---
+
+## [v1.0.7] - 2026-04-28
 ### Fixed
 - **Dynamic Split Dev Visibility**: Fixed the developer UI in `--split-screen` with `--dynamic-split` enabled. Previously, the inactive "ghost" horizontal Split-screen boundary lines were permanently drawn over the feed even when the system dynamically transitioned into a full single-speaker 9:16 layout. The rendering logic now exclusively toggles and draws only the layout boundaries that are currently active, ensuring a perfectly clean display.
 
