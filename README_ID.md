@@ -155,6 +155,15 @@ python main.py --url "URL_VIDEO" --source-height 1440 --render-height source --v
 
 # Menggunakan NVIDIA NIM (DeepSeek-V3) sebagai pengganti Gemini
 python main.py --url "URL_VIDEO" --ai-provider nvidia --nvidia-model "deepseek-ai/deepseek-v3"
+
+# Output kotak untuk Instagram Feed (1:1)
+python main.py --url "URL_VIDEO" --ratio "1:1" --clips 5
+
+# Output portrait Instagram/Facebook (4:5)
+python main.py --url "URL_VIDEO" --ratio "4:5" --clips 5
+
+# Output portrait klasik (3:4)
+python main.py --url "URL_VIDEO" --ratio "3:4" --clips 5
 ```
 
 ## ⚙️ Opsi CLI
@@ -167,7 +176,7 @@ python main.py --help
 |---|---|---|
 | `--url`, `-u` | — | URL video YouTube yang akan diproses (Wajib) |
 | `--clips`, `-n` | `7` | Jumlah klip highlight yang dihasilkan |
-| `--ratio`, `-r` | `9:16` | Rasio aspek output (`9:16` atau `16:9`) |
+| `--ratio`, `-r` | `9:16` | Rasio aspek output (`9:16`, `16:9`, `1:1`, `3:4`, `4:5`) |
 | `--source-height` | `max` | Batas tinggi resolusi source saat download (`max`, `1080`, `1440`, `2160`, dst.) |
 | `--ai-provider` | `gemini` | Provider AI untuk analisis (`gemini` atau `nvidia`). |
 | `--nvidia-model` | `deepseek...` | Nama model untuk NVIDIA NIM API (misal `deepseek-ai/deepseek-v3`). |
@@ -221,6 +230,21 @@ python main.py --help
 | `--track-smooth-window` | `12` | **[Eksperimental]** Jumlah frame untuk stabilitas layout (12 frame ≈ 0.5 dtk) |
 | `--scene-cut-threshold` | `18` | **[Eksperimental]** Sensitivitas deteksi cut kamera (Reset history instan) |
 | `--track-iou-threshold` | `0.2` | **[Eksperimental]** Ambang batas penggabungan kotak wajah yang nempel |
+
+## 📐 Rasio Aspek
+
+OpenSource Clipping mendukung **5 rasio aspek output**. Semua rasio vertikal/kotak menyertakan **face-tracking** untuk menjaga subjek tetap di tengah frame.
+
+| Rasio | Resolusi Output | Face Tracking | Cocok Untuk |
+|---|---|---|---|
+| `9:16` | 1080×1920 | ✅ Ya | TikTok, Reels, YouTube Shorts |
+| `16:9` | 1920×1080 | ❌ Tidak (letterbox jika source berbeda) | YouTube, Konten Landscape |
+| `1:1` | 1080×1080 | ✅ Ya | Instagram Feed, Twitter/X |
+| `3:4` | 1080×1440 | ✅ Ya | Instagram Portrait, Pinterest |
+| `4:5` | 1080×1350 | ✅ Ya | Instagram/Facebook Feed |
+
+> [!NOTE]
+> Jika menggunakan output `16:9` dengan source yang bukan 16:9 (misal video vertikal), sistem akan menerapkan **letterboxing** (bar hitam) untuk menjaga proporsi asli tanpa men-stretch gambar.
 
 ## 🎙️ Perbedaan Mode Podcast
 
@@ -278,6 +302,9 @@ python main.py --url "URL_VIDEO" --camera-switch
 
 # 5. Smart Separation Split-Screen (Auto-Zoom & Vertical Tracking)
 python main.py --url "URL_VIDEO" --split-screen --dynamic-split --split-trigger face --split-auto-zoom --split-v-align 0.4
+
+# 6. Output kotak (1:1) dengan Split-Screen
+python main.py --url "URL_VIDEO" --ratio "1:1" --split-screen --dynamic-split --split-trigger face
 ```
 
 > [!IMPORTANT]
@@ -348,7 +375,7 @@ Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 **▶️ Pengaturan Utama**
 - `--url` : Link video YouTube sumber
 - `--clips` : Berapa banyak klip yang ingin dihasilkan
-- `--ratio` : `9:16` untuk TikTok/Reels/Shorts, `16:9` untuk YouTube biasa
+- `--ratio` : `9:16` untuk TikTok/Reels/Shorts, `16:9` untuk YouTube biasa, `1:1` untuk Instagram Feed, `3:4` untuk Pinterest, `4:5` untuk Instagram/Facebook Feed
 - `--source-height` : Batas resolusi source saat download (`max` = ambil kualitas tertinggi yang tersedia)
 - `--video-cq` : Nilai CQ untuk NVENC (default `23`). [15-20: Ultra HD, 21-25: Standar, 26-50: Buram/Kecil]
 - `--video-crf` : Nilai CRF untuk libx264 (default `20`). [15-20: Ultra HD, 21-25: Standar, 26-50: Buram/Kecil]

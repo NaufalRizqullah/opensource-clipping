@@ -155,6 +155,15 @@ python main.py --url "VIDEO_URL" --source-height 1440 --render-height source --v
 
 # Use NVIDIA NIM (DeepSeek-V3) instead of Gemini
 python main.py --url "VIDEO_URL" --ai-provider nvidia --nvidia-model "deepseek-ai/deepseek-v4-pro"
+
+# Square output for Instagram Feed (1:1)
+python main.py --url "VIDEO_URL" --ratio "1:1" --clips 5
+
+# Instagram/Facebook portrait (4:5)
+python main.py --url "VIDEO_URL" --ratio "4:5" --clips 5
+
+# Classic portrait (3:4)
+python main.py --url "VIDEO_URL" --ratio "3:4" --clips 5
 ```
 
 ## ⚙️ CLI Options
@@ -167,7 +176,7 @@ python main.py --help
 |---|---|---|
 | `--url`, `-u` | — | YouTube video URL to process (Required) |
 | `--clips`, `-n` | `7` | Number of highlight clips to generate |
-| `--ratio`, `-r` | `9:16` | Output aspect ratio (`9:16` or `16:9`) |
+| `--ratio`, `-r` | `9:16` | Output aspect ratio (`9:16`, `16:9`, `1:1`, `3:4`, `4:5`) |
 | `--source-height` | `max` | Preferred source download max height (`max`, `1080`, `1440`, `2160`, etc.) |
 | `--ai-provider` | `gemini` | AI provider for analysis (`gemini` or `nvidia`). |
 | `--nvidia-model` | `deepseek...` | Model name for NVIDIA NIM API (e.g. `deepseek-ai/deepseek-v3`). |
@@ -223,6 +232,21 @@ python main.py --help
 | `--track-smooth-window` | `12` | **[Experimental]** Frame window for layout stability (12 frames ≈ 0.5s) |
 | `--scene-cut-threshold` | `18` | **[Experimental]** Sensitivity for camera-cut detection (instantly resets history) |
 | `--track-iou-threshold` | `0.2` | **[Experimental]** Overlap threshold for merging duplicate detections |
+
+## 📐 Aspect Ratios
+
+OpenSource Clipping supports **5 output aspect ratios**. All vertical/square ratios include **face-tracking** to keep the subject centered.
+
+| Ratio | Output | Face Tracking | Best For |
+|---|---|---|---|
+| `9:16` | 1080×1920 | ✅ Yes | TikTok, Reels, YouTube Shorts |
+| `16:9` | 1920×1080 | ❌ No (letterbox if source differs) | YouTube, Landscape content |
+| `1:1` | 1080×1080 | ✅ Yes | Instagram Feed, Twitter/X |
+| `3:4` | 1080×1440 | ✅ Yes | Instagram Portrait, Pinterest |
+| `4:5` | 1080×1350 | ✅ Yes | Instagram/Facebook Feed |
+
+> [!NOTE]
+> When using `16:9` output with a non-16:9 source (e.g., vertical video), the system applies **letterboxing** (black bars) to preserve the original proportions instead of stretching.
 
 ## 🎙️ Podcast Modes
 
@@ -280,6 +304,9 @@ python main.py --url "VIDEO_URL" --camera-switch
 
 # 5. Smart Separation Split-Screen (Auto-Zoom & Vertical Track)
 python main.py --url "VIDEO_URL" --split-screen --dynamic-split --split-trigger face --split-auto-zoom --split-v-align 0.4
+
+# 6. Square output (1:1) with Split-Screen
+python main.py --url "VIDEO_URL" --ratio "1:1" --split-screen --dynamic-split --split-trigger face
 ```
 
 > [!IMPORTANT]

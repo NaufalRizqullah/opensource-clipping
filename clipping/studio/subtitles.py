@@ -46,6 +46,7 @@ utils = _load_studio_internal_module("utils.py", "clipping_studio_utils")
 _resize_frame = utils._resize_frame
 _get_cv2_interpolation = utils._get_cv2_interpolation
 _get_render_dims = utils._get_render_dims
+_is_vertical_ratio = utils._is_vertical_ratio
 typography = _load_studio_internal_module("typography.py", "clipping_studio_typography")
 download_google_font = typography.download_google_font
 register_fonts_for_libass = typography.register_fonts_for_libass
@@ -112,7 +113,7 @@ def buat_file_ass(
     font_khusus = font_khusus_dict["nama"]
 
     scale_base_khusus = (
-        cfg.scale_kata_khusus_916 if rasio == "9:16" else cfg.scale_kata_khusus_169
+        cfg.scale_kata_khusus_916 if _is_vertical_ratio(rasio) else cfg.scale_kata_khusus_169
     )
     warna_khusus = cfg.warna_kata_khusus
 
@@ -131,11 +132,11 @@ def buat_file_ass(
     
     # Calculate scale relative to standard 1080p vertical (1920 height)
     # This ensures typography looks consistent across different render resolutions
-    scale_factor = play_res_y / (1920 if rasio == "9:16" else 1080)
-    align = cfg.ass_align_916 if rasio == "9:16" else cfg.ass_align_169
-    margin_v = int((cfg.ass_margin_916 if rasio == "9:16" else cfg.ass_margin_169) * scale_factor)
-    font_sz = int((cfg.ass_font_916 if rasio == "9:16" else cfg.ass_font_169) * scale_factor)
-    margin_lr = int((60 if rasio == "9:16" else 40) * scale_factor)
+    scale_factor = play_res_y / (1920 if _is_vertical_ratio(rasio) else 1080)
+    align = cfg.ass_align_916 if _is_vertical_ratio(rasio) else cfg.ass_align_169
+    margin_v = int((cfg.ass_margin_916 if _is_vertical_ratio(rasio) else cfg.ass_margin_169) * scale_factor)
+    font_sz = int((cfg.ass_font_916 if _is_vertical_ratio(rasio) else cfg.ass_font_169) * scale_factor)
+    margin_lr = int((60 if _is_vertical_ratio(rasio) else 40) * scale_factor)
 
     header = (
         f"[Script Info]\n"

@@ -47,6 +47,8 @@ utils = _load_studio_internal_module("utils.py", "clipping_studio_utils")
 _get_cv2_interpolation = utils._get_cv2_interpolation
 _resize_frame = utils._resize_frame
 _get_render_dims = utils._get_render_dims
+_is_vertical_ratio = utils._is_vertical_ratio
+RATIO_MAP = utils.RATIO_MAP
 
 broll = _load_studio_internal_module("broll.py", "clipping_studio_broll")
 crop_center_broll = broll.crop_center_broll
@@ -135,8 +137,14 @@ def buat_video_hybrid(
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    crop_w = int(height * 9 / 16)
-    crop_h = height
+    # Dynamic crop dimensions based on target ratio
+    w_part, h_part = RATIO_MAP.get(rasio, (16, 9))
+    if _is_vertical_ratio(rasio):
+        crop_w = int(height * w_part / h_part)
+        crop_h = height
+    else:
+        crop_w = width
+        crop_h = height
     default_cx = width // 2
     default_cy = height // 2
     duration = end_clip - start_clip
@@ -307,7 +315,7 @@ def buat_video_hybrid(
     base_out_w, base_out_h = _get_render_dims(cfg, rasio, source_h=height)
     
     # DEV MODE: Force 16:9 to show context or 2648 ultrawide for merge
-    dev_visualize = cfg.dev_mode and rasio == "9:16"
+    dev_visualize = cfg.dev_mode and _is_vertical_ratio(rasio)
     merge_output = dev_visualize and getattr(cfg, "dev_mode_with_output_merge", False)
     
     if merge_output:
@@ -342,23 +350,52 @@ def buat_video_hybrid(
 
             waktu_absolut = start_clip + t
 
-            # --- 1. ALWAYS CREATE NORMAL 9:16 OUTPUT ---
-            if rasio == "9:16":
+            # --- 1. ALWAYS CREATE CROPPED OUTPUT ---
+            if _is_vertical_ratio(rasio):
+                # Vertical/square ratios: face-tracked crop
                 cx_base, cy_base = _get_pos(t)
                 x1_crop = int(max(0, min(cx_base - crop_w // 2, width - crop_w)))
                 y1_crop = int(max(0, min(cy_base - crop_h // 2, height - crop_h)))
                 cropped = frame_utama[y1_crop : y1_crop + crop_h, x1_crop : x1_crop + crop_w]
                 frame_normal = _resize_frame(cropped, (base_out_w, base_out_h))
             else:
+                # 16:9 landscape: fit-to-height with letterbox (no stretch)
                 cx_base, cy_base = default_cx, default_cy
-                frame_normal = _resize_frame(frame_utama, (base_out_w, base_out_h))
+                src_h, src_w = frame_utama.shape[:2]
+                src_ratio = src_w / src_h
+                out_ratio = base_out_w / base_out_h
+
+                if abs(src_ratio - out_ratio) < 0.01:
+                    # Source already matches target ratio — direct resize
+                    frame_normal = _resize_frame(frame_utama, (base_out_w, base_out_h))
+                else:
+                    # Fit source into target canvas, maintaining aspect ratio
+                    frame_normal = np.zeros((base_out_h, base_out_w, 3), dtype=np.uint8)
+                    if src_ratio > out_ratio:
+                        # Source is wider — fit to width, pad top/bottom
+                        fit_w = base_out_w
+                        fit_h = int(base_out_w / src_ratio)
+                        if fit_h % 2 != 0:
+                            fit_h += 1
+                        resized = _resize_frame(frame_utama, (fit_w, fit_h))
+                        y_off = (base_out_h - fit_h) // 2
+                        frame_normal[y_off : y_off + fit_h, :] = resized
+                    else:
+                        # Source is taller (e.g. 9:16 source) — fit to height, pad left/right
+                        fit_h = base_out_h
+                        fit_w = int(base_out_h * src_ratio)
+                        if fit_w % 2 != 0:
+                            fit_w += 1
+                        resized = _resize_frame(frame_utama, (fit_w, fit_h))
+                        x_off = (base_out_w - fit_w) // 2
+                        frame_normal[:, x_off : x_off + fit_w] = resized
 
             # Base target for filtering (e.g. B-Roll applies to the normal output)
             frame_terpilih = frame_normal
 
             # --- 2. CREATE DEV CONTEXT FRAME IF ACTIVE ---
             frame_dev = None
-            if dev_visualize:
+            if dev_visualize and _is_vertical_ratio(rasio):
                 frame_base = _resize_frame(frame_utama, (1920, 1080))
                 frame_dev = (frame_base * 0.35).astype(np.uint8)
                 
@@ -400,7 +437,7 @@ def buat_video_hybrid(
                 hud_lines = [
                     f"MODE: HYBRID STANDARD (DEV)",
                     f"TIME: {format_seconds(t)}",
-                    f"LAYOUT: FULL 9:16",
+                    f"LAYOUT: FULL {rasio}",
                     f"ANCHOR CX: {int(cx_base)}"
                 ]
                 for i, line in enumerate(hud_lines):

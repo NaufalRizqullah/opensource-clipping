@@ -44,6 +44,8 @@ run_ffmpeg_with_progress = _ffmpeg_utils.run_ffmpeg_with_progress
 
 utils = _load_studio_internal_module("utils.py", "clipping_studio_utils")
 _get_render_dims = utils._get_render_dims
+_is_vertical_ratio = utils._is_vertical_ratio
+RATIO_MAP = utils.RATIO_MAP
 
 def siapkan_glitch_video(rasio, cfg, video_encoder, source_h=1080, custom_dims=None):
     """
@@ -89,11 +91,13 @@ def siapkan_glitch_video(rasio, cfg, video_encoder, source_h=1080, custom_dims=N
     if custom_dims:
         filter_g = f"scale={out_w}:{out_h}:flags={algo},setsar=1"
     else:
-        filter_g = (
-            f"crop=ih*9/16:ih:(iw-ih*9/16)/2:0,scale={out_w}:{out_h}:flags={algo},setsar=1"
-            if rasio == "9:16"
-            else f"scale={out_w}:{out_h}:flags={algo},setsar=1"
-        )
+        if _is_vertical_ratio(rasio):
+            w_part, h_part = RATIO_MAP.get(rasio, (9, 16))
+            filter_g = (
+                f"crop=ih*{w_part}/{h_part}:ih:(iw-ih*{w_part}/{h_part})/2:0,scale={out_w}:{out_h}:flags={algo},setsar=1"
+            )
+        else:
+            filter_g = f"scale={out_w}:{out_h}:flags={algo},setsar=1"
 
     cmd = (
         [

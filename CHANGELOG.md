@@ -7,6 +7,18 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.2.0] - 2026-05-01
+
+### Added
+- **Multi-Ratio Output Support**: Added three new output aspect ratios — `1:1` (Square), `3:4` (Instagram Portrait), and `4:5` (Facebook/Instagram Feed). All three use the same face-tracking crop behavior as `9:16`, automatically detecting and following faces within the narrower frame.
+  - CLI usage: `--ratio 1:1`, `--ratio 3:4`, `--ratio 4:5`
+  - Split-screen, camera-switch, B-roll, subtitles, glitch transitions, and dev-mode all fully support the new ratios.
+
+### Fixed
+- **16:9 Letterbox (No Stretch)**: When the source video's aspect ratio doesn't match the 16:9 output (e.g., a 9:16 or 1:1 source rendered to 16:9), the system now applies proper **letterboxing** (black bars) to preserve the original proportions instead of stretching the image to fill the frame.
+
+---
+
 ## [v1.1.2] - 2026-05-01
 
 ### Fixed

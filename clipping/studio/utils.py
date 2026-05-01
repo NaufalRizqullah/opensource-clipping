@@ -98,14 +98,36 @@ def _resize_frame(frame, size, cfg=None):
     return cv2.resize(frame, size, interpolation=_get_cv2_interpolation(cfg))
 
 
+
+# ── Aspect Ratio Helpers ────────────────────────────────────────────────
+# Maps a ratio string to (width_part, height_part).
+RATIO_MAP = {
+    "9:16": (9, 16),
+    "16:9": (16, 9),
+    "1:1":  (1, 1),
+    "3:4":  (3, 4),
+    "4:5":  (4, 5),
+}
+
+# Ratios that require face-tracking crop (narrower than the source).
+VERTICAL_RATIOS = {"9:16", "1:1", "3:4", "4:5"}
+
+
+def _is_vertical_ratio(rasio: str) -> bool:
+    """Return True when the ratio needs a face-tracked crop from the source."""
+    return rasio in VERTICAL_RATIOS
+
+
 def _get_render_dims(cfg, rasio, source_h=1080):
     """
     Calculate target output resolution based on config and aspect ratio.
     If mode is 'source', it uses the provided source_h as the base dimension.
 
+    Supported ratios: 9:16, 16:9, 1:1, 3:4, 4:5.
+
     Args:
         cfg: Runtime config object that specifies `render_output_height`.
-        rasio (str): The target aspect ratio ('9:16' or '16:9').
+        rasio (str): The target aspect ratio.
         source_h (int): The original source video height in pixels.
 
     Returns:
@@ -126,19 +148,22 @@ def _get_render_dims(cfg, rasio, source_h=1080):
         except (ValueError, TypeError):
             target_h_base = 1080
 
-    if rasio == "9:16":
-        # Horizontal 1080p source -> Vertical 1080x1920 output
-        # Here target_h_base is treated as the 'short' side for 9:16
-        out_h = int(target_h_base * 16 / 9)
-        if out_h % 2 != 0:
-            out_h += 1
+    w_part, h_part = RATIO_MAP.get(rasio, (16, 9))
+
+    if _is_vertical_ratio(rasio):
+        # target_h_base is treated as the 'short' side (width)
         out_w = target_h_base
+        out_h = int(target_h_base * h_part / w_part)
     else:
-        # 16:9
-        out_w = int(target_h_base * 16 / 9)
-        if out_w % 2 != 0:
-            out_w += 1
+        # 16:9 — target_h_base is height
         out_h = target_h_base
+        out_w = int(target_h_base * w_part / h_part)
+
+    # Ensure even dimensions for codec compatibility
+    if out_w % 2 != 0:
+        out_w += 1
+    if out_h % 2 != 0:
+        out_h += 1
 
     return out_w, out_h
 

@@ -211,7 +211,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--ratio",
         "-r",
         default=PILIHAN_RASIO,
-        choices=["9:16", "16:9"],
+        choices=["9:16", "16:9", "1:1", "3:4", "4:5"],
         help="Output aspect ratio",
     )
     p.add_argument(

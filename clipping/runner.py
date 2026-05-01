@@ -101,7 +101,7 @@ def run_pipeline(cfg) -> list[dict]:
     if (
         (getattr(cfg, "use_split_screen", False) and cfg.split_trigger == "diarization")
         or getattr(cfg, "use_camera_switch", False)
-    ) and cfg.pilihan_rasio == "9:16":
+    ) and studio._is_vertical_ratio(cfg.pilihan_rasio):
         try:
             mode_label = (
                 "Split-Screen"

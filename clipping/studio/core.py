@@ -42,6 +42,7 @@ utils = _load_studio_internal_module("utils.py", "clipping_studio_utils")
 _get_cv2_interpolation = utils._get_cv2_interpolation
 _resize_frame = utils._resize_frame
 _get_render_dims = utils._get_render_dims
+_is_vertical_ratio = utils._is_vertical_ratio
 face_detection = _load_studio_internal_module("face_detection.py", "clipping_studio_face_detection")
 get_face_detector = face_detection.get_face_detector
 estimate_speaker_count_from_video = face_detection.estimate_speaker_count_from_video
@@ -205,7 +206,7 @@ def proses_klip(
 
 
     # Determine if we should use split-screen mode
-    if getattr(cfg, "use_split_screen", False) and rasio == "9:16":
+    if getattr(cfg, "use_split_screen", False) and _is_vertical_ratio(rasio):
         if cfg.split_trigger == "face":
             use_split = True
         else:
@@ -220,7 +221,7 @@ def proses_klip(
     use_camera_switch = (
         not use_split
         and getattr(cfg, "use_camera_switch", False)
-        and rasio == "9:16"
+        and _is_vertical_ratio(rasio)
         and diarization_data
         and len(set(s["speaker"] for s in diarization_data)) >= 2
     )

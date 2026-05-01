@@ -31,6 +31,7 @@ def _load_studio_internal_module(file_name: str, module_alias: str):
 
 utils = _load_studio_internal_module("utils.py", "clipping_studio_utils")
 _resize_frame = utils._resize_frame
+_is_vertical_ratio = utils._is_vertical_ratio
 
 FIREFOX_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0"
 
@@ -77,7 +78,7 @@ def download_pexels_broll(query, rasio, output_filename, pexels_api_key):
         print("   ⚠️ PEXELS_API_KEY tidak ditemukan. B-roll dilewati.")
         return False
 
-    orientation = "portrait" if rasio == "9:16" else "landscape"
+    orientation = "portrait" if _is_vertical_ratio(rasio) else "landscape"
 
     params = urllib.parse.urlencode(
         {
