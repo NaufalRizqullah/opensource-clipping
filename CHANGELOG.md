@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.1.2] - 2026-05-01
+
+### Fixed
+- **Glitch Effect NameError**: Fixed a `NameError: name '_get_render_dims' is not defined` in `clipping/studio/effects.py`. Restored the missing import that was lost during the code extraction phase of the studio modularization.
+
+---
+
 ## [v1.1.1] - 2026-05-01
 
 ### Fixed

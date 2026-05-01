@@ -42,6 +42,8 @@ open_ffmpeg_video_writer = _ffmpeg_utils.open_ffmpeg_video_writer
 build_ffmpeg_progress_cmd = _ffmpeg_utils.build_ffmpeg_progress_cmd
 run_ffmpeg_with_progress = _ffmpeg_utils.run_ffmpeg_with_progress
 
+utils = _load_studio_internal_module("utils.py", "clipping_studio_utils")
+_get_render_dims = utils._get_render_dims
 
 def siapkan_glitch_video(rasio, cfg, video_encoder, source_h=1080, custom_dims=None):
     """
