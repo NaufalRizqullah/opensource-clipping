@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.1.1] - 2026-05-01
+
+### Fixed
+- **Studio Orchestrator NameError**: Fixed a `NameError: name '_load_studio_internal_module' is not defined` in `clipping/studio/core.py`. Added the missing internal module loader definition to ensure the main orchestrator can correctly resolve and load specialized sub-modules at runtime.
+
+---
+
 ## [v1.1.0] - 2026-05-01
 
 ### Changed
