@@ -14,6 +14,7 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Viral-First Ranking**: Updated the pipeline to automatically sort generated clips by their `viral_score` in descending order, sequentially re-assigning ranks 1-N based on viral potential.
 - **Integrated Account Classification**: Added a specialized classification layer to the metadata prompt. AI now automatically assigns each clip to a target account (Business, Life, Creator, or Muslim) based on its specific "angle" and content niche.
 - **Modular Account Config**: Extracted target account definitions into a centralized `TARGET_ACCOUNTS` variable in `engine.py`. This allows for easy customization of account names, bios, and classification rules without modifying the core prompt text.
+- **Visual B-Roll Hook Recommendations**: Added `recommended_visual_broll_hook` to AI-generated clip metadata. It provides 2-5 opening visual hook ideas (0-3 seconds) with search keywords and rationale, acting as a creative reference for manual B-roll hunting.
 - **Enhanced Metadata Preview**: Expanded the CLI metadata preview to display the new `viral_score`, Target Account destination, and the AI's classification rationale.
 
 ---

@@ -429,6 +429,47 @@ ATURAN PEMILIHAN KLIP & VIRAL-BILITY:
 - Hindari klip yang isinya terlalu mirip satu sama lain.
 - Jangan pilih klip yang terasa datar, bertele-tele, atau tidak punya payoff yang jelas.
 
+ATURAN RETENTION & STRUKTUR KLIP:
+- Pastikan 3 detik pertama klip punya daya tarik kuat: hook, konflik, rasa penasaran, statement tajam, emosi, atau pertanyaan implisit.
+- Klip ideal memiliki struktur:
+  hook -> context singkat -> tension/insight -> payoff.
+- Jangan memilih klip yang baru menarik setelah terlalu lama berjalan.
+- Jika bagian awal segmen terlalu lambat, geser start_time ke kalimat yang lebih kuat.
+- Jika payoff sudah selesai, jangan memperpanjang klip tanpa alasan.
+- Jangan memasukkan intro, basa-basi, jeda panjang, atau transisi yang tidak menambah daya tarik.
+- Utamakan klip yang membuat penonton ingin:
+  1. berhenti scroll,
+  2. menonton sampai akhir,
+  3. komentar,
+  4. share,
+  5. save,
+  6. atau merasa "ini gue banget".
+
+ATURAN PEMOTONGAN TIMING:
+- start_time harus dimulai sedekat mungkin dengan momen kuat pertama, bukan sekadar awal topik.
+- end_time harus berhenti setelah payoff, kesimpulan, punchline, atau emotional beat utama selesai.
+- Jangan potong terlalu awal jika kalimat masih menggantung.
+- Jangan lanjutkan klip terlalu lama setelah inti pesan selesai.
+- Klip harus tetap bisa dipahami tanpa harus menonton bagian sebelum atau sesudahnya.
+- Jika ada dua momen kuat yang terlalu berdekatan dan saling mendukung, boleh digabung selama durasi tetap 30-180 detik.
+- Jika ada dua momen kuat tetapi angle-nya berbeda, pisahkan sebagai kandidat klip berbeda.
+
+PENILAIAN INTERNAL VIRAL_SCORE:
+Nilai viral_score 1-100 berdasarkan komponen berikut. Ini hanya untuk penilaian internal, JANGAN menambahkan field baru ke JSON.
+- Hook strength: 1-20
+- Emotional intensity: 1-20
+- Shareability/comment potential: 1-20
+- Standalone clarity: 1-20
+- Payoff/retention: 1-20
+
+Panduan penilaian:
+- Hook strength: seberapa kuat 3 detik pertama membuat orang berhenti scroll.
+- Emotional intensity: seberapa kuat emosi, konflik, keresahan, lucu, haru, marah, kagum, atau relatable-nya.
+- Shareability/comment potential: seberapa besar peluang orang komentar, debat, tag teman, share, atau save.
+- Standalone clarity: seberapa mudah klip dipahami tanpa konteks video penuh.
+- Payoff/retention: seberapa jelas reward menonton sampai akhir, seperti punchline, insight, twist, kesimpulan, atau pelajaran praktis.
+- Jangan pilih klip dengan viral_score di bawah 70 kecuali jumlah momen bagus di transkrip sangat terbatas.
+
 KLASIFIKASI AKUN TUJUAN (UNTUK SETIAP KLIP):
 Tentukan akun tujuan berdasarkan ANGLE video dari klip tersebut. Jangan menilai hanya dari topik (misal: beauty tidak otomatis masuk Life). Nilai berdasarkan angle:
 {_build_account_classification_prompt()}
@@ -444,6 +485,8 @@ HOOK (WAJIB):
 - Simpan sebagai hook_start_time dan hook_end_time.
 - Hook harus membuat orang ingin lanjut menonton, tapi jangan clickbait palsu.
 - Pastikan hook masih natural dan benar-benar diucapkan dalam transkrip.
+- Jika hook terbaik tidak berada tepat di awal kandidat klip, sesuaikan start_time agar hook muncul sedini mungkin.
+- Hook harus cocok sebagai teks pembuka on-screen untuk menahan penonton dalam 3 detik pertama.
 
 TYPOGRAPHY PLAN (KINETIC TYPOGRAPHY):
 - Pilih 3-6 kata TUNGGAL paling berbobot, emosional, atau paling layak ditekankan dari setiap klip.
@@ -470,6 +513,12 @@ B-ROLL (WAJIB JIKA RELEVAN):
 - Hanya tambahkan B-roll jika benar-benar membantu visualisasi isi ucapan.
 - Jika tidak ada momen yang cocok, isi broll_list dengan array kosong [].
 
+VISUAL B-ROLL HOOK (0-3 DETIK PERTAMA):
+- Berikan 2-5 ide B-Roll pembuka yang kontras, lucu, dramatis, atau memancing rasa penasaran sebelum video asli masuk.
+- Sertakan keyword pencarian YouTube/TikTok untuk editor.
+- Jika ada gestur yang bisa dipakai sebagai hook visual, berikan juga referensinya.
+- Ini disimpan dalam objek 'recommended_visual_broll_hook' dan hanya berlaku sebagai referensi jika editor ingin mencari footage manual untuk 3 detik pertama.
+
 BGM MOOD (BACKGROUND MUSIC):
 - Analisis emosi dan topik dari klip ini.
 - Pilih SATU mood musik latar yang paling cocok dari daftar baku ini: [chill, epic, sad, upbeat, suspense].
@@ -480,7 +529,10 @@ SLOW CLOSING:
 
 ALASAN PEMILIHAN:
 - Isi field 'alasan' dengan penjelasan singkat mengapa klip ini layak dipilih.
-- Fokus pada nilai emosi, kekuatan hook, potensi retention, dan shareability.
+- Fokus pada nilai emosi, kekuatan hook, potensi retention, shareability, dan payoff.
+- Jelaskan trigger viral utama dari klip ini.
+- Jelaskan kenapa orang kemungkinan akan menonton sampai akhir.
+- Jelaskan kenapa klip ini tetap menarik walau ditonton tanpa konteks video penuh.
 
 ATURAN BAHASA METADATA:
 - title_indonesia tetap wajib diisi untuk kompatibilitas internal / fallback.
@@ -605,6 +657,9 @@ STRUKTUR JSON WAJIB (Ikuti nama field ini secara kaku):
     "bgm_mood": "mood_here",
     "typography_plan": [{{ "kata_utama": "...", "scale_level": 2, "style": "utama", "animasi": "bounce_pop" }}],
     "broll_list": [{{ "start_time": 40.0, "end_time": 45.0, "search_query": "..." }}],
+    "recommended_visual_broll_hook": [
+      {{ "broll_idea": "...", "search_keyword": "...", "why_it_works": "..." }}
+    ],
     "title_indonesia": "...",
     "title_inggris": "...",
     "hastag": "#hastag1 #hastag2",
@@ -697,6 +752,19 @@ def analyze_with_nvidia(transkrip_lengkap: str, cfg) -> list[dict]:
                         "required": ["start_time", "end_time", "search_query"]
                     }
                 },
+                "recommended_visual_broll_hook": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "broll_idea": {"type": "string"},
+                            "search_keyword": {"type": "string"},
+                            "why_it_works": {"type": "string"}
+                        },
+                        "required": ["broll_idea", "search_keyword", "why_it_works"]
+                    }
+                },
                 "title_indonesia": {"type": "string"},
                 "title_inggris": {"type": "string"},
                 "hastag": {"type": "string"},
@@ -740,7 +808,7 @@ def analyze_with_nvidia(transkrip_lengkap: str, cfg) -> list[dict]:
             },
             "required": [
                 "rank", "viral_score", "start_time", "end_time", "hook_start_time", "hook_end_time",
-                "bgm_mood", "typography_plan", "broll_list", "title_indonesia",
+                "bgm_mood", "typography_plan", "broll_list", "recommended_visual_broll_hook", "title_indonesia",
                 "title_inggris", "hastag", "description_hook", "description_context",
                 "keyword_tags", "tiktok_title_id", "tiktok_caption_id", "tiktok_caption",
                 "alasan", "klasifikasi_akun"
@@ -831,6 +899,19 @@ def analyze_with_gemini(
         },
     }
 
+    schema_visual_broll_hook = {
+        "type": "ARRAY",
+        "items": {
+            "type": "OBJECT",
+            "properties": {
+                "broll_idea": {"type": "STRING"},
+                "search_keyword": {"type": "STRING"},
+                "why_it_works": {"type": "STRING"},
+            },
+            "required": ["broll_idea", "search_keyword", "why_it_works"],
+        },
+    }
+
     schema_typography = {
         "type": "ARRAY",
         "items": {
@@ -894,6 +975,7 @@ def analyze_with_gemini(
                     "end_time": {"type": "NUMBER"},
                     "typography_plan": schema_typography,
                     "broll_list": schema_broll,
+                    "recommended_visual_broll_hook": schema_visual_broll_hook,
                     "alasan": {"type": "STRING"},
                     "bgm_mood": {"type": "STRING"},
                     "title_indonesia": {"type": "STRING"},
@@ -913,7 +995,7 @@ def analyze_with_gemini(
                 "required": [
                     "rank", "viral_score", "hook_start_time", "hook_end_time",
                     "start_time", "end_time", "typography_plan",
-                    "broll_list", "alasan", "bgm_mood",
+                    "broll_list", "recommended_visual_broll_hook", "alasan", "bgm_mood",
                     "title_indonesia", "title_inggris", "hastag",
                     "description_hook", "description_context",
                     "keyword_tags", "tiktok_title_id",
@@ -931,6 +1013,3 @@ def analyze_with_gemini(
         contents=prompt,
         config=gemini_config,
     )
-
-
-    return hasil_json
