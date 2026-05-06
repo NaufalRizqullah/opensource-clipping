@@ -118,6 +118,7 @@ def normalize_and_validate(hasil_json: list[dict]) -> list[dict]:
         # 2. ALIASING: Handle variations in field names (especially for non-Gemini providers)
         rank = item.get("rank") or item.get("peringkat") or item.get("no") or "?"
         item["rank"] = rank
+        item["viral_score"] = item.get("viral_score", 0)
         
         # Timing aliases
         it_st = item.get("start_time") or item.get("timing_klip_start") or item.get("clip_start") or item.get("start")
@@ -215,23 +216,33 @@ def normalize_and_validate(hasil_json: list[dict]) -> list[dict]:
         if item["tiktok_caption_id"] and not _looks_indonesian(item["tiktok_caption_id"]):
             warning.append("tiktok_caption_id terdeteksi bukan Bahasa Indonesia")
 
+        if warning:
+            semua_warning.append((rank, warning))
+            
+        item["_warnings_temp"] = " | ".join(warning) if warning else "OK"
+        valid_items.append(item)
+
+    # Sort based on viral_score (descending)
+    valid_items = sorted(valid_items, key=lambda x: x.get("viral_score", 0), reverse=True)
+    
+    # Re-assign rank to be purely sequential and build laporan
+    for idx, item in enumerate(valid_items):
+        item["rank"] = idx + 1
+        klasifikasi = item.get("klasifikasi_akun", {})
+        
         laporan.append({
-            "rank": rank,
+            "rank": item["rank"],
+            "viral_score": item.get("viral_score", 0),
             "durasi": round(float(item.get("end_time", 0)) - float(item.get("start_time", 0)), 2),
+            "akun_tujuan": klasifikasi.get("akun_tujuan", ""),
             "title_indonesia": item["title_indonesia"],
             "title_inggris": item["title_inggris"],
             "tiktok_title_id": item["tiktok_title_id"],
             "hashtags": item["hastag"],
-            "warnings": " | ".join(warning) if warning else "OK",
+            "warnings": item.pop("_warnings_temp", "OK"),
         })
 
-        if warning:
-            semua_warning.append((rank, warning))
-            
-        valid_items.append(item)
-
-    laporan = sorted(laporan, key=lambda x: x["rank"])
-    return sorted(valid_items, key=lambda x: x.get("rank", 9999))
+    return valid_items
 
 
 def print_preview(hasil_json: list[dict]) -> None:
@@ -248,7 +259,10 @@ def print_preview(hasil_json: list[dict]) -> None:
 
     print("===== PREVIEW DETAIL PER KLIP =====")
     for item in hasil_json:
-        print(f"\n--- Rank {item['rank']} ---")
+        klasifikasi = item.get("klasifikasi_akun", {})
+        print(f"\n--- Rank {item['rank']} (Viral Score: {item.get('viral_score', '?')}) ---")
+        print(f"Akun Tujuan       : {klasifikasi.get('akun_tujuan', '')} ({klasifikasi.get('tipe_akun', '')})")
+        print(f"Alasan Akun       : {klasifikasi.get('alasan', '')}")
         print(f"Title ID          : {item['title_indonesia']}")
         print(f"Title EN          : {item['title_inggris']}")
         print(f"TikTok Title ID   : {item.get('tiktok_title_id_final', '')}")

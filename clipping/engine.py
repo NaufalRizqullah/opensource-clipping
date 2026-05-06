@@ -273,6 +273,37 @@ def transcribe_video(
 # TAHAP 3: ANALISIS GEMINI AI
 # ==============================================================================
 
+TARGET_ACCOUNTS = {
+    "Business": {
+        "akun_tujuan": "Business.Mereska",
+        "angle_desc": "Kalau angle-nya bisnis, brand, omzet, jualan, founder, marketing, atau UMKM.",
+        "bio": "Insight bisnis, founder story & brand lokal. Business | Founder | Finance | Beauty | Marketing"
+    },
+    "Life": {
+        "akun_tujuan": "Life.Mereska",
+        "angle_desc": "Kalau angle-nya personal life, lifestyle, skincare, career, mindset, relationship, personal finance, atau self growth.",
+        "bio": "Klip insight buat upgrade hidup & mindset. Podcast | Career | Finance | Beauty | Self Growth"
+    },
+    "Creator": {
+        "akun_tujuan": "Creator.Mereska",
+        "angle_desc": "Kalau angle-nya konten digital, AI, affiliate, tools, clipping, monetisasi, atau cara menghasilkan uang dari konten.",
+        "bio": "Ngulik konten digital biar bisa jadi uang. AI | Affiliate | Clips | Tools | Monetize"
+    },
+    "Muslim": {
+        "akun_tujuan": "Muslim.Mereska",
+        "angle_desc": "Kalau angle-nya religi, rezeki, doa, ibadah, kerja karena Allah, keluarga Islami, atau bisnis dengan nilai Islam.",
+        "bio": "Reminder kerja, rezeki & hidup bernilai Islam. Islamic | Rezeki | Family | Work | Business"
+    }
+}
+
+def _build_account_classification_prompt() -> str:
+    lines = []
+    for tipe, data in TARGET_ACCOUNTS.items():
+        lines.append(f"- {tipe}: {data['angle_desc']}")
+        lines.append(f"  (akun_tujuan: \"{data['akun_tujuan']}\", bio: \"{data['bio']}\")")
+    return "\n".join(lines)
+
+
 # ---- Retry Config ----
 MAX_ATTEMPTS = 10
 INITIAL_WAIT_SECONDS = 60
@@ -383,16 +414,29 @@ Baca transkrip video berikut. Format transkrip:
 
 TUGAS UTAMA:
 - Carikan {jumlah_clip} momen paling menarik, paling kuat, paling shareable, dan paling berpotensi viral untuk dijadikan klip pendek.
-- Urutkan dari Peringkat 1 (paling bagus) sampai {jumlah_clip}.
-- Untuk setiap klip, hasilkan timing klip, hook, typography plan, b-roll plan, alasan pemilihan, dan metadata lintas platform.
+- Urutkan klip berdasarkan viral_score tertinggi (paling berpotensi viral) ke terendah. Peringkat ("rank") hanya sebagai nomor urut (1, 2, 3...).
+- Untuk setiap klip, hasilkan timing klip, hook, typography plan, b-roll plan, alasan pemilihan, metadata lintas platform, dan klasifikasi akun tujuan.
 - Semua output harus sangat relevan dengan isi klip, bukan isi video penuh secara umum.
 
-ATURAN PEMILIHAN KLIP:
+ATURAN PEMILIHAN KLIP & VIRAL-BILITY:
 - Durasi klip harus 30-180 detik.
 - Pilih bagian yang punya emosi, konflik, kejutan, insight, opini kuat, pelajaran praktis, atau punchline jelas.
+- Evaluasi kekuatan viral (viral-bility) dan berikan "viral_score" (1-100) yang merepresentasikan seberapa viral suatu klip.
+  - 90-100: Sangat berpotensi fyp/viral, emosi/konflik kuat, hook sangat nendang.
+  - 80-89: Menarik, berpotensi performa baik.
+  - 70-79: Standar, informatif tapi mungkin kurang greget.
 - Utamakan bagian yang tetap menarik walau ditonton tanpa konteks video penuh.
 - Hindari klip yang isinya terlalu mirip satu sama lain.
 - Jangan pilih klip yang terasa datar, bertele-tele, atau tidak punya payoff yang jelas.
+
+KLASIFIKASI AKUN TUJUAN (UNTUK SETIAP KLIP):
+Tentukan akun tujuan berdasarkan ANGLE video dari klip tersebut. Jangan menilai hanya dari topik (misal: beauty tidak otomatis masuk Life). Nilai berdasarkan angle:
+{_build_account_classification_prompt()}
+
+ATURAN KHUSUS KLASIFIKASI:
+1. Beauty tidak otomatis masuk Life. (Bahas omzet/brand -> Business. Review/lifestyle -> Life. Affiliate/konten -> Creator).
+2. Finance tidak otomatis masuk Business. (Bahas omzet/bisnis -> Business. Personal finance/nabung -> Life. Cara bikin konten finance -> Creator).
+3. Owner story dibagi berdasarkan angle. (Perjuangan brand -> Business. Kehidupan pribadi/keluarga -> Life. Rezeki/ibadah -> Muslim).
 
 HOOK (WAJIB):
 - Ambil 1 kalimat paling punchy yang ADA DI DALAM klip.
@@ -553,6 +597,7 @@ STRUKTUR JSON WAJIB (Ikuti nama field ini secara kaku):
 [
   {{
     "rank": 1,
+    "viral_score": 95,
     "start_time": 30.5,
     "end_time": 90.0,
     "hook_start_time": 30.5,
@@ -569,7 +614,21 @@ STRUKTUR JSON WAJIB (Ikuti nama field ini secara kaku):
     "tiktok_title_id": "...",
     "tiktok_caption_id": "...",
     "tiktok_caption": "...",
-    "alasan": "..."
+    "alasan": "...",
+    "klasifikasi_akun": {{
+      "tipe_akun": "Creator",
+      "akun_tujuan": "Creator.Mereska",
+      "confidence": 87,
+      "angle_utama": "Monetisasi konten digital dari niche beauty",
+      "alasan": "...",
+      "kata_kunci_pendukung": ["affiliate", "monetisasi"],
+      "bio_akun": "...",
+      "alternatif_akun": {{
+        "tipe_akun": "Life",
+        "akun_tujuan": "Life.Mereska",
+        "alasan": "..."
+      }}
+    }}
   }}
 ]
 
@@ -602,6 +661,7 @@ def analyze_with_nvidia(transkrip_lengkap: str, cfg) -> list[dict]:
             "additionalProperties": False,
             "properties": {
                 "rank": {"type": "integer"},
+                "viral_score": {"type": "integer"},
                 "start_time": {"type": "number"},
                 "end_time": {"type": "number"},
                 "hook_start_time": {"type": "number"},
@@ -649,14 +709,41 @@ def analyze_with_nvidia(transkrip_lengkap: str, cfg) -> list[dict]:
                 "tiktok_title_id": {"type": "string"},
                 "tiktok_caption_id": {"type": "string"},
                 "tiktok_caption": {"type": "string"},
-                "alasan": {"type": "string"}
+                "alasan": {"type": "string"},
+                "klasifikasi_akun": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "tipe_akun": {"type": "string", "enum": list(TARGET_ACCOUNTS.keys())},
+                        "akun_tujuan": {"type": "string"},
+                        "confidence": {"type": "integer"},
+                        "angle_utama": {"type": "string"},
+                        "alasan": {"type": "string"},
+                        "kata_kunci_pendukung": {
+                            "type": "array",
+                            "items": {"type": "string"}
+                        },
+                        "bio_akun": {"type": "string"},
+                        "alternatif_akun": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "properties": {
+                                "tipe_akun": {"type": "string", "enum": list(TARGET_ACCOUNTS.keys())},
+                                "akun_tujuan": {"type": "string"},
+                                "alasan": {"type": "string"}
+                            },
+                            "required": ["tipe_akun", "akun_tujuan", "alasan"]
+                        }
+                    },
+                    "required": ["tipe_akun", "akun_tujuan", "confidence", "angle_utama", "alasan", "kata_kunci_pendukung", "bio_akun", "alternatif_akun"]
+                }
             },
             "required": [
-                "rank", "start_time", "end_time", "hook_start_time", "hook_end_time",
+                "rank", "viral_score", "start_time", "end_time", "hook_start_time", "hook_end_time",
                 "bgm_mood", "typography_plan", "broll_list", "title_indonesia",
                 "title_inggris", "hastag", "description_hook", "description_context",
                 "keyword_tags", "tiktok_title_id", "tiktok_caption_id", "tiktok_caption",
-                "alasan"
+                "alasan", "klasifikasi_akun"
             ]
         }
     }
@@ -758,6 +845,32 @@ def analyze_with_gemini(
         },
     }
 
+    schema_klasifikasi = {
+        "type": "OBJECT",
+        "properties": {
+            "tipe_akun": {"type": "STRING"},
+            "akun_tujuan": {"type": "STRING"},
+            "confidence": {"type": "INTEGER"},
+            "angle_utama": {"type": "STRING"},
+            "alasan": {"type": "STRING"},
+            "kata_kunci_pendukung": {
+                "type": "ARRAY",
+                "items": {"type": "STRING"},
+            },
+            "bio_akun": {"type": "STRING"},
+            "alternatif_akun": {
+                "type": "OBJECT",
+                "properties": {
+                    "tipe_akun": {"type": "STRING"},
+                    "akun_tujuan": {"type": "STRING"},
+                    "alasan": {"type": "STRING"},
+                },
+                "required": ["tipe_akun", "akun_tujuan", "alasan"],
+            },
+        },
+        "required": ["tipe_akun", "akun_tujuan", "confidence", "angle_utama", "alasan", "kata_kunci_pendukung", "bio_akun", "alternatif_akun"],
+    }
+
     client = genai.Client(
         api_key=cfg.api_key_gemini,
         http_options=types.HttpOptions(
@@ -774,6 +887,7 @@ def analyze_with_gemini(
                 "type": "OBJECT",
                 "properties": {
                     "rank": {"type": "INTEGER"},
+                    "viral_score": {"type": "INTEGER"},
                     "hook_start_time": {"type": "NUMBER"},
                     "hook_end_time": {"type": "NUMBER"},
                     "start_time": {"type": "NUMBER"},
@@ -794,15 +908,17 @@ def analyze_with_gemini(
                     "tiktok_title_id": {"type": "STRING"},
                     "tiktok_caption_id": {"type": "STRING"},
                     "tiktok_caption": {"type": "STRING"},
+                    "klasifikasi_akun": schema_klasifikasi,
                 },
                 "required": [
-                    "rank", "hook_start_time", "hook_end_time",
+                    "rank", "viral_score", "hook_start_time", "hook_end_time",
                     "start_time", "end_time", "typography_plan",
                     "broll_list", "alasan", "bgm_mood",
                     "title_indonesia", "title_inggris", "hastag",
                     "description_hook", "description_context",
                     "keyword_tags", "tiktok_title_id",
                     "tiktok_caption_id", "tiktok_caption",
+                    "klasifikasi_akun",
                 ],
             },
         },

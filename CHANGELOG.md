@@ -7,6 +7,17 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.2.1] - 2026-05-06
+
+### Added
+- **Viral-Bility Scoring**: Added `viral_score` (1-100) to the AI analysis engine. The system now evaluates each clip's viral potential based on hook strength, emotional impact, and retention markers.
+- **Viral-First Ranking**: Updated the pipeline to automatically sort generated clips by their `viral_score` in descending order, sequentially re-assigning ranks 1-N based on viral potential.
+- **Integrated Account Classification**: Added a specialized classification layer to the metadata prompt. AI now automatically assigns each clip to a target account (Business, Life, Creator, or Muslim) based on its specific "angle" and content niche.
+- **Modular Account Config**: Extracted target account definitions into a centralized `TARGET_ACCOUNTS` variable in `engine.py`. This allows for easy customization of account names, bios, and classification rules without modifying the core prompt text.
+- **Enhanced Metadata Preview**: Expanded the CLI metadata preview to display the new `viral_score`, Target Account destination, and the AI's classification rationale.
+
+---
+
 ## [v1.2.0] - 2026-05-01
 
 ### Added
