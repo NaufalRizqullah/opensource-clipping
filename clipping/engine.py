@@ -5,6 +5,7 @@ Maps to Cell 2 (The Engine) of the notebook.
 """
 
 import json
+import os
 import re
 import time
 
@@ -58,6 +59,36 @@ _PLATFORM_LABELS = {
 }
 
 
+def _extract_gdrive_file_id(url: str) -> str | None:
+    """Extract the Google Drive file ID from various URL formats."""
+    import re as _re
+    m = _re.search(r"/d/([a-zA-Z0-9_-]+)", url)
+    if m:
+        return m.group(1)
+    m = _re.search(r"[?&]id=([a-zA-Z0-9_-]+)", url)
+    if m:
+        return m.group(1)
+    return None
+
+
+def _download_gdrive(url: str, output_path: str) -> None:
+    """Download a video from Google Drive using gdown (more reliable than yt-dlp)."""
+    import gdown
+
+    file_id = _extract_gdrive_file_id(url)
+    if not file_id:
+        raise RuntimeError(
+            f"Tidak dapat mengekstrak file ID dari URL Google Drive: {url}\n"
+            "      Format yang didukung:\n"
+            "        • https://drive.google.com/file/d/FILE_ID/view\n"
+            "        • https://drive.google.com/open?id=FILE_ID"
+        )
+
+    download_url = f"https://drive.google.com/uc?id={file_id}"
+    print(f"      📥 File ID: {file_id}")
+    gdown.download(download_url, output_path, quiet=False)
+
+
 def download_video(
     url: str,
     output_path: str,
@@ -83,6 +114,16 @@ def download_video(
     else:
         print(f"      🎯 Source quality: up to {download_source_height}p", flush=True)
 
+    # --- Google Drive: use gdown instead of yt-dlp ---
+    if source_platform == "gdrive":
+        _download_gdrive(url, output_path)
+        if not os.path.exists(output_path):
+            raise RuntimeError(
+                f"❌ Download dari Google Drive gagal — file tidak ditemukan di {output_path}"
+            )
+        print(f"      ✅ Video berhasil didownload dari Google Drive.", flush=True)
+        return
+
     # --- Build yt-dlp options per platform ---
     if uses_youtube_format:
         # YouTube: complex format selector + AV1 filter + remote components
@@ -94,7 +135,7 @@ def download_video(
             "remote_components": ["ejs:github"],
         }
     else:
-        # TikTok / Instagram / Google Drive: ensure video and audio are merged
+        # TikTok / Instagram: ensure video and audio are merged
         # We explicitly prefer H.264 over H.265 (TikTok's bytevc1) to prevent 
         # PyAV/faster-whisper from crashing with IndexError on Kaggle/Colab.
         ydl_opts = {
@@ -144,6 +185,13 @@ def download_video(
             print(f"      ⚠️ Gagal mengecek info detail: {e}", flush=True)
 
         ydl.download([url])
+
+    # --- Post-download verification ---
+    if not os.path.exists(output_path):
+        raise RuntimeError(
+            f"❌ Download dari {platform_label} gagal — file video tidak ditemukan di {output_path}.\n"
+            "      Pastikan URL valid dan bisa diakses secara publik."
+        )
 
 
 # ==============================================================================
