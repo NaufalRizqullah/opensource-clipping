@@ -87,6 +87,7 @@ get_mp4_encode_args = _ffmpeg_utils.get_mp4_encode_args
 open_ffmpeg_video_writer = _ffmpeg_utils.open_ffmpeg_video_writer
 build_ffmpeg_progress_cmd = _ffmpeg_utils.build_ffmpeg_progress_cmd
 run_ffmpeg_with_progress = _ffmpeg_utils.run_ffmpeg_with_progress
+v2_helpers = _load_studio_internal_module("v2_helpers.py", "clipping_studio_v2_helpers")
 
 def proses_klip(
     rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, diarization_data=None
@@ -248,7 +249,107 @@ def proses_klip(
 
     try:
         # HOOK
-        if aktif_hook:
+        hook_v2_data = clip.get("hook_v2", {})
+        use_hook_v2 = (
+            aktif_hook
+            and getattr(cfg, "hook_v2", False)
+            and hook_v2_data
+            and hook_v2_data.get("enabled")
+        )
+
+        if use_hook_v2:
+            print("   📸 [Hook V2] Rendering Multi-Hook Intro...")
+            h_ts_parts = []
+            items = hook_v2_data.get("items", [])
+            out_w_v2, out_h_v2 = _get_render_dims(cfg, rasio, source_h=sh)
+            flash_dur = getattr(cfg, "white_flash_duration", 0.12)
+
+            for i, item in enumerate(items):
+                item_start = float(item["start_time"])
+                item_end = float(item["end_time"])
+                item_silent = f"h_v2_silent_{rank}_{i}.mp4"
+                item_ts = f"h_v2_ts_{rank}_{i}.ts"
+
+                # Render visual (face-tracked crop)
+                buat_video_hybrid(
+                    file_hook_src, item_silent,
+                    item_start, item_end, rasio, cfg,
+                    label=f"Rank {rank} HookV2 Item {i}",
+                )
+
+                # Build text overlay + audio mux
+                item_text = item.get("text", "").replace("'", "\\'").replace('"', '\\"')
+                vf_parts = []
+                if item_text:
+                    vf_parts.append(
+                        f"drawtext=text='{item_text}'"
+                        f":fontcolor=white:fontsize={int(out_h_v2 * 0.05)}"
+                        f":x=(w-text_w)/2:y=(h-text_h)/2"
+                        f":borderw=4:bordercolor=black"
+                    )
+                if cfg.video_sharpen:
+                    vf_parts.append("unsharp=5:5:0.5:5:5:0.0")
+
+                cmd_item = [
+                    "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                    "-i", item_silent,
+                    "-ss", str(item_start), "-to", str(item_end),
+                    "-i", file_hook_src,
+                    "-map", "0:v:0", "-map", "1:a:0",
+                ]
+                if vf_parts:
+                    cmd_item += ["-vf", ",".join(vf_parts)]
+                cmd_item += std_p
+
+                cmd_item_full = build_ffmpeg_progress_cmd(cmd_item, item_ts)
+                run_ffmpeg_with_progress(
+                    cmd_item_full, item_end - item_start,
+                    label=f"Rank {rank} HookV2 FFmpeg {i}",
+                )
+                h_ts_parts.append(item_ts)
+
+                # Transition between items (not after the last one)
+                if i < len(items) - 1:
+                    trans_mp4 = f"h_v2_trans_{rank}_{i}.mp4"
+                    trans_ts = f"h_v2_trans_{rank}_{i}.ts"
+                    trans_type = hook_v2_data.get("transition", {}).get("type", "white_flash")
+                    if "glitch" in trans_type:
+                        v2_helpers.create_glitch_transition(
+                            trans_mp4, duration=flash_dur,
+                            width=out_w_v2, height=out_h_v2,
+                        )
+                    else:
+                        v2_helpers.create_white_flash_transition(
+                            trans_mp4, duration=flash_dur,
+                            width=out_w_v2, height=out_h_v2,
+                        )
+                    # Convert to .ts for concat
+                    subprocess.run(
+                        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                         "-i", trans_mp4] + std_p + [trans_ts],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    )
+                    h_ts_parts.append(trans_ts)
+
+            # Concat all hook v2 pieces into h_ts
+            if h_ts_parts:
+                concat_str = "concat:" + "|".join(h_ts_parts)
+                subprocess.run(
+                    ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                     "-i", concat_str, "-c", "copy", h_ts],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+
+            # Cleanup temp files
+            for tf in h_ts_parts:
+                if os.path.exists(tf):
+                    os.remove(tf)
+            for i in range(len(items)):
+                for ext_f in [f"h_v2_silent_{rank}_{i}.mp4", f"h_v2_trans_{rank}_{i}.mp4"]:
+                    if os.path.exists(ext_f):
+                        os.remove(ext_f)
+
+        elif aktif_hook:
             get_x_h = None
             if use_split:
                 print("   📸 [Hook] Split-screen render (Custom Hook diabaikan untuk format ini saat ini atau digabung)...")
@@ -345,169 +446,300 @@ def proses_klip(
                 raise RuntimeError("FFmpeg hook gagal:\n" + "\n".join(err_h))
 
         # MAIN
-        if use_split:
-            print("   📸 [Main] Split-screen render (Visual)...")
-            get_x_main = buat_video_split_screen(
-                cfg.file_video_asli,
-                m_silent,
-                m_start,
-                m_end,
-                rasio,
-                diarization_data,
-                cfg,
-                label=f"Rank {rank} Main SplitScreen",
-            )
-        elif use_camera_switch:
-            # Note: Camera Switch doesn't currently support dev_mode frames but we pass it anyway
-            print("   📸 [Main] Camera switch render (Visual)...")
-            get_x_main = buat_video_camera_switch(
-                cfg.file_video_asli,
-                m_silent,
-                m_start,
-                m_end,
-                rasio,
-                diarization_data,
-                cfg,
-                label=f"Rank {rank} Main CameraSwitch",
-            )
-        else:
-            print("   📸 [Main] Hybrid render (Visual)...")
-            get_x_main = buat_video_hybrid(
-                cfg.file_video_asli,
-                m_silent,
-                m_start,
-                m_end,
-                rasio,
-                cfg,
-                broll_aktif,
-                label=f"Rank {rank} Main",
-            )
+        keep_segments = clip.get("keep_segments")
+        use_segments = (
+            keep_segments
+            and len(keep_segments) > 1
+            and not getattr(cfg, "no_segment_trim", False)
+        )
 
-        if not cfg.no_subs:
-            buat_file_ass(
-                data_segmen,
-                m_start,
-                m_end,
-                a_main,
-                rasio,
-                cfg,
-                typography_plan=typography_plan,
-                gunakan_advanced=True,
-                get_x_func=get_x_main,
-                source_dim=source_dim,
-            )
+        if use_segments:
+            print(f"   📸 [Main] Rendering {len(keep_segments)} segments (smart trim)...")
+            seg_ts_parts = []
 
-        print(f"   🎬 [Main] FFmpeg {'skip subtitle' if cfg.no_subs else 'burn subtitle'} + audio ducking...")
-        esc_ass_main = escape_ffmpeg_filter_value(os.path.abspath(a_main)) if not cfg.no_subs else ""
-        esc_fontsdir = escape_ffmpeg_filter_value(os.path.abspath(cfg.font_dir))
+            for idx, seg in enumerate(keep_segments):
+                s_start = float(seg["start_time"])
+                s_end = float(seg["end_time"])
+                s_silent = f"m_seg_silent_{rank}_{idx}.mp4"
+                s_ass = f"m_seg_ass_{rank}_{idx}.ass"
+                s_ts = f"m_seg_ts_{rank}_{idx}.ts"
 
-        # SMART BGM
-        aktif_bgm = cfg.use_auto_bgm
-        bgm_mood = clip.get("bgm_mood", "chill")
-        if bgm_mood not in cfg.bgm_pool:
-            bgm_mood = "chill"
-        bgm_page = cfg.bgm_pool[bgm_mood]
-        file_bgm = os.path.abspath(os.path.join(cfg.base_dir, f"bgm_{bgm_mood}.mp3"))
+                # Render visual per segment
+                if use_split:
+                    get_x_main = buat_video_split_screen(
+                        cfg.file_video_asli, s_silent, s_start, s_end,
+                        rasio, diarization_data, cfg,
+                        label=f"Rank {rank} Seg {idx} SplitScreen",
+                    )
+                elif use_camera_switch:
+                    get_x_main = buat_video_camera_switch(
+                        cfg.file_video_asli, s_silent, s_start, s_end,
+                        rasio, diarization_data, cfg,
+                        label=f"Rank {rank} Seg {idx} CameraSwitch",
+                    )
+                else:
+                    get_x_main = buat_video_hybrid(
+                        cfg.file_video_asli, s_silent, s_start, s_end,
+                        rasio, cfg, broll_aktif,
+                        label=f"Rank {rank} Seg {idx} Hybrid",
+                    )
 
-        if aktif_bgm and not os.path.exists(file_bgm):
-            print(f"   🎵 Mendownload Background Music (Mood: {bgm_mood})...")
-            ok_bgm = download_bgm_from_pixabay_page(bgm_page, file_bgm)
-            if not ok_bgm and bgm_mood != "chill":
-                print("   🔄 Fallback ke BGM chill...")
-                chill_page = cfg.bgm_pool["chill"]
-                file_bgm = os.path.abspath(os.path.join(cfg.base_dir, "bgm_chill.mp3"))
-                ok_bgm = download_bgm_from_pixabay_page(chill_page, file_bgm)
+                # Subtitle for this segment
+                if not cfg.no_subs:
+                    buat_file_ass(
+                        data_segmen, s_start, s_end, s_ass, rasio, cfg,
+                        typography_plan=typography_plan, gunakan_advanced=True,
+                        get_x_func=get_x_main, source_dim=source_dim,
+                    )
 
-            if ok_bgm:
-                print(f"   ✅ BGM siap: {file_bgm}")
-            else:
-                print("   ⚠️ Semua fallback gagal. Render lanjut tanpa BGM.")
+                esc_ass_seg = escape_ffmpeg_filter_value(os.path.abspath(s_ass)) if not cfg.no_subs else ""
+                esc_fontsdir_seg = escape_ffmpeg_filter_value(os.path.abspath(cfg.font_dir))
 
-        # --- Subtitle & BGM Encoding Loop (Handles dual output files if needed) ---
-        runs = [m_silent] if not dev_dual else [m_silent, m_silent.replace(".ts", "_dev.ts")]
-        out_targets = [m_ts] if not dev_dual else [m_ts, m_ts_dev]
-        
-        for input_silent_ts, output_final_ts in zip(runs, out_targets):
-            lbl_suffix = "" if input_silent_ts == m_silent else " (DEV)"
-            
-            if aktif_bgm and os.path.exists(file_bgm):
-                v_filter_parts = [f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"] if not cfg.no_subs else ["null"]
+                vf_seg_parts = [f"subtitles={esc_ass_seg}:fontsdir={esc_fontsdir_seg}"] if not cfg.no_subs else []
                 if cfg.video_sharpen:
-                    v_filter_parts.append("unsharp=5:5:0.5:5:5:0.0")
-                v_filter = ",".join(v_filter_parts)
-                
-                filter_complex = (
-                    f"[0:v]{v_filter}[v_out]; "
-                    f"[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume=1.2[voc]; "
-                    f"[2:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume={cfg.bgm_base_volume}[bgm]; "
+                    vf_seg_parts.append("unsharp=5:5:0.5:5:5:0.0")
+
+                cmd_s = [
+                    "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                    "-i", s_silent,
+                    "-ss", str(s_start), "-to", str(s_end),
+                    "-i", cfg.file_video_asli,
+                    "-map", "0:v:0", "-map", "1:a:0",
+                ]
+                if vf_seg_parts:
+                    cmd_s += ["-vf", ",".join(vf_seg_parts)]
+                cmd_s += std_p
+
+                cmd_s_full = build_ffmpeg_progress_cmd(cmd_s, s_ts)
+                run_ffmpeg_with_progress(
+                    cmd_s_full, s_end - s_start,
+                    label=f"Rank {rank} Seg FFmpeg {idx}",
+                )
+                seg_ts_parts.append(s_ts)
+
+            # Concat all segments into m_ts
+            concat_str_seg = "concat:" + "|".join(seg_ts_parts)
+            subprocess.run(
+                ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                 "-i", concat_str_seg, "-c", "copy", m_ts],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+
+            # Cleanup segment temps
+            for tf in seg_ts_parts:
+                if os.path.exists(tf):
+                    os.remove(tf)
+            for idx in range(len(keep_segments)):
+                for ext_f in [f"m_seg_silent_{rank}_{idx}.mp4", f"m_seg_ass_{rank}_{idx}.ass"]:
+                    if os.path.exists(ext_f):
+                        os.remove(ext_f)
+
+            # Skip the standard MAIN render + subtitle/BGM encoding loop
+            # and go directly to BGM application on the concatenated result
+            aktif_bgm = cfg.use_auto_bgm
+            bgm_mood = clip.get("bgm_mood", "chill")
+            if bgm_mood not in cfg.bgm_pool:
+                bgm_mood = "chill"
+            file_bgm = os.path.abspath(os.path.join(cfg.base_dir, f"bgm_{bgm_mood}.mp3"))
+
+            if aktif_bgm and not os.path.exists(file_bgm):
+                bgm_page = cfg.bgm_pool[bgm_mood]
+                print(f"   🎵 Mendownload Background Music (Mood: {bgm_mood})...")
+                ok_bgm = download_bgm_from_pixabay_page(bgm_page, file_bgm)
+                if not ok_bgm and bgm_mood != "chill":
+                    chill_page = cfg.bgm_pool["chill"]
+                    file_bgm = os.path.abspath(os.path.join(cfg.base_dir, "bgm_chill.mp3"))
+                    ok_bgm = download_bgm_from_pixabay_page(chill_page, file_bgm)
+
+            if aktif_bgm and os.path.exists(file_bgm):
+                print("   🎵 Applying BGM to segmented clip...")
+                m_ts_bgm = f"m_bgm_{rank}.ts"
+                seg_total_dur = sum(float(s["end_time"]) - float(s["start_time"]) for s in keep_segments)
+                filter_complex_seg = (
+                    f"[0:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume=1.2[voc]; "
+                    f"[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume={cfg.bgm_base_volume}[bgm]; "
                     f"[bgm][voc]sidechaincompress=threshold=0.08:ratio=5.0:attack=100:release=1000[bgm_ducked]; "
                     f"[voc][bgm_ducked]amix=inputs=2:duration=first:weights=1 1:dropout_transition=2[a_out]"
                 )
-
-                cmd_m_base = [
-                    "ffmpeg",
-                    "-hide_banner",
-                    "-loglevel",
-                    "verbose",
-                    "-y",
-                    "-i",
-                    input_silent_ts,
-                    "-ss",
-                    str(m_start),
-                    "-to",
-                    str(m_end),
-                    "-i",
-                    cfg.file_video_asli,
-                    "-stream_loop",
-                    "-1",
-                    "-i",
-                    file_bgm,
-                    "-filter_complex",
-                    filter_complex,
-                    "-map",
-                    "[v_out]",
-                    "-map",
-                    "[a_out]",
-                    "-shortest",
+                cmd_bgm_seg = [
+                    "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                    "-i", m_ts,
+                    "-stream_loop", "-1", "-i", file_bgm,
+                    "-filter_complex", filter_complex_seg,
+                    "-map", "0:v:0", "-map", "[a_out]", "-shortest",
                 ] + std_p
-            else:
-                cmd_m_base = [
-                    "ffmpeg",
-                    "-hide_banner",
-                    "-loglevel",
-                    "verbose",
-                    "-y",
-                    "-i",
-                    input_silent_ts,
-                    "-ss",
-                    str(m_start),
-                    "-to",
-                    str(m_end),
-                    "-i",
-                    cfg.file_video_asli,
-                    "-map",
-                    "0:v:0",
-                    "-map",
-                    "1:a:0",
-                ]
-                if not cfg.no_subs:
-                    vf_main_parts = [f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"]
-                else:
-                    vf_main_parts = []
-                
-                if cfg.video_sharpen:
-                    vf_main_parts.append("unsharp=5:5:0.5:5:5:0.0")
-                
-                if vf_main_parts:
-                    cmd_m_base += ["-vf", ",".join(vf_main_parts)]
-                cmd_m_base += std_p
+                run_ffmpeg_with_progress(
+                    build_ffmpeg_progress_cmd(cmd_bgm_seg, m_ts_bgm),
+                    seg_total_dur, label=f"Rank {rank} Seg BGM",
+                )
+                # Replace m_ts with the BGM version
+                os.replace(m_ts_bgm, m_ts)
 
-            cmd_m = build_ffmpeg_progress_cmd(cmd_m_base, output_final_ts)
-            rc_m, err_m = run_ffmpeg_with_progress(
-                cmd_m, m_end - m_start, label=f"Rank {rank} Main FFmpeg{lbl_suffix}"
-            )
-            if rc_m != 0:
-                raise RuntimeError(f"FFmpeg main{lbl_suffix} gagal:\n" + "\n".join(err_m))
+        else:
+            # Standard MAIN render (full start_time → end_time)
+            if use_split:
+                print("   📸 [Main] Split-screen render (Visual)...")
+                get_x_main = buat_video_split_screen(
+                    cfg.file_video_asli,
+                    m_silent,
+                    m_start,
+                    m_end,
+                    rasio,
+                    diarization_data,
+                    cfg,
+                    label=f"Rank {rank} Main SplitScreen",
+                )
+            elif use_camera_switch:
+                # Note: Camera Switch doesn't currently support dev_mode frames but we pass it anyway
+                print("   📸 [Main] Camera switch render (Visual)...")
+                get_x_main = buat_video_camera_switch(
+                    cfg.file_video_asli,
+                    m_silent,
+                    m_start,
+                    m_end,
+                    rasio,
+                    diarization_data,
+                    cfg,
+                    label=f"Rank {rank} Main CameraSwitch",
+                )
+            else:
+                print("   📸 [Main] Hybrid render (Visual)...")
+                get_x_main = buat_video_hybrid(
+                    cfg.file_video_asli,
+                    m_silent,
+                    m_start,
+                    m_end,
+                    rasio,
+                    cfg,
+                    broll_aktif,
+                    label=f"Rank {rank} Main",
+                )
+
+            if not cfg.no_subs:
+                buat_file_ass(
+                    data_segmen,
+                    m_start,
+                    m_end,
+                    a_main,
+                    rasio,
+                    cfg,
+                    typography_plan=typography_plan,
+                    gunakan_advanced=True,
+                    get_x_func=get_x_main,
+                    source_dim=source_dim,
+                )
+
+            print(f"   🎬 [Main] FFmpeg {'skip subtitle' if cfg.no_subs else 'burn subtitle'} + audio ducking...")
+            esc_ass_main = escape_ffmpeg_filter_value(os.path.abspath(a_main)) if not cfg.no_subs else ""
+            esc_fontsdir = escape_ffmpeg_filter_value(os.path.abspath(cfg.font_dir))
+
+            # SMART BGM
+            aktif_bgm = cfg.use_auto_bgm
+            bgm_mood = clip.get("bgm_mood", "chill")
+            if bgm_mood not in cfg.bgm_pool:
+                bgm_mood = "chill"
+            bgm_page = cfg.bgm_pool[bgm_mood]
+            file_bgm = os.path.abspath(os.path.join(cfg.base_dir, f"bgm_{bgm_mood}.mp3"))
+
+            if aktif_bgm and not os.path.exists(file_bgm):
+                print(f"   🎵 Mendownload Background Music (Mood: {bgm_mood})...")
+                ok_bgm = download_bgm_from_pixabay_page(bgm_page, file_bgm)
+                if not ok_bgm and bgm_mood != "chill":
+                    print("   🔄 Fallback ke BGM chill...")
+                    chill_page = cfg.bgm_pool["chill"]
+                    file_bgm = os.path.abspath(os.path.join(cfg.base_dir, "bgm_chill.mp3"))
+                    ok_bgm = download_bgm_from_pixabay_page(chill_page, file_bgm)
+
+                if ok_bgm:
+                    print(f"   ✅ BGM siap: {file_bgm}")
+                else:
+                    print("   ⚠️ Semua fallback gagal. Render lanjut tanpa BGM.")
+
+            # --- Subtitle & BGM Encoding Loop (Handles dual output files if needed) ---
+            runs = [m_silent] if not dev_dual else [m_silent, m_silent.replace(".ts", "_dev.ts")]
+            out_targets = [m_ts] if not dev_dual else [m_ts, m_ts_dev]
+            
+            for input_silent_ts, output_final_ts in zip(runs, out_targets):
+                lbl_suffix = "" if input_silent_ts == m_silent else " (DEV)"
+                
+                if aktif_bgm and os.path.exists(file_bgm):
+                    v_filter_parts = [f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"] if not cfg.no_subs else ["null"]
+                    if cfg.video_sharpen:
+                        v_filter_parts.append("unsharp=5:5:0.5:5:5:0.0")
+                    v_filter = ",".join(v_filter_parts)
+                    
+                    filter_complex = (
+                        f"[0:v]{v_filter}[v_out]; "
+                        f"[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume=1.2[voc]; "
+                        f"[2:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume={cfg.bgm_base_volume}[bgm]; "
+                        f"[bgm][voc]sidechaincompress=threshold=0.08:ratio=5.0:attack=100:release=1000[bgm_ducked]; "
+                        f"[voc][bgm_ducked]amix=inputs=2:duration=first:weights=1 1:dropout_transition=2[a_out]"
+                    )
+
+                    cmd_m_base = [
+                        "ffmpeg",
+                        "-hide_banner",
+                        "-loglevel",
+                        "verbose",
+                        "-y",
+                        "-i",
+                        input_silent_ts,
+                        "-ss",
+                        str(m_start),
+                        "-to",
+                        str(m_end),
+                        "-i",
+                        cfg.file_video_asli,
+                        "-stream_loop",
+                        "-1",
+                        "-i",
+                        file_bgm,
+                        "-filter_complex",
+                        filter_complex,
+                        "-map",
+                        "[v_out]",
+                        "-map",
+                        "[a_out]",
+                        "-shortest",
+                    ] + std_p
+                else:
+                    cmd_m_base = [
+                        "ffmpeg",
+                        "-hide_banner",
+                        "-loglevel",
+                        "verbose",
+                        "-y",
+                        "-i",
+                        input_silent_ts,
+                        "-ss",
+                        str(m_start),
+                        "-to",
+                        str(m_end),
+                        "-i",
+                        cfg.file_video_asli,
+                        "-map",
+                        "0:v:0",
+                        "-map",
+                        "1:a:0",
+                    ]
+                    if not cfg.no_subs:
+                        vf_main_parts = [f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"]
+                    else:
+                        vf_main_parts = []
+                    
+                    if cfg.video_sharpen:
+                        vf_main_parts.append("unsharp=5:5:0.5:5:5:0.0")
+                    
+                    if vf_main_parts:
+                        cmd_m_base += ["-vf", ",".join(vf_main_parts)]
+                    cmd_m_base += std_p
+
+                cmd_m = build_ffmpeg_progress_cmd(cmd_m_base, output_final_ts)
+                rc_m, err_m = run_ffmpeg_with_progress(
+                    cmd_m, m_end - m_start, label=f"Rank {rank} Main FFmpeg{lbl_suffix}"
+                )
+                if rc_m != 0:
+                    raise RuntimeError(f"FFmpeg main{lbl_suffix} gagal:\n" + "\n".join(err_m))
 
         # FINAL CONCAT
         print("   🔗 [Final] Menyelesaikan clip akhir...")

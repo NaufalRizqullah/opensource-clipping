@@ -7,6 +7,19 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.5.0] - 2026-05-20
+
+### Added
+- **Multi-Hook Intro V2 (`--hook-v2`)**: New dynamic multi-clip intro generator. AI picks 3-4 of the most punchy/controversial micro-moments from the clip, renders them as rapid-fire 0.5-2 second hooks, and stitches them together with customizable flash or glitch transitions. Configurable via `--hook-v2-items`, `--hook-v2-style`, and `--white-flash-duration`.
+- **Segment-Based Clip Trimming**: AI now analyzes each clip for boring, silent, or filler sections and returns `keep_segments` — only the best parts are rendered and concatenated. This dramatically improves pacing, especially for long-form clips with dead air.
+  - BGM ducking is applied after segment concatenation to ensure seamless audio across cuts.
+  - Disable with `--no-segment-trim` to render full start-to-end as before.
+  - Use `--silence-trim` to instruct AI to aggressively remove all pauses >0.5s.
+- **V2 Transition Helpers**: New `clipping/studio/v2_helpers.py` module that generates white-flash and RGB-glitch transition clips using FFmpeg `lavfi` filters.
+- **New CLI Flags**: `--hook-v2`, `--hook-v2-items`, `--hook-v2-style`, `--white-flash-duration`, `--no-segment-trim`, `--silence-trim`.
+
+---
+
 ## [v1.4.0] - 2026-05-11
 
 ### Added

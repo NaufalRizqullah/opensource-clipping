@@ -17,6 +17,8 @@
 | **Karaoke Subtitles** | Word-by-word highlighted `.ASS` subtitles (Alex Hormozi / Veed style) |
 | **Kinetic Typography** | AI-driven word emphasis with bounce/stagger animations & dual-font system |
 | **B-Roll Integration** | Auto-fetches contextual stock footage from **Pexels** with crossfade & Ken Burns |
+| **Multi-Hook Intro (V2)** | Creates high-retention 3-4 micro-hook intros with flash/glitch transitions |
+| **Smart Segment Trimming** | AI dynamically selects the best segments to cut out boring/silent parts |
 | **Auto-BGM & Ducking** | AI-matched background music from Pixabay with sidechain ducking |
 | **Auto-Thumbnail** | Frame extraction with dark overlay and large title text |
 | **Cross-Platform Metadata** | YouTube title/description/tags + TikTok caption — all in English |
@@ -322,10 +324,76 @@ python main.py --url "VIDEO_URL" --split-screen --dynamic-split --split-trigger 
 
 # 6. Square output (1:1) with Split-Screen
 python main.py --url "VIDEO_URL" --ratio "1:1" --split-screen --dynamic-split --split-trigger face
+
+# 7. Hook V2 + Segment Trimming (default)
+python main.py --url "VIDEO_URL" --hook-v2
+
+# 8. Hook V2 + Aggressive Silence Trimming
+python main.py --url "VIDEO_URL" --hook-v2 --silence-trim
+
+# 9. Hook V2 without Segment Trimming (full render)
+python main.py --url "VIDEO_URL" --hook-v2 --no-segment-trim
+
+# 10. Hook V2 Custom: 4 micro-hooks with glitch style
+python main.py --url "VIDEO_URL" --hook-v2 --hook-v2-items 4 --hook-v2-style "glitch_fast"
 ```
 
 > [!IMPORTANT]
 > Audio-based features (diarization) require a **HuggingFace Token** (`HF_TOKEN`) in your `.env` file and acceptance of the Pyannote model agreement on HuggingFace.
+
+## 🎬 Understanding Hook V2 & Segment Trimming
+
+### Final Video Structure
+
+```
+[Hook V2 Intro] → [MAIN CLIP] → done
+   ↑                    ↑
+   Rapid micro-hooks    This part is affected by Segment Trimming
+   (0.5-2s × 3-4)
+```
+
+**Hook V2** and **Segment Trimming** are two independent features that operate on different parts of the video.
+
+### Hook V2 (Multi-Hook Intro)
+
+Hook V2 creates a **rapid-fire intro** at the beginning of the video — 3-4 short clips (0.5-2 seconds) taken from the most punchy/controversial moments within the clip. Each piece is separated by a white flash or glitch transition. The goal: **stop the viewer from scrolling** within the first 3-5 seconds.
+
+```
+Example Hook V2:
+  [Clip 1: "NOBODY DARES" (1s)] → ⚡flash → [Clip 2: "THEY'RE ALL WRONG" (0.8s)] → ⚡flash → [Clip 3: "HERE'S THE TRUTH" (1.2s)] → [MAIN CLIP]
+```
+
+### Segment Trimming
+
+Segment Trimming only applies to the **main clip** (after the hook). AI analyzes the main clip and **removes** boring sections — they're not sped up, they're **cut out entirely**, and the good parts are stitched together seamlessly.
+
+```
+Example:
+  Main clip: second 30 - 90 (60 seconds total)
+  
+  AI finds:
+    ✅ Second 30-55 : strong content, engaging
+    ❌ Second 55-58 : speaker pauses/filler (removed)
+    ✅ Second 58-90 : strong punchline
+
+  Result: segment 1 + segment 2 joined directly
+  Final duration: 57 seconds (3 seconds of filler removed)
+```
+
+### Flag Comparison
+
+| Flag | Behavior | Affected Part |
+|---|---|---|
+| *(default, no flag)* | AI smart-trims boring/filler sections | Main clip only |
+| `--silence-trim` | AI trims more aggressively — pauses >0.5s removed | Main clip only |
+| `--no-segment-trim` | No trimming, full start-to-end render | Main clip only |
+
+> [!NOTE]
+> - **Hook V2 is not affected** by any of the above flags. Hook V2 always picks its rapid-fire clips as chosen by AI.
+> - Segment Trimming and Silence Trimming **work without Hook V2** — just omit the `--hook-v2` flag.
+> - If AI determines the entire clip is already tight and engaging, `keep_segments` will contain a single segment spanning the full duration (same effect as `--no-segment-trim`).
+
+---
 
 ## 🐍 Recommended Configurations (Notebook/Colab)
 

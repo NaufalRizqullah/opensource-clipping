@@ -17,6 +17,8 @@
 | **Karaoke Subtitles** | Subtitle `.ASS` yang menyala per-kata (gaya Alex Hormozi / Veed) |
 | **Kinetic Typography** | Penekanan kata otomatis dengan animasi bounce/stagger & sistem dual-font |
 | **B-Roll Integration** | Mengambil stock footage kontekstual dari **Pexels** dengan crossfade & Ken Burns |
+| **Multi-Hook Intro (V2)** | Membuat intro dengan 3-4 potongan hook cepat yang disertai transisi white flash/glitch |
+| **Smart Segment Trimming** | AI dinamis memotong bagian kosong/membosankan di tengah video untuk pacing cepat |
 | **Auto-BGM & Ducking** | Musik latar otomatis dari Pixabay dengan sidechain ducking |
 | **Auto-Thumbnail** | Ekstraksi frame dengan overlay gelap dan teks judul besar |
 | **Metadata Lintas Platform** | Judul/deskripsi/tag YouTube + caption TikTok — semua dalam Bahasa Inggris |
@@ -320,10 +322,76 @@ python main.py --url "URL_VIDEO" --split-screen --dynamic-split --split-trigger 
 
 # 6. Output kotak (1:1) dengan Split-Screen
 python main.py --url "URL_VIDEO" --ratio "1:1" --split-screen --dynamic-split --split-trigger face
+
+# 7. Hook V2 + Segment Trimming (default)
+python main.py --url "URL_VIDEO" --hook-v2
+
+# 8. Hook V2 + Silence Trimming Agresif
+python main.py --url "URL_VIDEO" --hook-v2 --silence-trim
+
+# 9. Hook V2 tanpa Segment Trimming (render penuh)
+python main.py --url "URL_VIDEO" --hook-v2 --no-segment-trim
+
+# 10. Hook V2 Custom: 4 micro-hooks dengan gaya glitch
+python main.py --url "URL_VIDEO" --hook-v2 --hook-v2-items 4 --hook-v2-style "glitch_fast"
 ```
 
 > [!IMPORTANT]
 > Fitur diarization memerlukan persetujuan model Pyannote di HuggingFace dan token `HF_TOKEN` di file `.env`.
+
+## 🎬 Penjelasan Hook V2 & Segment Trimming
+
+### Struktur Video Final
+
+```
+[Hook V2 Intro] → [CLIP UTAMA] → selesai
+   ↑                    ↑
+   Multi-hook cepat     Bagian ini yang dipengaruhi Segment Trimming
+   (0.5-2 dtk × 3-4)
+```
+
+**Hook V2** dan **Segment Trimming** adalah dua fitur independen yang bekerja di bagian berbeda dari video.
+
+### Hook V2 (Multi-Hook Intro)
+
+Hook V2 membuat **intro cepat** di awal video berupa 3-4 potongan pendek (0.5-2 detik) yang diambil dari momen paling mencolok/kontroversial di dalam klip. Setiap potongan dipisahkan oleh transisi white flash atau glitch. Tujuannya: **menahan penonton agar tidak scroll** dalam 3-5 detik pertama.
+
+```
+Contoh Hook V2:
+  [Potongan 1: "GAK ADA YANG BERANI" (1 dtk)] → ⚡flash → [Potongan 2: "SEMUA SALAH" (0.8 dtk)] → ⚡flash → [Potongan 3: "INI FAKTANYA" (1.2 dtk)] → [CLIP UTAMA]
+```
+
+### Segment Trimming (Pemangkasan Segmen)
+
+Segment Trimming hanya berlaku di **clip utama** (setelah hook). AI menganalisis clip utama dan **membuang/memotong** bagian yang tidak menarik — bukan dipercepat, tapi **dipotong habis** lalu potongan bagus disambung langsung.
+
+```
+Contoh:
+  Clip utama: detik 30 - 90 (durasi 60 detik)
+  
+  AI menemukan:
+    ✅ Detik 30-55  : konten kuat, menarik
+    ❌ Detik 55-58  : pembicara diam/basa-basi (dibuang)
+    ✅ Detik 58-90  : punchline kuat
+
+  Hasil: segmen 1 + segmen 2 disambung langsung
+  Durasi final: 57 detik (3 detik filler hilang)
+```
+
+### Perbandingan Opsi
+
+| Flag | Perilaku | Bagian yang Terpengaruh |
+|---|---|---|
+| *(default, tanpa flag)* | AI smart-trim bagian boring/filler | Clip utama saja |
+| `--silence-trim` | AI trim lebih agresif — jeda >0.5 detik dibuang | Clip utama saja |
+| `--no-segment-trim` | Tidak ada trim, render penuh start-to-end | Clip utama saja |
+
+> [!NOTE]
+> - **Hook V2 tidak terpengaruh** oleh ketiga opsi di atas. Hook V2 selalu mengambil potongan cepat sesuai yang AI pilih.
+> - Segment Trimming dan Silence Trimming **bisa digunakan tanpa Hook V2**, cukup jangan tambahkan flag `--hook-v2`.
+> - Jika AI menilai seluruh clip sudah padat dan menarik, `keep_segments` hanya berisi 1 segmen yang mencakup seluruh durasi (efeknya sama seperti `--no-segment-trim`).
+
+---
 
 ## 📂 Struktur Proyek
 

@@ -539,6 +539,44 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Resize algorithm for OpenCV scaling steps during rendering.",
     )
 
+    # --- Hook V2 & Segment Trimming ---
+    hook_v2_group = p.add_argument_group("Hook V2 & Segment Trimming")
+    hook_v2_group.add_argument(
+        "--hook-v2",
+        action="store_true",
+        default=False,
+        help="Enable Multi-Hook Intro V2 mode (3-4 micro-hook clips with flash/glitch transitions).",
+    )
+    hook_v2_group.add_argument(
+        "--hook-v2-items",
+        type=int,
+        default=3,
+        help="Number of micro-hooks to generate in V2 mode.",
+    )
+    hook_v2_group.add_argument(
+        "--hook-v2-style",
+        default="controversial_fast_glitch",
+        help="Style prompt hint for AI to pick the hook style.",
+    )
+    hook_v2_group.add_argument(
+        "--white-flash-duration",
+        type=float,
+        default=0.12,
+        help="Duration of white flash transition between hooks (seconds).",
+    )
+    hook_v2_group.add_argument(
+        "--no-segment-trim",
+        action="store_true",
+        default=False,
+        help="Disable AI segment trimming (render full start-to-end instead of keep_segments).",
+    )
+    hook_v2_group.add_argument(
+        "--silence-trim",
+        action="store_true",
+        default=False,
+        help="Instruct AI to aggressively trim silence/dead air from clips.",
+    )
+
     # --- Story Clip Mode ---
     story_group = p.add_argument_group("Story Clip Mode")
     story_group.add_argument(
@@ -622,6 +660,13 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         durasi_hook=args.hook_duration,
         hook_source=args.hook_source,
         hook_source_start=args.hook_source_start,
+        # Hook V2 & Segment Trimming
+        hook_v2=args.hook_v2,
+        hook_v2_items=args.hook_v2_items,
+        hook_v2_style=args.hook_v2_style,
+        white_flash_duration=args.white_flash_duration,
+        no_segment_trim=args.no_segment_trim,
+        silence_trim=args.silence_trim,
         use_broll=not args.no_broll,
         use_hook_glitch=not args.no_hook,
         use_auto_bgm=not args.no_bgm,

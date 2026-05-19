@@ -486,8 +486,43 @@ def _generate_json_with_retry(client, model, fallback_model, contents, config):
     ) from last_exc
 
 
-def get_analysis_prompt(transkrip_lengkap: str, jumlah_clip: int, durasi_hook: int) -> str:
+def get_analysis_prompt(transkrip_lengkap: str, jumlah_clip: int, durasi_hook: int, cfg=None) -> str:
     """Centralized prompt for both Gemini and NVIDIA providers."""
+    # Build optional Hook V2 prompt section
+    _hook_v2_prompt = ""
+    if cfg and getattr(cfg, "hook_v2", False):
+        _hook_v2_items = getattr(cfg, "hook_v2_items", 3)
+        _hook_v2_style = getattr(cfg, "hook_v2_style", "controversial_fast_glitch")
+        _hook_v2_prompt = f"""
+
+HOOK V2 (MULTI-HOOK INTRO — WAJIB):
+- Selain hook standar, buat juga "hook_v2" berisi {_hook_v2_items} potongan pendek (0.5-2 detik) yang diambil dari momen paling mencolok/controversial/emosional di dalam klip.
+- Gaya: {_hook_v2_style}
+- Setiap item harus berisi: start_time, end_time, dan text (teks on-screen singkat 2-5 kata).
+- Item harus diurutkan dari paling kuat ke paling lemah.
+- Transisi antar item akan ditambahkan otomatis (white flash / glitch) oleh sistem.
+- Isi field "hook_v2" sebagai objek dengan:
+  - "enabled": true
+  - "items": array dari objek (start_time, end_time, text)
+  - "transition": objek dengan "type" ("white_flash" atau "glitch")
+"""
+
+    # Build optional Segment Trimming prompt section
+    _segment_prompt = ""
+    if cfg and not getattr(cfg, "no_segment_trim", False):
+        _silence_hint = ""
+        if cfg and getattr(cfg, "silence_trim", False):
+            _silence_hint = "\n- AGRESIF buang bagian diam/silence/dead air. Jangan sertakan jeda lebih dari 0.5 detik."
+        _segment_prompt = f"""
+
+SEGMENT-BASED TRIMMING (KEEP SEGMENTS — WAJIB):
+- Untuk setiap klip, analisis apakah ada bagian yang kurang menarik, terlalu diam, bertele-tele, atau filler di tengah.
+- Jika ada, pecah klip menjadi beberapa "keep_segments" — hanya potongan terbaik yang dipertahankan.
+- Setiap segment berisi: start_time dan end_time.
+- Segment harus berurutan secara kronologis dan tidak boleh overlap.
+- Jika seluruh durasi klip sudah padat dan menarik, cukup buat 1 segment yang mencakup seluruh durasi.{_silence_hint}
+- Isi field "keep_segments" sebagai array dari objek (start_time, end_time).
+"""
     return f"""
 Kamu adalah Art Director, Editor Video, dan Strategist Metadata Short-Form Content untuk TikTok, Reels, dan YouTube Shorts.
 
@@ -726,6 +761,7 @@ ATURAN OUTPUT:
 - Jangan beri penjelasan apa pun di luar JSON.
 - Semua field wajib terisi.
 - Jika ragu, prioritaskan akurasi isi klip daripada kreativitas berlebihan.
+{_hook_v2_prompt}{_segment_prompt}
 
 STRUKTUR JSON WAJIB (Ikuti nama field ini secara kaku):
 [
@@ -741,6 +777,15 @@ STRUKTUR JSON WAJIB (Ikuti nama field ini secara kaku):
     "broll_list": [{{ "start_time": 40.0, "end_time": 45.0, "search_query": "..." }}],
     "recommended_visual_broll_hook": [
       {{ "broll_idea": "...", "search_keyword": "...", "why_it_works": "..." }}
+    ],
+    "hook_v2": {{
+      "enabled": true,
+      "items": [{{ "start_time": 31.0, "end_time": 32.5, "text": "KATA KUNCI" }}],
+      "transition": {{ "type": "white_flash" }}
+    }},
+    "keep_segments": [
+      {{ "start_time": 30.5, "end_time": 55.0 }},
+      {{ "start_time": 58.0, "end_time": 90.0 }}
     ],
     "title_indonesia": "...",
     "title_inggris": "...",
@@ -788,7 +833,7 @@ def analyze_with_nvidia(transkrip_lengkap: str, cfg) -> list[dict]:
         api_key=cfg.api_key_nvidia
     )
     
-    prompt = get_analysis_prompt(transkrip_lengkap, cfg.jumlah_clip, cfg.durasi_hook)
+    prompt = get_analysis_prompt(transkrip_lengkap, cfg.jumlah_clip, cfg.durasi_hook, cfg=cfg)
     
     # Define the strict schema for Guided JSON (NVIDIA NIM specific)
     clips_schema = {
@@ -886,14 +931,55 @@ def analyze_with_nvidia(transkrip_lengkap: str, cfg) -> list[dict]:
                         }
                     },
                     "required": ["tipe_akun", "akun_tujuan", "confidence", "angle_utama", "alasan", "kata_kunci_pendukung", "bio_akun", "alternatif_akun"]
-                }
+                },
+                "hook_v2": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "enabled": {"type": "boolean"},
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "properties": {
+                                    "start_time": {"type": "number"},
+                                    "end_time": {"type": "number"},
+                                    "text": {"type": "string"},
+                                },
+                                "required": ["start_time", "end_time", "text"],
+                            },
+                        },
+                        "transition": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "properties": {
+                                "type": {"type": "string", "enum": ["white_flash", "glitch"]},
+                            },
+                            "required": ["type"],
+                        },
+                    },
+                    "required": ["enabled", "items", "transition"],
+                },
+                "keep_segments": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "start_time": {"type": "number"},
+                            "end_time": {"type": "number"},
+                        },
+                        "required": ["start_time", "end_time"],
+                    },
+                },
             },
             "required": [
                 "rank", "viral_score", "start_time", "end_time", "hook_start_time", "hook_end_time",
                 "bgm_mood", "typography_plan", "broll_list", "recommended_visual_broll_hook", "title_indonesia",
                 "title_inggris", "hastag", "description_hook", "description_context",
                 "keyword_tags", "tiktok_title_id", "tiktok_caption_id", "tiktok_caption",
-                "alasan", "klasifikasi_akun"
+                "alasan", "klasifikasi_akun", "hook_v2", "keep_segments"
             ]
         }
     }
@@ -965,7 +1051,7 @@ def analyze_with_gemini(
 
     print(f"[3/3] Menganalisis Top {cfg.jumlah_clip} momen terbaik menggunakan Gemini...")
 
-    prompt = get_analysis_prompt(transkrip_lengkap, cfg.jumlah_clip, cfg.durasi_hook)
+    prompt = get_analysis_prompt(transkrip_lengkap, cfg.jumlah_clip, cfg.durasi_hook, cfg=cfg)
 
     # JSON Schema definitions (same as before)
     schema_broll = {
@@ -1073,6 +1159,43 @@ def analyze_with_gemini(
                     "tiktok_caption_id": {"type": "STRING"},
                     "tiktok_caption": {"type": "STRING"},
                     "klasifikasi_akun": schema_klasifikasi,
+                    "hook_v2": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "enabled": {"type": "BOOLEAN"},
+                            "items": {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "start_time": {"type": "NUMBER"},
+                                        "end_time": {"type": "NUMBER"},
+                                        "text": {"type": "STRING"},
+                                    },
+                                    "required": ["start_time", "end_time", "text"],
+                                },
+                            },
+                            "transition": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "type": {"type": "STRING"},
+                                },
+                                "required": ["type"],
+                            },
+                        },
+                        "required": ["enabled", "items", "transition"],
+                    },
+                    "keep_segments": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "start_time": {"type": "NUMBER"},
+                                "end_time": {"type": "NUMBER"},
+                            },
+                            "required": ["start_time", "end_time"],
+                        },
+                    },
                 },
                 "required": [
                     "rank", "viral_score", "hook_start_time", "hook_end_time",
@@ -1082,7 +1205,7 @@ def analyze_with_gemini(
                     "description_hook", "description_context",
                     "keyword_tags", "tiktok_title_id",
                     "tiktok_caption_id", "tiktok_caption",
-                    "klasifikasi_akun",
+                    "klasifikasi_akun", "hook_v2", "keep_segments",
                 ],
             },
         },
