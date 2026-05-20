@@ -11,6 +11,7 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 
 ### Fixed
 - **Hook V2 Independent of `--no-hook`**: Fixed a critical issue where `--no-hook` was also disabling Hook V2. Now `--no-hook` only disables the old V1 teaser hook (3-second glitch intro), while `--hook-v2` works independently regardless of the `--no-hook` flag.
+- **Hook V2 Missing from Final Output**: Fixed the final concat step which was discarding the rendered Hook V2 `.ts` file when `--no-hook` was active. The concat logic now has three distinct paths: Hook V2 (direct concat, no v1 glitch needed), Hook V1 (with glitch transition), and no hook.
 
 ---
 

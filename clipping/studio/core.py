@@ -774,14 +774,19 @@ def proses_klip(
             concat_runs.append((out_vid_dev, m_ts_dev, h_dev_target, (1920, 1080)))
             
         for final_path, main_vid_ts, hook_vid_ts, dims in concat_runs:
-            # Dynamically prepare glitch for THIS run's dimensions
-            cur_glitch = None
-            if aktif_hook:
+            # Determine concat strategy based on hook type
+            if use_hook_v2 and os.path.exists(hook_vid_ts):
+                # Hook V2: h_ts already contains items + transitions, concat directly
+                concat_str = f"concat:{hook_vid_ts}|{main_vid_ts}"
+            elif aktif_hook:
+                # Hook V1: need glitch transition between hook and main
                 cur_glitch = siapkan_glitch_video(rasio, cfg, video_encoder, source_h=sh, custom_dims=dims)
-            
-            if aktif_hook and cur_glitch and os.path.exists(cur_glitch) and os.path.exists(hook_vid_ts):
-                concat_str = f"concat:{hook_vid_ts}|{cur_glitch}|{main_vid_ts}"
+                if cur_glitch and os.path.exists(cur_glitch) and os.path.exists(hook_vid_ts):
+                    concat_str = f"concat:{hook_vid_ts}|{cur_glitch}|{main_vid_ts}"
+                else:
+                    concat_str = f"concat:{main_vid_ts}"
             else:
+                # No hook at all
                 concat_str = f"concat:{main_vid_ts}"
 
             subprocess.run(
