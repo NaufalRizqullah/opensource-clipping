@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.6.3] - 2026-06-19
+
+### Fixed
+- **FFmpeg Crash in BGM Ducking**: Fixed a critical crash during the BGM rendering phase (both `ducking` and `background` modes) caused by deprecated FFmpeg parameters (`dropout_transition`) and improperly escaped spacing in the `amix` filter. The script is now stable across all newer FFmpeg versions (v6.0+).
+
+---
+
 ## [v1.6.2] - 2026-06-19
 
 ### Added

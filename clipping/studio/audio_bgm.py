@@ -54,7 +54,7 @@ def build_bgm_filter(bgm_mode, bgm_base_volume, audio_input_voc="[1:a]", audio_i
         return (
             f"{voc_format}; "
             f"{bgm_format}; "
-            f"[voc][bgm]amix=inputs=2:duration=first:weights=1 1:dropout_transition=2[a_out]"
+            f"[voc][bgm]amix=inputs=2:duration=first[a_out]"
         )
     else:
         # Ducking mode (default) — sidechain compress makes BGM duck under vocals
@@ -62,5 +62,5 @@ def build_bgm_filter(bgm_mode, bgm_base_volume, audio_input_voc="[1:a]", audio_i
             f"{voc_format}; "
             f"{bgm_format}; "
             f"[bgm][voc]sidechaincompress=threshold=0.08:ratio=5.0:attack=100:release=1000[bgm_ducked]; "
-            f"[voc][bgm_ducked]amix=inputs=2:duration=first:weights=1 1:dropout_transition=2[a_out]"
+            f"[voc][bgm_ducked]amix=inputs=2:duration=first[a_out]"
         )
