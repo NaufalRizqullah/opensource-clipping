@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.6.1] - 2026-06-19
+
+### Changed
+- **Local BGM Asset Pool**: Refactored the Auto-BGM & Ducking feature to read MP3 files from a local directory (`assets/bgm/`) instead of relying on fragile web scraping from Pixabay. This resolves stability issues, rate-limiting, and failed downloads during the rendering pipeline. The system now randomly selects an MP3 based on the AI's requested mood (e.g., `chill`, `epic`, `sad`). It will automatically fallback to rendering without BGM if the local asset pool is empty.
+
+---
+
 ## [v1.6.0] - 2026-05-22
 
 ### Added
