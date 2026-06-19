@@ -7,6 +7,19 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+## [v1.6.2] - 2026-06-19
+
+### Added
+- **BGM Mixing Mode (`--bgm-mode`)**: New CLI flag to choose between two BGM mixing strategies:
+  - `ducking` *(default)*: Sidechain compress — BGM volume automatically lowers when speech is detected, then returns to normal during silence.
+  - `background`: Constant low-volume mix — BGM plays at a steady volume throughout the clip without any dynamic adjustment.
+- **Centralized Filter Builder**: Extracted all FFmpeg audio filter logic into `build_bgm_filter()` in `audio_bgm.py`, eliminating duplicated filter strings across `core.py`.
+
+### Changed
+- **`audio_bgm.py` Cleanup**: Removed ~20 unused imports (`cv2`, `mediapipe`, `numpy`, `requests`, `PIL`, `yt_dlp`, etc.) that were leftover from the original Pixabay scraping code. The module now only imports `os` and `random`.
+
+---
+
 ## [v1.6.1] - 2026-06-19
 
 ### Changed

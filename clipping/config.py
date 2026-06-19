@@ -132,6 +132,7 @@ URL_MEDIAPIPE_MODEL = "https://storage.googleapis.com/mediapipe-models/face_dete
 # 5. PENGATURAN Auto-BGM & Audio Ducking
 USE_AUTO_BGM = True
 BGM_BASE_VOLUME = 0.25
+BGM_MODE = "ducking"  # 'ducking' = sidechain compress, 'background' = constant volume mix
 
 # Daftar mood yang didukung (sesuai nama folder di assets/bgm/)
 BGM_MOODS = ["chill", "epic", "sad", "upbeat", "suspense"]
@@ -265,6 +266,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-broll", action="store_true", help="Disable B-roll footage")
     p.add_argument("--no-hook", action="store_true", help="Disable hook glitch teaser")
     p.add_argument("--no-bgm", action="store_true", help="Disable background music")
+    p.add_argument(
+        "--bgm-mode",
+        choices=["ducking", "background"],
+        default=BGM_MODE,
+        help="BGM mixing mode: 'ducking' (sidechain compress — BGM auto-lowers during speech) or 'background' (constant low volume mix)",
+    )
     p.add_argument(
         "--no-karaoke",
         action="store_true",
@@ -699,6 +706,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         url_mediapipe_model=URL_MEDIAPIPE_MODEL,
         # BGM
         bgm_base_volume=BGM_BASE_VOLUME,
+        bgm_mode=args.bgm_mode,
         bgm_moods=BGM_MOODS,
         bgm_dir=BGM_DIR,
         # Whisper

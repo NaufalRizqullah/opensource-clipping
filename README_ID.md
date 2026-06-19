@@ -19,7 +19,7 @@
 | **B-Roll Integration** | Mengambil stock footage kontekstual dari **Pexels** dengan crossfade & Ken Burns |
 | **Multi-Hook Intro (V2)** | Membuat intro dengan 3-4 potongan hook cepat yang disertai transisi white flash/glitch |
 | **Smart Segment Trimming** | AI dinamis memotong bagian kosong/membosankan di tengah video untuk pacing cepat |
-| **Auto-BGM & Ducking** | Musik latar otomatis dari Pixabay dengan sidechain ducking |
+| **Auto-BGM & Ducking** | Musik latar otomatis dari koleksi lokal (`assets/bgm/`) dengan 2 mode: *sidechain ducking* (volume BGM otomatis turun saat bicara) atau *background* (volume konstan). File MP3 di-loop otomatis jika lebih pendek dari video |
 | **Auto-Thumbnail** | Ekstraksi frame dengan overlay gelap dan teks judul besar |
 | **Metadata Lintas Platform** | Judul/deskripsi/tag YouTube + caption TikTok — semua dalam Bahasa Inggris |
 | **Auto YouTube Uploader** | Upload klip highlight beserta metadata ke YouTube secara otomatis dengan penjadwalan (opsional) |
@@ -211,6 +211,7 @@ python main.py --help
 | `--hook-source` | `None` | URL Google Drive atau path lokal untuk file video custom hook tunggal (.mp4) |
 | `--hook-source-start` | `0.0` | Waktu mulai (detik) di dalam video custom hook |
 | `--no-bgm` | — | Nonaktifkan musik latar |
+| `--bgm-mode` | `ducking` | Mode mixing BGM: `ducking` (sidechain compress — volume BGM otomatis turun saat bicara) atau `background` (volume konstan rendah) |
 | `--no-subs` | — | Nonaktifkan semua rendering subtitle |
 | `--no-karaoke` | — | Gunakan teks biasa tanpa highlight karaoke |
 | `--advanced-text` | `False` | Aktifkan typografi kinetik (skala kata & animasi pop) |
@@ -472,6 +473,18 @@ Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 - `--hook-duration` : Durasi teaser di awal video (detik)
 - `--no-broll` : Matikan fitur B-roll (stock footage otomatis)
 - `--no-hook` : Matikan hook glitch di awal klip
+
+**🎵 Pengaturan BGM (Background Music)**
+- `--no-bgm` : Matikan fitur BGM sepenuhnya (tanpa musik latar)
+- `--bgm-mode ducking` *(default)* : Mode **Sidechain Ducking** — volume BGM otomatis mengecil saat pembicara bicara, lalu kembali naik saat jeda. Memberikan efek profesional seperti video podcast/YouTube premium.
+- `--bgm-mode background` : Mode **Background Konstan** — BGM diputar di volume rendah yang stabil sepanjang video tanpa penyesuaian dinamis. Cocok untuk konten yang tidak banyak jeda.
+
+> 📁 **Setup BGM:**
+> Taruh file `.mp3` royalty-free Anda ke dalam folder `assets/bgm/<mood>/` (contoh: `assets/bgm/chill/`, `assets/bgm/epic/`, `assets/bgm/sad/`, `assets/bgm/upbeat/`, `assets/bgm/suspense/`). Script akan memilih lagu secara **acak** dari folder mood yang diminta oleh AI. Jika folder kosong, BGM akan dilewati otomatis.
+>
+> File BGM yang lebih pendek dari video akan **di-loop otomatis** (`-stream_loop -1`).
+>
+> Lihat `assets/bgm/README.md` untuk rekomendasi sumber download BGM gratis.
 
 **🎨 Pengaturan Subtitle (ASS)**
 - `--font-style` : Pilih gaya font untuk subtitle

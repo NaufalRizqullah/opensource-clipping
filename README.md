@@ -19,7 +19,7 @@
 | **B-Roll Integration** | Auto-fetches contextual stock footage from **Pexels** with crossfade & Ken Burns |
 | **Multi-Hook Intro (V2)** | Creates high-retention 3-4 micro-hook intros with flash/glitch transitions |
 | **Smart Segment Trimming** | AI dynamically selects the best segments to cut out boring/silent parts |
-| **Auto-BGM & Ducking** | AI-matched background music from Pixabay with sidechain ducking |
+| **Auto-BGM & Ducking** | Local BGM asset pool (`assets/bgm/`) with 2 modes: *sidechain ducking* (BGM auto-lowers during speech) or *background* (constant low volume). MP3 files auto-loop if shorter than the video |
 | **Auto-Thumbnail** | Frame extraction with dark overlay and large title text |
 | **Cross-Platform Metadata** | YouTube title/description/tags + TikTok caption — all in English |
 | **Auto YouTube Uploader** | Automatically upload highlight clips to YouTube with scheduling support and full metadata (optional) |
@@ -211,6 +211,7 @@ python main.py --help
 | `--hook-source` | `None` | Google Drive URL or local path for a single custom hook video (.mp4) |
 | `--hook-source-start` | `0.0` | Start time in seconds for the custom hook video |
 | `--no-bgm` | — | Disable background music |
+| `--bgm-mode` | `ducking` | BGM mixing mode: `ducking` (sidechain compress — BGM auto-lowers during speech) or `background` (constant low volume mix) |
 | `--no-subs` | — | Disable all subtitle rendering |
 | `--no-karaoke` | — | Use clean text instead of karaoke highlight |
 | `--advanced-text` | `False` | Enable kinetic typography (word scaling & animation) |
@@ -340,6 +341,19 @@ python main.py --url "VIDEO_URL" --hook-v2 --hook-v2-items 4 --hook-v2-style "gl
 
 > [!IMPORTANT]
 > Audio-based features (diarization) require a **HuggingFace Token** (`HF_TOKEN`) in your `.env` file and acceptance of the Pyannote model agreement on HuggingFace.
+
+## 🎵 BGM (Background Music) Settings
+
+- `--no-bgm` : Disable the BGM feature entirely.
+- `--bgm-mode ducking` *(default)* : **Sidechain Ducking** mode — BGM volume automatically lowers when the speaker is talking, then rises during pauses. Provides a professional effect like premium podcasts/YouTube videos.
+- `--bgm-mode background` : **Constant Background** mode — BGM plays at a stable, low volume throughout the video without dynamic adjustments. Best for content with few pauses.
+
+> 📁 **BGM Setup:**
+> Place your royalty-free `.mp3` files into the `assets/bgm/<mood>/` folder (e.g., `assets/bgm/chill/`, `assets/bgm/epic/`, `assets/bgm/sad/`, `assets/bgm/upbeat/`, `assets/bgm/suspense/`). The script will **randomly** select a song from the mood folder requested by the AI. If the folder is empty, BGM will be skipped automatically.
+>
+> BGM files shorter than the video will be **auto-looped** (`-stream_loop -1`).
+>
+> See `assets/bgm/README.md` for recommended sources to download free BGM.
 
 ## 🎬 Understanding Hook V2 & Segment Trimming
 

@@ -52,6 +52,7 @@ register_fonts_for_libass = typography.register_fonts_for_libass
 siapkan_font_tipografi = typography.siapkan_font_tipografi
 audio_bgm = _load_studio_internal_module("audio_bgm.py", "clipping_studio_audio_bgm")
 get_local_bgm_file = audio_bgm.get_local_bgm_file
+build_bgm_filter = audio_bgm.build_bgm_filter
 broll = _load_studio_internal_module("broll.py", "clipping_studio_broll")
 download_pexels_broll = broll.download_pexels_broll
 crop_center_broll = broll.crop_center_broll
@@ -563,11 +564,10 @@ def proses_klip(
                 print("   🎵 Applying BGM to segmented clip...")
                 m_ts_bgm = f"m_bgm_{rank}.ts"
                 seg_total_dur = sum(float(s["end_time"]) - float(s["start_time"]) for s in keep_segments)
-                filter_complex_seg = (
-                    f"[0:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume=1.2[voc]; "
-                    f"[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume={cfg.bgm_base_volume}[bgm]; "
-                    f"[bgm][voc]sidechaincompress=threshold=0.08:ratio=5.0:attack=100:release=1000[bgm_ducked]; "
-                    f"[voc][bgm_ducked]amix=inputs=2:duration=first:weights=1 1:dropout_transition=2[a_out]"
+                bgm_mode = getattr(cfg, "bgm_mode", "ducking")
+                filter_complex_seg = build_bgm_filter(
+                    bgm_mode, cfg.bgm_base_volume,
+                    audio_input_voc="[0:a]", audio_input_bgm="[1:a]"
                 )
                 cmd_bgm_seg = [
                     "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
@@ -673,12 +673,14 @@ def proses_klip(
                         v_filter_parts.append("unsharp=5:5:0.5:5:5:0.0")
                     v_filter = ",".join(v_filter_parts)
                     
+                    bgm_mode = getattr(cfg, "bgm_mode", "ducking")
+                    audio_filter = build_bgm_filter(
+                        bgm_mode, cfg.bgm_base_volume,
+                        audio_input_voc="[1:a]", audio_input_bgm="[2:a]"
+                    )
                     filter_complex = (
                         f"[0:v]{v_filter}[v_out]; "
-                        f"[1:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume=1.2[voc]; "
-                        f"[2:a]aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume={cfg.bgm_base_volume}[bgm]; "
-                        f"[bgm][voc]sidechaincompress=threshold=0.08:ratio=5.0:attack=100:release=1000[bgm_ducked]; "
-                        f"[voc][bgm_ducked]amix=inputs=2:duration=first:weights=1 1:dropout_transition=2[a_out]"
+                        f"{audio_filter}"
                     )
 
                     cmd_m_base = [
