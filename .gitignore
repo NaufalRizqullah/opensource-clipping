@@ -16,7 +16,7 @@ outputs/
 *.ass
 *.jpg
 *.tflite
-*.mp3
+# *.mp3
 custom_fonts/
 render_manifest*.json
 metadata_preview.json

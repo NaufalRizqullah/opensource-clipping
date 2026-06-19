@@ -43,142 +43,28 @@ build_ffmpeg_progress_cmd = _ffmpeg_utils.build_ffmpeg_progress_cmd
 run_ffmpeg_with_progress = _ffmpeg_utils.run_ffmpeg_with_progress
 
 
-def resolve_pixabay_audio_url(page_url, timeout=45):
+def get_local_bgm_file(mood, bgm_dir):
     """
-    Resolve the direct Pixabay CDN audio URL from a track page URL.
+    Get a random BGM MP3 file from the local assets directory based on mood.
 
     Args:
-        page_url (str): The URL of the Pixabay audio track page.
-        timeout (int, optional): HTTP request timeout in seconds. Defaults to 45.
+        mood (str): The requested mood (e.g., 'chill', 'epic', 'sad').
+        bgm_dir (str): Base directory for BGM assets.
 
     Returns:
-        str: The direct downloadable MP3 URL from Pixabay CDN.
-
-    Side Effects:
-        Makes an HTTP GET request to the provided `page_url`.
-
-    Raises:
-        requests.exceptions.RequestException: If the HTTP request fails.
-        RuntimeError: If no playable audio URL pattern is found in the HTML content.
+        str: Absolute path to the selected MP3 file, or None if not found/empty.
     """
-    headers = {
-        "User-Agent": FIREFOX_UA,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Referer": "https://pixabay.com/",
-        "Connection": "keep-alive",
-        "DNT": "1",
-        "Upgrade-Insecure-Requests": "1",
-    }
-
-    r = requests.get(page_url, headers=headers, timeout=timeout, allow_redirects=True)
-    r.raise_for_status()
-    html_text = r.text
-
-    patterns = [
-        r'https://cdn\.pixabay\.com/download/audio/[^"\']+',
-        r'"contentUrl":"(https:\\/\\/cdn\.pixabay\.com\\/download\\/audio\\/[^"]+)"',
-        r'"url":"(https:\\/\\/cdn\.pixabay\.com\\/download\\/audio\\/[^"]+)"',
-        r'downloadUrl":"(https:\\/\\/cdn\.pixabay\.com\\/download\\/audio\\/[^"]+)"',
-    ]
-
-    for pattern in patterns:
-        m = re.search(pattern, html_text)
-        if m:
-            url = m.group(1) if m.groups() else m.group(0)
-            url = url.replace("\\/", "/")
-            url = html.unescape(url)
-            return url
-
-    raise RuntimeError("MP3 URL tidak ketemu di halaman Pixabay")
-
-
-def download_bgm_from_pixabay_page(
-    page_url, output_path, max_retry=4, min_valid_size=10_000
-):
-    """
-    Download BGM audio from a Pixabay page into a local output path.
-
-    Args:
-        page_url (str): The URL of the Pixabay audio track page.
-        output_path (str): The local file path where the MP3 will be saved.
-        max_retry (int, optional): Maximum download retry attempts. Defaults to 4.
-        min_valid_size (int, optional): Minimum valid file size in bytes. Defaults to 10,000.
-
-    Returns:
-        bool: True if the file is successfully downloaded and validated, False otherwise.
-
-    Side Effects:
-        Calls `resolve_pixabay_audio_url` to get the direct link.
-        Writes a temporary file (`.part`) and replaces the target `output_path` on success.
-        Prints progress and error messages to stdout.
-
-    Raises:
-        Exceptions are caught and retried. Returns False if all retries fail.
-    """
-    headers = {
-        "User-Agent": FIREFOX_UA,
-        "Accept": "*/*",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Referer": "https://pixabay.com/",
-        "Origin": "https://pixabay.com",
-        "Connection": "keep-alive",
-        "DNT": "1",
-        "Upgrade-Insecure-Requests": "1",
-    }
-
-    temp_path = output_path + ".part"
-
-    for attempt in range(1, max_retry + 1):
-        try:
-            audio_url = resolve_pixabay_audio_url(page_url)
-            print(f"   🔗 Resolved BGM URL: {audio_url[:100]}...")
-
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-
-            with requests.get(
-                audio_url,
-                headers=headers,
-                stream=True,
-                timeout=(20, 120),
-                allow_redirects=True,
-            ) as r:
-                r.raise_for_status()
-
-                content_type = (r.headers.get("Content-Type") or "").lower()
-                if (
-                    "audio" not in content_type
-                    and "mpeg" not in content_type
-                    and "octet-stream" not in content_type
-                ):
-                    raise ValueError(f"Respon bukan audio: {content_type}")
-
-                with open(temp_path, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=1024 * 256):
-                        if chunk:
-                            f.write(chunk)
-
-            if (
-                not os.path.exists(temp_path)
-                or os.path.getsize(temp_path) < min_valid_size
-            ):
-                size = os.path.getsize(temp_path) if os.path.exists(temp_path) else 0
-                raise ValueError(f"File BGM tidak valid ({size} byte)")
-
-            os.replace(temp_path, output_path)
-            return True
-
-        except Exception as e:
-            print(f"   ⚠️ Gagal download BGM attempt {attempt}/{max_retry}: {e}")
-            if os.path.exists(temp_path):
-                try:
-                    os.remove(temp_path)
-                except Exception:
-                    pass
-            time.sleep(1.5 * attempt)
-
-    print(f"   ❌ Gagal total download BGM")
-    return False
+    mood_dir = os.path.join(bgm_dir, mood)
+    
+    if not os.path.exists(mood_dir) or not os.path.isdir(mood_dir):
+        return None
+        
+    mp3_files = [f for f in os.listdir(mood_dir) if f.lower().endswith(".mp3")]
+    
+    if not mp3_files:
+        return None
+        
+    selected_file = random.choice(mp3_files)
+    return os.path.abspath(os.path.join(mood_dir, selected_file))
 
 

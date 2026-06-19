@@ -133,13 +133,9 @@ URL_MEDIAPIPE_MODEL = "https://storage.googleapis.com/mediapipe-models/face_dete
 USE_AUTO_BGM = True
 BGM_BASE_VOLUME = 0.25
 
-BGM_POOL = {
-    "chill": "https://pixabay.com/music/beats-lofi-study-calm-peaceful-chill-hop-112191/",
-    "epic": "https://pixabay.com/music/main-title-epic-epic-trailer-music-325357/",
-    "sad": "https://pixabay.com/music/modern-classical-sad-sorrowful-piano-music-330768/",
-    "upbeat": "https://pixabay.com/music/upbeat-pop-upbeat-pop-music-307007/",
-    "suspense": "https://pixabay.com/music/ambient-dark-ambient-background-music-342437/",
-}
+# Daftar mood yang didukung (sesuai nama folder di assets/bgm/)
+BGM_MOODS = ["chill", "epic", "sad", "upbeat", "suspense"]
+BGM_DIR = os.path.abspath(os.path.join(BASE_DIR, "assets", "bgm"))
 
 # Whisper
 WHISPER_MODEL = "large-v3"
@@ -703,7 +699,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         url_mediapipe_model=URL_MEDIAPIPE_MODEL,
         # BGM
         bgm_base_volume=BGM_BASE_VOLUME,
-        bgm_pool=BGM_POOL,
+        bgm_moods=BGM_MOODS,
+        bgm_dir=BGM_DIR,
         # Whisper
         use_dlp_subs=args.use_dlp_subs,
         whisper_model=args.whisper_model,

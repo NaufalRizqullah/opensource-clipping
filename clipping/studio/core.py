@@ -51,8 +51,7 @@ download_google_font = typography.download_google_font
 register_fonts_for_libass = typography.register_fonts_for_libass
 siapkan_font_tipografi = typography.siapkan_font_tipografi
 audio_bgm = _load_studio_internal_module("audio_bgm.py", "clipping_studio_audio_bgm")
-resolve_pixabay_audio_url = audio_bgm.resolve_pixabay_audio_url
-download_bgm_from_pixabay_page = audio_bgm.download_bgm_from_pixabay_page
+get_local_bgm_file = audio_bgm.get_local_bgm_file
 broll = _load_studio_internal_module("broll.py", "clipping_studio_broll")
 download_pexels_broll = broll.download_pexels_broll
 crop_center_broll = broll.crop_center_broll
@@ -544,20 +543,23 @@ def proses_klip(
             # and go directly to BGM application on the concatenated result
             aktif_bgm = cfg.use_auto_bgm
             bgm_mood = clip.get("bgm_mood", "chill")
-            if bgm_mood not in cfg.bgm_pool:
+            if bgm_mood not in getattr(cfg, "bgm_moods", ["chill"]):
                 bgm_mood = "chill"
-            file_bgm = os.path.abspath(os.path.join(cfg.base_dir, f"bgm_{bgm_mood}.mp3"))
+            
+            file_bgm = None
+            if aktif_bgm:
+                print(f"   🎵 Mencari file BGM lokal (Mood: {bgm_mood})...")
+                file_bgm = get_local_bgm_file(bgm_mood, getattr(cfg, "bgm_dir", os.path.join(cfg.base_dir, "assets", "bgm")))
+                if not file_bgm and bgm_mood != "chill":
+                    print("   🔄 Fallback mencari BGM chill...")
+                    file_bgm = get_local_bgm_file("chill", getattr(cfg, "bgm_dir", os.path.join(cfg.base_dir, "assets", "bgm")))
+                
+                if file_bgm:
+                    print(f"   ✅ BGM siap: {file_bgm}")
+                else:
+                    print("   ⚠️ Folder BGM kosong atau file mp3 tidak ditemukan. Render lanjut tanpa BGM.")
 
-            if aktif_bgm and not os.path.exists(file_bgm):
-                bgm_page = cfg.bgm_pool[bgm_mood]
-                print(f"   🎵 Mendownload Background Music (Mood: {bgm_mood})...")
-                ok_bgm = download_bgm_from_pixabay_page(bgm_page, file_bgm)
-                if not ok_bgm and bgm_mood != "chill":
-                    chill_page = cfg.bgm_pool["chill"]
-                    file_bgm = os.path.abspath(os.path.join(cfg.base_dir, "bgm_chill.mp3"))
-                    ok_bgm = download_bgm_from_pixabay_page(chill_page, file_bgm)
-
-            if aktif_bgm and os.path.exists(file_bgm):
+            if aktif_bgm and file_bgm:
                 print("   🎵 Applying BGM to segmented clip...")
                 m_ts_bgm = f"m_bgm_{rank}.ts"
                 seg_total_dur = sum(float(s["end_time"]) - float(s["start_time"]) for s in keep_segments)
@@ -642,24 +644,21 @@ def proses_klip(
             # SMART BGM
             aktif_bgm = cfg.use_auto_bgm
             bgm_mood = clip.get("bgm_mood", "chill")
-            if bgm_mood not in cfg.bgm_pool:
+            if bgm_mood not in getattr(cfg, "bgm_moods", ["chill"]):
                 bgm_mood = "chill"
-            bgm_page = cfg.bgm_pool[bgm_mood]
-            file_bgm = os.path.abspath(os.path.join(cfg.base_dir, f"bgm_{bgm_mood}.mp3"))
-
-            if aktif_bgm and not os.path.exists(file_bgm):
-                print(f"   🎵 Mendownload Background Music (Mood: {bgm_mood})...")
-                ok_bgm = download_bgm_from_pixabay_page(bgm_page, file_bgm)
-                if not ok_bgm and bgm_mood != "chill":
-                    print("   🔄 Fallback ke BGM chill...")
-                    chill_page = cfg.bgm_pool["chill"]
-                    file_bgm = os.path.abspath(os.path.join(cfg.base_dir, "bgm_chill.mp3"))
-                    ok_bgm = download_bgm_from_pixabay_page(chill_page, file_bgm)
-
-                if ok_bgm:
+                
+            file_bgm = None
+            if aktif_bgm:
+                print(f"   🎵 Mencari file BGM lokal (Mood: {bgm_mood})...")
+                file_bgm = get_local_bgm_file(bgm_mood, getattr(cfg, "bgm_dir", os.path.join(cfg.base_dir, "assets", "bgm")))
+                if not file_bgm and bgm_mood != "chill":
+                    print("   🔄 Fallback mencari BGM chill...")
+                    file_bgm = get_local_bgm_file("chill", getattr(cfg, "bgm_dir", os.path.join(cfg.base_dir, "assets", "bgm")))
+                
+                if file_bgm:
                     print(f"   ✅ BGM siap: {file_bgm}")
                 else:
-                    print("   ⚠️ Semua fallback gagal. Render lanjut tanpa BGM.")
+                    print("   ⚠️ Folder BGM kosong atau file mp3 tidak ditemukan. Render lanjut tanpa BGM.")
 
             # --- Subtitle & BGM Encoding Loop (Handles dual output files if needed) ---
             runs = [m_silent] if not dev_dual else [m_silent, m_silent.replace(".ts", "_dev.ts")]
@@ -668,7 +667,7 @@ def proses_klip(
             for input_silent_ts, output_final_ts in zip(runs, out_targets):
                 lbl_suffix = "" if input_silent_ts == m_silent else " (DEV)"
                 
-                if aktif_bgm and os.path.exists(file_bgm):
+                if aktif_bgm and file_bgm:
                     v_filter_parts = [f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"] if not cfg.no_subs else ["null"]
                     if cfg.video_sharpen:
                         v_filter_parts.append("unsharp=5:5:0.5:5:5:0.0")
