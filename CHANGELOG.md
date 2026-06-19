@@ -10,7 +10,7 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 ## [v1.6.3] - 2026-06-19
 
 ### Fixed
-- **FFmpeg Crash in BGM Ducking**: Fixed a critical crash during the BGM rendering phase (both `ducking` and `background` modes) caused by deprecated FFmpeg parameters (`dropout_transition`) and improperly escaped spacing in the `amix` filter. The script is now stable across all newer FFmpeg versions (v6.0+).
+- **FFmpeg Crash in BGM Ducking**: Fixed a critical filtergraph crash during the BGM rendering phase (mode `ducking`). Previously, the vocal audio stream was improperly connected to two different filters (`sidechaincompress` and `amix`) simultaneously without using `asplit`, causing immediate FFmpeg failure. Also removed deprecated parameters (`dropout_transition`) from `amix` to ensure compatibility across all newer FFmpeg versions (v6.0+).
 
 ---
 

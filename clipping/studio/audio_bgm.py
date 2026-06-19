@@ -61,6 +61,7 @@ def build_bgm_filter(bgm_mode, bgm_base_volume, audio_input_voc="[1:a]", audio_i
         return (
             f"{voc_format}; "
             f"{bgm_format}; "
-            f"[bgm][voc]sidechaincompress=threshold=0.08:ratio=5.0:attack=100:release=1000[bgm_ducked]; "
-            f"[voc][bgm_ducked]amix=inputs=2:duration=first[a_out]"
+            f"[voc]asplit=2[voc_sc][voc_mix]; "
+            f"[bgm][voc_sc]sidechaincompress=threshold=0.08:ratio=5.0:attack=100:release=1000[bgm_ducked]; "
+            f"[voc_mix][bgm_ducked]amix=inputs=2:duration=first[a_out]"
         )
