@@ -358,9 +358,11 @@ def upload_video_to_youtube(
     video_id = response["id"]
     thumb_result = {"thumbnail_set": False, "thumbnail_error": None}
 
-    if is_nonempty_file(thumbnail_path):
-        print("   🖼️ Setting thumbnail...")
-        thumb_result = set_custom_thumbnail(youtube, video_id, thumbnail_path)
+    # TODO: uncomment this after we have a good thumbnail system
+    # Right now dont upload a thumbnail. let youtube handle it
+    # if is_nonempty_file(thumbnail_path):
+    #     print("   🖼️ Setting thumbnail...")
+    #     thumb_result = set_custom_thumbnail(youtube, video_id, thumbnail_path)
 
     return {
         "video_id": video_id,
