@@ -384,7 +384,7 @@ def upload_manifest_to_youtube(
     result_file: str = "youtube_upload_results.json",
     updated_manifest_file: str = "render_manifest_uploaded.json",
     tz_name: str = "Asia/Makassar",
-    interval_hours: int = 8,
+    interval_hours: int = 6,
     start_local: str = None,
     test_mode: bool = False
 ):
