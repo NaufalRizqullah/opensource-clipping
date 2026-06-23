@@ -8,6 +8,15 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.7.4] - 2026-06-23
+
+### Fixed
+- **Zombie Process Bug**: Fixed an issue where the background `yt_dlp` fetching threads failed to terminate when shutting down the server with `Ctrl+C`, resulting in zombie processes that caused the browser UI polling to hang indefinitely.
+- **Missing Progress Bar**: Fixed a UI bug where the background fetching progress bar failed to render on the Playlist detail view page.
+
+### Changed
+- **Stuck Pulls Optimization**: Added a startup optimization to automatically reset any interrupted or stuck "running" background pulls in the database to a "failed" state, preventing perpetual loading states in the frontend after a server crash or abrupt restart.
+
 ## [v1.7.3] - 2026-06-24
 
 ### Added

@@ -264,6 +264,15 @@ def init_db():
     conn = get_connection()
     try:
         conn.executescript(_SCHEMA_SQL)
+        
+        # Reset any stuck "running" pull runs to "failed" on startup
+        conn.execute("""
+            UPDATE pull_runs
+            SET status = 'failed',
+                error_message = 'Interrupted by server restart'
+            WHERE status = 'running'
+        """)
+        
         conn.commit()
     finally:
         conn.close()
