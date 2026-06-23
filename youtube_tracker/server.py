@@ -441,6 +441,11 @@ class TrackerHandler(BaseHTTPRequestHandler):
             if not vid_id:
                 return self._send_error_json(400, "Invalid video URL")
 
+            # Check if video already exists
+            existing = db.get_video_detail(vid_id)
+            if existing:
+                return self._send_error_json(409, "Video ini sudah pernah ditambahkan!")
+
             try:
                 vmeta = fetcher.fetch_video(url)
 

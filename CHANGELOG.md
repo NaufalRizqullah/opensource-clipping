@@ -7,6 +7,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Minor (x.Y.z)**: Incremented for new functionality introduced in a backward-compatible manner.
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
+
+## [v1.7.1] - 2026-06-23
+
+### Added
+- **Dedicated Navigation**: Added standalone pages for Playlists (`#/playlists`) and Manual Videos (`#/manual`) with static sidebar links for direct access, decluttering the dashboard view.
+- **Duplicate Prevention**: Added validation when adding manual videos. If a video is already in the database, a warning popup is shown and no data is modified.
+
 ## [v1.7.0] - 2026-06-23
 
 ### Added (YouTube Tracker)
@@ -15,6 +22,7 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Improved Dashboard UI**: Split the "Add Playlist" and "Add Manual Video" forms into always-visible side-by-side cards.
 - **Large Playlist Support**: Fixed an issue where playlists with >100 videos were being truncated. Added robust 3x retry logic with exponential backoff for fetching metadata.
 - **Channel Avatars**: YouTube channel profile pictures now display on the Channels grid and inside the Channel Detail page headers.
+
 
 ---
 

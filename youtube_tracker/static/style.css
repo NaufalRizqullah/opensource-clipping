@@ -137,6 +137,56 @@ body {
   flex: 1;
 }
 
+.sidebar-heading {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 16px 12px 6px;
+  margin-top: 4px;
+}
+
+.sidebar-accordion-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  color: var(--text-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.92rem;
+  font-weight: 500;
+  user-select: none;
+}
+.sidebar-accordion-header:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.sidebar-accordion-header .nav-icon {
+  margin-right: 12px;
+  font-size: 1.1rem;
+}
+.sidebar-accordion-header .chevron {
+  margin-left: auto;
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
+}
+.sidebar-accordion.expanded .chevron {
+  transform: rotate(180deg);
+}
+
+.sidebar-accordion-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: none;
+  padding-left: 24px; /* indent child items */
+}
+.sidebar-accordion.expanded .sidebar-accordion-menu {
+  display: block;
+}
+
 .sidebar-nav li {
   margin-bottom: 2px;
 }

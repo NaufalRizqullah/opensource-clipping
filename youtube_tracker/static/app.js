@@ -365,6 +365,76 @@
   });
 
   // -----------------------------------------------------------------------
+  // Playlists (All Playlists view)
+  // -----------------------------------------------------------------------
+
+  registerRoute('/playlists', async () => {
+    $app.innerHTML = loading('Loading playlists...');
+
+    const data = await api('/api/sources');
+    const sources = (data.sources || []).filter(s => s.source_type === 'playlist');
+
+    let html = `
+      <div class="page-header">
+        <h2>Playlists</h2>
+        <p class="page-subtitle">Tracked YouTube playlists</p>
+      </div>
+
+      <div class="source-grid" id="source-grid">`;
+
+    if (sources.length === 0) {
+      html += emptyState('📑', 'No playlists yet', 'Add a YouTube playlist from the Dashboard to get started.');
+    } else {
+      for (const s of sources) {
+        const total = s.total_videos || 0;
+        html += `
+          <div class="source-card" onclick="window.location.hash='#/source/${s.id}'">
+            <div class="source-card-header">
+              ${s.thumbnail_url
+            ? `<img src="${escHtml(s.thumbnail_url)}" class="source-thumb" alt="" onerror="this.outerHTML='<div class=source-thumb-placeholder>📋</div>'">`
+            : '<div class="source-thumb-placeholder">📋</div>'}
+              <div>
+                <div class="source-title">${escHtml(s.title)}</div>
+                <div class="source-meta">${s.owner_channel_name ? escHtml(s.owner_channel_name) + ' · ' : ''}${total} videos</div>
+                <span class="badge badge-playlist">PLAYLIST</span>
+              </div>
+            </div>
+            ${progressBar(s.total_used || 0, s.total_candidate || 0, s.total_skipped || 0, s.total_unused || 0, total)}
+            
+            <div class="source-footer">
+              <span class="last-pull">Last pull: ${fmtDate(s.last_pulled_at) || 'Never pulled'}</span>
+              <div class="source-actions">
+                <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); window._refreshSource(${s.id})">🔄 Pull Again</button>
+                <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); window._deleteSource(${s.id})" title="Delete Source">🗑️</button>
+              </div>
+            </div>
+          </div>`;
+      }
+    }
+    html += `</div>`;
+    $app.innerHTML = html;
+  });
+
+  // -----------------------------------------------------------------------
+  // Manual Videos View
+  // -----------------------------------------------------------------------
+
+  registerRoute('/manual', async () => {
+    $app.innerHTML = loading('Loading manual videos...');
+    try {
+      const data = await api('/api/sources');
+      const manualSource = (data.sources || []).find(s => s.source_type === 'manual');
+      if (manualSource) {
+        navigate('#/source/' + manualSource.id);
+      } else {
+        $app.innerHTML = emptyState('🎬', 'No manual videos yet', 'Add manual videos from the Dashboard to get started.');
+      }
+    } catch (e) {
+      $app.innerHTML = `<div class="error-state">Error: ${escHtml(e.message)}</div>`;
+    }
+  });
+
+  // -----------------------------------------------------------------------
   // Source Detail
   // -----------------------------------------------------------------------
 
