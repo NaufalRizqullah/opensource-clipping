@@ -25,8 +25,8 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 
 ### Added
 - **BGM Mixing Mode (`--bgm-mode`)**: New CLI flag to choose between two BGM mixing strategies:
-  - `ducking` *(default)*: Sidechain compress — BGM volume automatically lowers when speech is detected, then returns to normal during silence.
-  - `background`: Constant low-volume mix — BGM plays at a steady volume throughout the clip without any dynamic adjustment.
+  - `ducking` *(default)*: Sidechain compress - BGM volume automatically lowers when speech is detected, then returns to normal during silence.
+  - `background`: Constant low-volume mix - BGM plays at a steady volume throughout the clip without any dynamic adjustment.
 - **Centralized Filter Builder**: Extracted all FFmpeg audio filter logic into `build_bgm_filter()` in `audio_bgm.py`, eliminating duplicated filter strings across `core.py`.
 
 ### Changed
@@ -55,7 +55,7 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 ## [v1.5.4] - 2026-05-22
 
 ### Changed
-- **Hook V2 Trailing Flash**: Added a flash/glitch transition after the **last** hook item, right before the main clip starts. Previously transitions only appeared between items — now the intro ends with a clean flash that separates the hook from the main content.
+- **Hook V2 Trailing Flash**: Added a flash/glitch transition after the **last** hook item, right before the main clip starts. Previously transitions only appeared between items - now the intro ends with a clean flash that separates the hook from the main content.
 
 ---
 
@@ -86,7 +86,7 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 
 ### Added
 - **Multi-Hook Intro V2 (`--hook-v2`)**: New dynamic multi-clip intro generator. AI picks 3-4 of the most punchy/controversial micro-moments from the clip, renders them as rapid-fire 0.5-2 second hooks, and stitches them together with customizable flash or glitch transitions. Configurable via `--hook-v2-items`, `--hook-v2-style`, and `--white-flash-duration`.
-- **Segment-Based Clip Trimming**: AI now analyzes each clip for boring, silent, or filler sections and returns `keep_segments` — only the best parts are rendered and concatenated. This dramatically improves pacing, especially for long-form clips with dead air.
+- **Segment-Based Clip Trimming**: AI now analyzes each clip for boring, silent, or filler sections and returns `keep_segments` - only the best parts are rendered and concatenated. This dramatically improves pacing, especially for long-form clips with dead air.
   - BGM ducking is applied after segment concatenation to ensure seamless audio across cuts.
   - Disable with `--no-segment-trim` to render full start-to-end as before.
   - Use `--silence-trim` to instruct AI to aggressively remove all pauses >0.5s.
@@ -99,8 +99,8 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 
 ### Added
 - **Story Clip Mode (`--story-mode`)**: Brand-new multi-source narrative assembly pipeline for building clips from multiple video sources. Designed for campaign work (e.g., Shopee, brand briefs) where specific scenes from different videos must be stitched together into a cohesive story.
-  - Define video sources in `sources.json` — supports YouTube, TikTok, Instagram, Google Drive, and local files.
-  - Define the clip recipe in `story_recipe.json` — specify scenes with exact timestamps, hooks, highlights, transitions, and metadata per clip.
+  - Define video sources in `sources.json` - supports YouTube, TikTok, Instagram, Google Drive, and local files.
+  - Define the clip recipe in `story_recipe.json` - specify scenes with exact timestamps, hooks, highlights, transitions, and metadata per clip.
   - Each clip produces **2 separate outputs**: `hook_N.mp4` (teaser intro) and `highlight_N.mp4` (main content).
   - Automatic multi-source download with idempotent caching (`outputs/story_cache/`).
   - Scene normalization ensures consistent resolution/fps across heterogeneous sources before concatenation.
@@ -109,19 +109,19 @@ All notable changes to the **OpenSource Clipping** project will be documented in
   - Full manifest output (`story_manifest.json`) with status tracking per clip.
   - Includes `sources.sample.json` and `story_recipe.sample.json` templates.
 - **New CLI Flags**:
-  - `--story-mode`: Enable Story Clip pipeline (bypasses AI analysis — no `GOOGLE_API_KEY` needed).
+  - `--story-mode`: Enable Story Clip pipeline (bypasses AI analysis - no `GOOGLE_API_KEY` needed).
   - `--story-recipe`: Path to recipe JSON (default: `story_recipe.json`).
   - `--sources-json`: Path to sources registry JSON (default: `sources.json`).
   - `--story-output-dir`: Custom output directory (default: `outputs/story_clips`).
   - `--skip-download`: Skip source downloads and use existing cache.
 - **New Modules**:
-  - `clipping/story/loader.py` — JSON parser & validator with cross-reference validation between sources and recipe.
-  - `clipping/story/source_manager.py` — Multi-platform download & cache manager (reuses existing engine).
-  - `clipping/story/assembler.py` — FFmpeg-based scene trimming, normalization, concatenation, and text overlay.
-  - `clipping/story_runner.py` — Pipeline orchestrator for Story Clip mode.
+  - `clipping/story/loader.py` - JSON parser & validator with cross-reference validation between sources and recipe.
+  - `clipping/story/source_manager.py` - Multi-platform download & cache manager (reuses existing engine).
+  - `clipping/story/assembler.py` - FFmpeg-based scene trimming, normalization, concatenation, and text overlay.
+  - `clipping/story_runner.py` - Pipeline orchestrator for Story Clip mode.
 
 ### Changed
-- **`--url` is now optional**: The `--url` flag is no longer globally required — it is only required when running in standard auto-clip mode. Story Clip mode uses `sources.json` instead.
+- **`--url` is now optional**: The `--url` flag is no longer globally required - it is only required when running in standard auto-clip mode. Story Clip mode uses `sources.json` instead.
 
 ---
 
@@ -130,7 +130,7 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 ### Added
 - **Multi-Platform Source Support**: Refactored the source engine to support multiple video platforms natively via the new `--source` CLI flag. You can now download videos directly from `youtube` (default), `tiktok`, `instagram`, and `gdrive`.
   - When a non-YouTube platform is selected, the download engine uses a simplified `yt-dlp` format selector optimized for their single-quality serving.
-  - YouTube subtitle fallback (`--use-dlp-subs`) is automatically skipped for non-YouTube sources — Whisper is always used for transcription.
+  - YouTube subtitle fallback (`--use-dlp-subs`) is automatically skipped for non-YouTube sources - Whisper is always used for transcription.
 - **Source Platform Banner**: The startup banner now displays the active source platform for clarity.
 
 ### Fixed
@@ -170,7 +170,7 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 ## [v1.2.0] - 2026-05-01
 
 ### Added
-- **Multi-Ratio Output Support**: Added three new output aspect ratios — `1:1` (Square), `3:4` (Instagram Portrait), and `4:5` (Facebook/Instagram Feed). All three use the same face-tracking crop behavior as `9:16`, automatically detecting and following faces within the narrower frame.
+- **Multi-Ratio Output Support**: Added three new output aspect ratios - `1:1` (Square), `3:4` (Instagram Portrait), and `4:5` (Facebook/Instagram Feed). All three use the same face-tracking crop behavior as `9:16`, automatically detecting and following faces within the narrower frame.
   - CLI usage: `--ratio 1:1`, `--ratio 3:4`, `--ratio 4:5`
   - Split-screen, camera-switch, B-roll, subtitles, glitch transitions, and dev-mode all fully support the new ratios.
 
@@ -574,13 +574,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 
 ### Improved
 - **Multi-Speaker Multi-Scene Podcast Support**: Both `--split-screen` and `--camera-switch` now handle podcast formats with **3+ speakers across multiple scenes** (e.g., 2 speakers in one camera shot + 1 speaker in a separate solo shot). Use `--diarization-speakers 3` to enable.
-  - **Split-Screen**: Per-speaker frozen frame cache — each speaker now has their own fallback crop instead of a single shared one. Both panels (top & bottom) can independently fall back to their speaker's last valid frame when the speaker is not visible in the current scene.
-  - **Camera-Switch**: Scene-aware simultaneous speech — when 2+ speakers talk simultaneously but are in **different scenes** (one is solo-scene type), the system stays on the current speaker instead of switching to blurred pillarbox. Wide-shot only triggers when all active speakers share the same physical frame.
+  - **Split-Screen**: Per-speaker frozen frame cache - each speaker now has their own fallback crop instead of a single shared one. Both panels (top & bottom) can independently fall back to their speaker's last valid frame when the speaker is not visible in the current scene.
+  - **Camera-Switch**: Scene-aware simultaneous speech - when 2+ speakers talk simultaneously but are in **different scenes** (one is solo-scene type), the system stays on the current speaker instead of switching to blurred pillarbox. Wide-shot only triggers when all active speakers share the same physical frame.
   - **Hybrid Visual Auto-Detection**: Added the `auto` option (which is now the default) for `--diarization-speakers`. When set to `auto`, the system performs a rapid visual scan of 20 sampled frames to find the maximum number of people physically appearing together. This number is then injected dynamically into Pyannote as a boundary guide, optimizing accuracy and significantly reducing "over-segmentation" issues.
   - **Split-Screen**: Refactored panel rendering into a reusable `_build_panel()` helper; both panels now use identical fallback logic.
 
 ### Notes
-- Backward compatible with existing 2-speaker podcast workflows — no changes needed for standard usage.
+- Backward compatible with existing 2-speaker podcast workflows - no changes needed for standard usage.
 - For 3-speaker podcasts, set `--diarization-speakers 3` to let Pyannote detect all speakers correctly.
 
 ---
@@ -599,9 +599,9 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 > ⚠️ **Experimental**: The camera-switch feature in this version is experimental and may be rolled back or undergo significant changes in future updates.
 
 ### Added
-- **Camera-Switch Mode** (`--camera-switch`): New full 9:16 rendering mode for podcast-style videos. Uses Pyannote speaker diarization to detect who is speaking at each moment and automatically switches the crop to focus on the active speaker — similar to a live director cutting between camera angles.
+- **Camera-Switch Mode** (`--camera-switch`): New full 9:16 rendering mode for podcast-style videos. Uses Pyannote speaker diarization to detect who is speaking at each moment and automatically switches the crop to focus on the active speaker - similar to a live director cutting between camera angles.
   - **Single speaker active** → full 9:16 crop centred and face-tracked on that speaker
-  - **Both speakers simultaneously** → **blurred pillarbox** (original 16:9 frame centred with blurred background filling the 9:16 canvas — no black bars)
+  - **Both speakers simultaneously** → **blurred pillarbox** (original 16:9 frame centred with blurred background filling the 9:16 canvas - no black bars)
   - **No one speaking** → holds on the last active speaker
   - **Minimum hold duration** (`--switch-hold-duration`, default `2.0` s) prevents flickering when speakers alternate rapidly
 - **Blurred Pillarbox Helper** (`_make_blurred_pillarbox`): Internal renderer that produces TikTok/Reels-style blurred letterbox/pillarbox by using a scaled + Gaussian-blurred version of the source frame as background, with the original frame composited at the centre.

@@ -1,1 +1,1 @@
-# web.api — OpenSource Clipping Web API
+# web.api - OpenSource Clipping Web API

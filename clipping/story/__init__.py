@@ -1,6 +1,6 @@
 """
-clipping.story — Story Clip: Multi-Source Narrative Assembly
+clipping.story - Story Clip: Multi-Source Narrative Assembly
 
-Fitur untuk merakit cerita dari potongan-potongan video multi-sumber
-menjadi satu narasi yang menyatu.
+A feature for assembling a story from multi-source video segments
+into a single, cohesive narrative.
 """

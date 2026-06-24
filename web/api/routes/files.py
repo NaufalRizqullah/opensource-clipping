@@ -1,5 +1,5 @@
 """
-web.api.routes.files — File upload and output serving endpoints.
+web.api.routes.files - File upload and output serving endpoints.
 """
 
 from __future__ import annotations
@@ -71,7 +71,7 @@ async def upload_video(file: UploadFile = File(...)) -> dict:
     return {
         "filename": safe_name,
         "size_mb": round(size_mb, 2),
-        "message": f"Upload berhasil: {safe_name} ({size_mb:.1f} MB)",
+        "message": f"Upload successful: {safe_name} ({size_mb:.1f} MB)",
     }
 
 

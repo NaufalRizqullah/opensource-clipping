@@ -155,7 +155,7 @@ def _get_render_dims(cfg, rasio, source_h=1080):
         out_w = target_h_base
         out_h = int(target_h_base * h_part / w_part)
     else:
-        # 16:9 — target_h_base is height
+        # 16:9 - target_h_base is height
         out_h = target_h_base
         out_w = int(target_h_base * w_part / h_part)
 

@@ -55,6 +55,51 @@ crop_center_broll = broll.crop_center_broll
 face_detection = _load_studio_internal_module("face_detection.py", "clipping_studio_face_detection")
 get_face_detector = face_detection.get_face_detector
 
+
+def _make_blurred_fit(frame, out_w, out_h, cfg=None, blur_kernel=99, blur_sigma=30):
+    """
+    Fit the WHOLE frame into an out_w x out_h canvas without cropping content.
+
+    The frame is scaled to fit the output width and centred vertically; the
+    empty top/bottom area is filled with a zoomed, blurred copy of the same
+    frame (a "blurred pillarbox"). Used as a no-crop alternative when turning
+    a 16:9 source into a vertical 9:16 output so nothing on the sides is lost.
+
+    Args:
+        frame: Source BGR frame.
+        out_w (int): Target output width.
+        out_h (int): Target output height.
+        cfg: Runtime config (for the configured resize interpolation).
+        blur_kernel (int): Gaussian blur kernel size for the background.
+        blur_sigma (float): Gaussian blur sigma for the background.
+
+    Returns:
+        np.ndarray: The composited out_h x out_w frame.
+    """
+    h, w = frame.shape[:2]
+    # Background: scale to COVER the canvas, centre-crop, then blur.
+    scale = max(out_w / w, out_h / h)
+    new_w = max(out_w, int(w * scale))
+    new_h = max(out_h, int(h * scale))
+    bg = _resize_frame(frame, (new_w, new_h), cfg)
+    y0 = (new_h - out_h) // 2
+    x0 = (new_w - out_w) // 2
+    bg = bg[y0 : y0 + out_h, x0 : x0 + out_w]
+    ksize = blur_kernel if blur_kernel % 2 == 1 else blur_kernel + 1
+    bg = cv2.GaussianBlur(bg, (ksize, ksize), blur_sigma)
+    # Foreground: scale the full frame to the output width, keep aspect ratio.
+    fg_w = out_w
+    fg_h = min(out_h, int(h * out_w / w))
+    if fg_h % 2 != 0:
+        fg_h += 1
+    fg = _resize_frame(frame, (fg_w, fg_h), cfg)
+    # Composite the foreground centred on the blurred background.
+    result = bg.copy()
+    y_start = (out_h - fg_h) // 2
+    result[y_start : y_start + fg_h, 0:fg_w] = fg
+    return result
+
+
 def buat_video_hybrid(
     input_video,
     output_video,
@@ -94,13 +139,13 @@ def buat_video_hybrid(
     # =======================================================
     # 🎛️ PARAMETER TUNING KAMERA
     # =======================================================
-    STEP_DETEKSI     = cfg.track_step if cfg.track_step is not None else 0.25   # AI mengecek wajah tiap 0.25 detik
-    # STEP_DETEKSI     = 0.5   # AI mengecek wajah tiap 0.5 detik
-    # STEP_DETEKSI     = max(0.5, (end_clip - start_clip) / 60.0)   # [OLD] AI mengecek wajah tiap max 0.5 atau sepanjang durasi (end_clip - start_clip) detik per menit
+    STEP_DETEKSI     = cfg.track_step if cfg.track_step is not None else 0.25   # AI checks the face every 0.25 seconds
+    # STEP_DETEKSI     = 0.5   # AI checks the face every 0.5 seconds
+    # STEP_DETEKSI     = max(0.5, (end_clip - start_clip) / 60.0)   # [OLD] AI checks the face every max(0.5, clip duration (end_clip - start_clip) per minute) seconds
 
-    DEADZONE_RATIO   = cfg.track_deadzone if cfg.track_deadzone is not None else 0.15  # 15% area tengah adalah zona aman (kamera tidak ikut gerak)
-    # DEADZONE_RATIO   = 0.25  # 25% area tengah adalah zona aman (kamera tidak ikut gerak)
-    # DEADZONE_RATIO   = 0.20  # [OLD] 20% area tengah adalah zona aman (kamera tidak ikut gerak)
+    DEADZONE_RATIO   = cfg.track_deadzone if cfg.track_deadzone is not None else 0.15  # 15% center area is the safe zone (camera does not follow movement)
+    # DEADZONE_RATIO   = 0.25  # 25% center area is the safe zone (camera does not follow movement)
+    # DEADZONE_RATIO   = 0.20  # [OLD] 20% center area is the safe zone (camera does not follow movement)
 
     SMOOTH_FACTOR    = cfg.track_smooth if cfg.track_smooth is not None else 0.30  # Kecepatan kamera menyusul (30% jarak). Bikin pergerakan sangat mulus.
     # SMOOTH_FACTOR    = 0.15  # Kecepatan kamera menyusul (15% jarak). Bikin pergerakan sangat mulus.
@@ -119,7 +164,7 @@ def buat_video_hybrid(
     detector = None
     if cfg.face_detector == "yolo":
         if not os.path.exists(cfg.file_yolo_model):
-            print(f"   📥 Mendownload YOLOv8 Face Model ({cfg.yolo_size})...")
+            print(f"   📥 Downloading YOLOv8 Face Model ({cfg.yolo_size})...")
             import urllib.request
 
             urllib.request.urlretrieve(cfg.url_yolo_model, cfg.file_yolo_model)
@@ -165,12 +210,17 @@ def buat_video_hybrid(
     current_time = 0.0
     last_detect_percent = -1
     
-    skip_tracking = getattr(cfg, "static_crop", False) and rasio in ["1:1", "3:4", "4:5"]
+    use_fit_blur = getattr(cfg, "use_fit_blur", False) and _is_vertical_ratio(rasio)
+    static_crop = getattr(cfg, "static_crop", False) and rasio in ["1:1", "3:4", "4:5"]
+    # Fit (blurred bars) keeps the whole frame, so face tracking is unnecessary.
+    skip_tracking = static_crop or use_fit_blur
 
-    if skip_tracking:
-        print(f"🧠 {label} - Static Crop aktif (tanpa face tracking)...", flush=True)
+    if use_fit_blur:
+        print(f"🖼️  {label} - Fit mode active (blurred bars, no crop)...", flush=True)
+    elif static_crop:
+        print(f"🧠 {label} - Static crop active (no face tracking)...", flush=True)
     else:
-        print(f"🧠 {label} - Analisa wajah dimulai...", flush=True)
+        print(f"🧠 {label} - Face analysis started...", flush=True)
 
     while current_time <= duration and not skip_tracking:
         cap.set(cv2.CAP_PROP_POS_MSEC, (start_clip + current_time) * 1000)
@@ -226,7 +276,7 @@ def buat_video_hybrid(
             min(100, int((current_time / duration) * 100)) if duration > 0 else 100
         )
         if detect_percent != last_detect_percent:
-            print(f"⏳ {label} - Analisa wajah: {detect_percent:3d}%", flush=True)
+            print(f"⏳ {label} - Face analysis: {detect_percent:3d}%", flush=True)
             last_detect_percent = detect_percent
 
         current_time += STEP_DETEKSI
@@ -241,10 +291,11 @@ def buat_video_hybrid(
         cam_cy = _st.median(initial_cys) if initial_cys else raw_data[0]["cy"]
         
         deadzone_px = crop_w * DEADZONE_RATIO
-        
-        # Consistent aggressive snapping for wide-to-tight camera cuts in standard clips
-        temp_snap = SNAP_THRESHOLD if SNAP_THRESHOLD < 0.1 else 0.08
-        snap_px = width * temp_snap
+
+        # Snap (hard-cut) only on a genuinely large jump, otherwise glide smoothly.
+        # Respects the configured --track-snap (default 0.25) instead of forcing an
+        # aggressive 0.08, so the camera pans gently rather than twitching.
+        snap_px = width * SNAP_THRESHOLD
 
         for d in raw_data:
             face_cx = d["cx"]
@@ -343,7 +394,7 @@ def buat_video_hybrid(
         frame_count = 0
         last_render_percent = -1
 
-        print(f"🎬 {label} - Render frame dimulai...", flush=True)
+        print(f"🎬 {label} - Frame render started...", flush=True)
 
         while True:
             ret, frame_utama = cap.read()
@@ -358,12 +409,18 @@ def buat_video_hybrid(
 
             # --- 1. ALWAYS CREATE CROPPED OUTPUT ---
             if _is_vertical_ratio(rasio):
-                # Vertical/square ratios: face-tracked crop
                 cx_base, cy_base = _get_pos(t)
-                x1_crop = int(max(0, min(cx_base - crop_w // 2, width - crop_w)))
-                y1_crop = int(max(0, min(cy_base - crop_h // 2, height - crop_h)))
-                cropped = frame_utama[y1_crop : y1_crop + crop_h, x1_crop : x1_crop + crop_w]
-                frame_normal = _resize_frame(cropped, (base_out_w, base_out_h))
+                if use_fit_blur:
+                    # Fit whole frame with blurred bars - nothing is cropped out.
+                    frame_normal = _make_blurred_fit(
+                        frame_utama, base_out_w, base_out_h, cfg
+                    )
+                else:
+                    # Vertical/square ratios: face-tracked crop
+                    x1_crop = int(max(0, min(cx_base - crop_w // 2, width - crop_w)))
+                    y1_crop = int(max(0, min(cy_base - crop_h // 2, height - crop_h)))
+                    cropped = frame_utama[y1_crop : y1_crop + crop_h, x1_crop : x1_crop + crop_w]
+                    frame_normal = _resize_frame(cropped, (base_out_w, base_out_h))
             else:
                 # 16:9 landscape: fit-to-height with letterbox (no stretch)
                 cx_base, cy_base = default_cx, default_cy
@@ -372,13 +429,13 @@ def buat_video_hybrid(
                 out_ratio = base_out_w / base_out_h
 
                 if abs(src_ratio - out_ratio) < 0.01:
-                    # Source already matches target ratio — direct resize
+                    # Source already matches target ratio - direct resize
                     frame_normal = _resize_frame(frame_utama, (base_out_w, base_out_h))
                 else:
                     # Fit source into target canvas, maintaining aspect ratio
                     frame_normal = np.zeros((base_out_h, base_out_w, 3), dtype=np.uint8)
                     if src_ratio > out_ratio:
-                        # Source is wider — fit to width, pad top/bottom
+                        # Source is wider - fit to width, pad top/bottom
                         fit_w = base_out_w
                         fit_h = int(base_out_w / src_ratio)
                         if fit_h % 2 != 0:
@@ -387,7 +444,7 @@ def buat_video_hybrid(
                         y_off = (base_out_h - fit_h) // 2
                         frame_normal[y_off : y_off + fit_h, :] = resized
                     else:
-                        # Source is taller (e.g. 9:16 source) — fit to height, pad left/right
+                        # Source is taller (e.g. 9:16 source) - fit to height, pad left/right
                         fit_h = base_out_h
                         fit_w = int(base_out_h * src_ratio)
                         if fit_w % 2 != 0:
@@ -514,9 +571,9 @@ def buat_video_hybrid(
         return_code = writer.wait()
 
         if return_code != 0:
-            raise RuntimeError(f"FFmpeg writer gagal: {stderr_data[-1000:]}")
+            raise RuntimeError(f"FFmpeg writer failed: {stderr_data[-1000:]}")
 
-        print(f"✅ {label} selesai.", flush=True)
+        print(f"✅ {label} done.", flush=True)
 
     finally:
         cap.release()

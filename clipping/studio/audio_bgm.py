@@ -1,5 +1,5 @@
 """
-audio_bgm.py — Local BGM asset resolver.
+audio_bgm.py - Local BGM asset resolver.
 
 Reads MP3 files from assets/bgm/<mood>/ directories and selects one at random.
 """
@@ -50,14 +50,14 @@ def build_bgm_filter(bgm_mode, bgm_base_volume, audio_input_voc="[1:a]", audio_i
     bgm_format = f"{audio_input_bgm}aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo,volume={bgm_base_volume}[bgm]"
 
     if bgm_mode == "background":
-        # Simple constant-volume mix — no sidechain, BGM stays at bgm_base_volume throughout
+        # Simple constant-volume mix - no sidechain, BGM stays at bgm_base_volume throughout
         return (
             f"{voc_format}; "
             f"{bgm_format}; "
             f"[voc][bgm]amix=inputs=2:duration=first[a_out]"
         )
     else:
-        # Ducking mode (default) — sidechain compress makes BGM duck under vocals
+        # Ducking mode (default) - sidechain compress makes BGM duck under vocals
         return (
             f"{voc_format}; "
             f"{bgm_format}; "

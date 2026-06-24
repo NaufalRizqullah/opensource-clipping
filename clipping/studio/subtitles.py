@@ -213,7 +213,7 @@ def buat_file_ass(
             f_path = os.path.join(font_dir, f_file)
 
             if not cek_font_di_folder(f_file):
-                raise FileNotFoundError(f"Font tidak ditemukan: {f_path}")
+                raise FileNotFoundError(f"Font not found: {f_path}")
 
             font_cache[key] = ImageFont.truetype(
                 f_path,

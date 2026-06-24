@@ -1,5 +1,5 @@
 """
-web.api.routes.jobs — Job management endpoints.
+web.api.routes.jobs - Job management endpoints.
 """
 
 from __future__ import annotations

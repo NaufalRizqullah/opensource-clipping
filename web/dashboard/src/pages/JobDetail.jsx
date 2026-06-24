@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { fetchJob, deleteJob, createSSEConnection } from '../api'
+import { Loader2 } from 'lucide-react'
+import { fetchJob, createSSEConnection } from '../api'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { ClipCaptionsDialog, hasCaptions } from '@/components/ClipCaptionsDialog'
 
 const STEPS = [
   { key: 'download', label: 'Download' },
@@ -10,27 +17,39 @@ const STEPS = [
   { key: 'render', label: 'Render' },
   { key: 'done', label: 'Done' },
 ]
+const TERMINAL = ['completed', 'failed', 'cancelled']
+
+/** Friendly download filename built from the clip title (falls back to rank). */
+function downloadName(clip) {
+  const base = (clip.title || clip.title_en || `clip-${clip.rank}`)
+    .replace(/[<>:"/\\|?*\n\r]+/g, '')
+    .trim()
+    .slice(0, 80)
+  const ext = (clip.download_url?.split('.').pop() || 'mp4').split('?')[0]
+  return `${base || `clip-${clip.rank}`}.${ext}`
+}
+const STATUS_VARIANT = {
+  completed: 'success', failed: 'destructive', cancelled: 'secondary',
+}
 
 function JobDetail() {
   const { jobId } = useParams()
   const [job, setJob] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [captionsClip, setCaptionsClip] = useState(null)
 
   useEffect(() => {
     let sse = null
-
     const load = async () => {
       try {
         const data = await fetchJob(jobId)
         setJob(data)
-
-        const terminal = ['completed', 'failed', 'cancelled']
-        if (!terminal.includes(data.status)) {
+        if (!TERMINAL.includes(data.status)) {
           sse = createSSEConnection(jobId, (event) => {
             if (event.type === 'completed') {
               fetchJob(jobId).then(setJob)
             } else if (event.type === 'progress') {
-              setJob(prev => prev ? { ...prev, status: event.status, progress: event.progress, error: event.error } : prev)
+              setJob((prev) => prev ? { ...prev, status: event.status, progress: event.progress, error: event.error } : prev)
             }
           })
         }
@@ -40,123 +59,180 @@ function JobDetail() {
         setLoading(false)
       }
     }
-
     load()
     return () => { if (sse) sse.close() }
   }, [jobId])
 
-  // Also poll for updates
   useEffect(() => {
     if (!job) return
-    const terminal = ['completed', 'failed', 'cancelled']
-    if (terminal.includes(job.status)) return
-
+    if (TERMINAL.includes(job.status)) return
     const interval = setInterval(async () => {
-      try {
-        const data = await fetchJob(jobId)
-        setJob(data)
-      } catch {}
+      try { setJob(await fetchJob(jobId)) } catch {}
     }, 3000)
     return () => clearInterval(interval)
   }, [jobId, job?.status])
 
-  if (loading) return <div className="empty-state"><div className="spinner"></div></div>
-  if (!job) return <div className="empty-state"><h3>Job not found</h3></div>
+  if (loading) {
+    return <div className="grid place-items-center py-32 text-muted-foreground"><Loader2 className="size-6 animate-spin" /></div>
+  }
+  if (!job) {
+    return (
+      <div className="grid place-items-center py-32 text-center">
+        <h3 className="font-display text-xl font-bold">Job not found</h3>
+        <Button asChild variant="secondary" className="mt-4"><Link to="/">Back to all jobs</Link></Button>
+      </div>
+    )
+  }
 
   const currentStep = job.progress?.step || ''
   const percent = job.progress?.percent || 0
+  const currentIdx = STEPS.findIndex((x) => x.key === currentStep)
+  const running = !TERMINAL.includes(job.status)
 
   return (
-    <div className="fade-in">
-      <div className="page-header">
-        <div>
-          <h2>Job #{job.id}</h2>
-          <p>{job.url || job.upload_filename || 'Unknown source'}</p>
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <span className={`badge badge-${job.status}`}>{job.status}</span>
-          <Link to="/new" state={{ reuseJob: job }} className="btn btn-secondary btn-sm">🔁 Clone & Rerun</Link>
-          <Link to="/" className="btn btn-ghost btn-sm">← Back</Link>
+    <div className="animate-in-up space-y-6">
+      {/* Header */}
+      <div>
+        <Link to="/" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+          All jobs
+        </Link>
+        <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-3">
+              <h1 className="font-display text-3xl font-bold tracking-tight">Job</h1>
+              <span className="font-mono text-sm text-muted-foreground">#{job.id}</span>
+              <Badge variant={STATUS_VARIANT[job.status] || 'default'}>{job.status}</Badge>
+            </div>
+            <p className="mt-1 truncate text-sm text-muted-foreground">{job.url || job.upload_filename || 'Unknown source'}</p>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/new" state={{ reuseJob: job }}>Clone &amp; Rerun</Link>
+          </Button>
         </div>
       </div>
 
       {/* Progress */}
-      {!['completed', 'failed', 'cancelled'].includes(job.status) && (
-        <div className="card" style={{ marginBottom: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 600 }}>Progress</span>
-            <span style={{ fontSize: '13px', color: 'var(--accent-hover)' }}>{Math.round(percent)}%</span>
+      {running && (
+        <Card className="p-6">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-semibold">Progress</span>
+            <span className="font-display text-sm font-bold tabular-nums text-primary">{Math.round(percent)}%</span>
           </div>
-          <div className="progress-bar-bg">
-            <div className="progress-bar-fill" style={{ width: `${percent}%` }}></div>
-          </div>
+          <Progress value={percent} />
           {job.progress?.message && (
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '10px' }}>
-              {job.progress.message}
+            <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-3.5 animate-spin" /> {job.progress.message}
             </p>
           )}
-          <div className="progress-steps" style={{ marginTop: '14px' }}>
-            {STEPS.map(s => {
-              const stepIdx = STEPS.findIndex(x => x.key === s.key)
-              const currentIdx = STEPS.findIndex(x => x.key === currentStep)
-              let cls = ''
-              if (stepIdx < currentIdx) cls = 'done'
-              else if (stepIdx === currentIdx) cls = 'active'
+          <div className="mt-6 flex flex-wrap gap-2">
+            {STEPS.map((s, i) => {
+              const done = i < currentIdx
+              const active = i === currentIdx
               return (
-                <div key={s.key} className={`progress-step ${cls}`}>
-                  <span className="step-dot"></span>
+                <div
+                  key={s.key}
+                  className={cn(
+                    'rounded-full border px-2.5 py-1 text-xs font-medium',
+                    done && 'border-transparent bg-success/12 text-success',
+                    active && 'border-primary/30 bg-primary/10 text-primary',
+                    !done && !active && 'text-muted-foreground'
+                  )}
+                >
                   {s.label}
                 </div>
               )
             })}
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Error */}
       {job.error && (
-        <div className="card" style={{ marginBottom: '16px', borderColor: 'rgba(239,68,68,0.2)' }}>
-          <h3 style={{ color: 'var(--error)', fontSize: '14px', marginBottom: '8px' }}>❌ Error</h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{job.error}</p>
-        </div>
+        <Card className="border-destructive/30 bg-destructive/5 p-5">
+          <div className="font-semibold text-destructive">Error</div>
+          <p className="mt-2 break-words text-sm text-muted-foreground">{job.error}</p>
+        </Card>
       )}
 
       {/* Clips */}
       {job.clips && job.clips.length > 0 && (
-        <>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '16px' }}>
-            🎞️ Generated Clips ({job.clips.length})
-          </h3>
-          <div className="clip-grid">
+        <div className="space-y-3">
+          <h2 className="font-display text-lg font-bold tracking-tight">
+            Generated clips <span className="text-muted-foreground">({job.clips.length})</span>
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {job.clips.map((clip, i) => (
-              <div key={i} className="clip-card">
-                <video className="clip-video" controls preload="metadata" src={clip.download_url} />
-                <div className="clip-body">
-                  <div className="clip-title">{clip.title || clip.title_en || `Clip ${clip.rank}`}</div>
-                  <div className="clip-stats">
-                    {clip.viral_score && <span className="viral-score">🔥 {clip.viral_score}</span>}
-                    {clip.duration && <span>{Math.round(clip.duration)}s</span>}
-                    <span>Rank #{clip.rank}</span>
+              <Card key={i} className="group/clip overflow-hidden transition-all hover:border-primary/30 hover:shadow-[0_8px_30px_rgba(20,19,26,0.10)]">
+                <div className="relative bg-black">
+                  <video
+                    className="max-h-[460px] w-full"
+                    controls
+                    preload="metadata"
+                    poster={clip.thumbnail_url || undefined}
+                    src={clip.download_url}
+                  />
+                  <Badge
+                    variant={clip.rank === 1 ? 'lime' : 'secondary'}
+                    className="absolute left-2 top-2 shadow-sm"
+                  >
+                    #{clip.rank}
+                  </Badge>
+                </div>
+                <div className="space-y-3 p-4">
+                  <div className="line-clamp-2 text-sm font-semibold leading-snug">
+                    {clip.title || clip.title_en || `Clip ${clip.rank}`}
                   </div>
-                  <div className="clip-actions">
-                    <a href={clip.download_url} download className="btn btn-secondary btn-sm">⬇️ Download</a>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    {clip.viral_score != null && (
+                      <Badge variant="lime">Score {clip.viral_score}</Badge>
+                    )}
+                    {clip.duration != null && <span>{Math.round(clip.duration)}s</span>}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button asChild variant="secondary" size="sm" className="flex-1">
+                      <a href={clip.download_url} download={downloadName(clip)}>Download</a>
+                    </Button>
+                    {hasCaptions(clip) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCaptionsClip(clip)}
+                        title="View AI-generated captions & hashtags"
+                      >
+                        Post kit
+                      </Button>
+                    )}
                   </div>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
-        </>
+        </div>
+      )}
+
+      {/* Empty (done but no clips) */}
+      {!running && (!job.clips || job.clips.length === 0) && !job.error && (
+        <Card className="grid place-items-center px-6 py-14 text-center text-muted-foreground">
+          <p className="text-sm">No clips were produced for this job.</p>
+        </Card>
       )}
 
       {/* Log */}
       {job.log && job.log.length > 0 && (
-        <div style={{ marginTop: '24px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px' }}>📋 Activity Log</h3>
-          <div className="log-viewer">
+        <div className="space-y-2">
+          <h2 className="font-display text-sm font-bold uppercase tracking-wider text-muted-foreground">Activity log</h2>
+          <div className="max-h-72 overflow-auto rounded-xl border bg-[#15141b] p-4 font-mono text-xs leading-relaxed text-zinc-300">
             {job.log.map((line, i) => <div key={i}>{line}</div>)}
           </div>
         </div>
       )}
+
+      <ClipCaptionsDialog
+        clip={captionsClip}
+        open={!!captionsClip}
+        onClose={() => setCaptionsClip(null)}
+      />
     </div>
   )
 }

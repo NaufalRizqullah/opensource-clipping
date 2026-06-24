@@ -1,9 +1,9 @@
 """
-clipping.story.loader — JSON Parser & Validator untuk Story Clip
+clipping.story.loader - JSON Parser & Validator for Story Clip
 
-Memparse dan memvalidasi:
-  - sources.json  → registry video sumber
-  - story_recipe.json → resep cerita (clip, scene, hook, highlight)
+
+  - sources.json  → source video registry
+  - story_recipe.json → story recipe (clip, scene, hook, highlight)
 """
 
 import json
@@ -50,7 +50,7 @@ def load_sources(path: str) -> dict[str, dict]:
         If schema validation fails.
     """
     if not os.path.exists(path):
-        raise FileNotFoundError(f"Sources file tidak ditemukan: {path}")
+        raise FileNotFoundError(f"Sources file not found: {path}")
 
     with open(path, "r", encoding="utf-8") as f:
         raw = json.load(f)
@@ -58,7 +58,7 @@ def load_sources(path: str) -> dict[str, dict]:
     entries = raw.get("sources", [])
     if not entries:
         raise ValueError(
-            f"sources.json kosong atau tidak memiliki key 'sources': {path}"
+            f"sources.json is empty or missing the 'sources' key: {path}"
         )
 
     registry: dict[str, dict] = {}
@@ -68,7 +68,7 @@ def load_sources(path: str) -> dict[str, dict]:
         missing = _REQUIRED_SOURCE_FIELDS - set(src.keys())
         if missing:
             raise ValueError(
-                f"Source #{idx} ('{src.get('id', '?')}') tidak memiliki field wajib: {missing}"
+                f"Source #{idx} ('{src.get('id', '?')}') is missing required field(s): {missing}"
             )
 
         sid = src["id"]
@@ -76,8 +76,8 @@ def load_sources(path: str) -> dict[str, dict]:
 
         if platform not in SUPPORTED_PLATFORMS:
             raise ValueError(
-                f"Source '{sid}': platform '{platform}' tidak dikenal. "
-                f"Pilih dari: {SUPPORTED_PLATFORMS}"
+                f"Source '{sid}': platform '{platform}' is not recognized. "
+                f"Choose from: {SUPPORTED_PLATFORMS}"
             )
 
         # --- URL / local_path check ---
@@ -87,16 +87,16 @@ def load_sources(path: str) -> dict[str, dict]:
         if platform == "local":
             if not local_path:
                 raise ValueError(
-                    f"Source '{sid}': platform 'local' membutuhkan 'local_path'."
+                    f"Source '{sid}': platform 'local' requires 'local_path'."
                 )
             if not os.path.exists(local_path):
                 raise ValueError(
-                    f"Source '{sid}': local_path tidak ditemukan: {local_path}"
+                    f"Source '{sid}': local_path not found: {local_path}"
                 )
         else:
             if not url:
                 raise ValueError(
-                    f"Source '{sid}': platform '{platform}' membutuhkan 'url'."
+                    f"Source '{sid}': platform '{platform}' requires 'url'."
                 )
 
         # --- Duplicate check ---
@@ -105,7 +105,7 @@ def load_sources(path: str) -> dict[str, dict]:
 
         registry[sid] = src
 
-    print(f"✅ Loaded {len(registry)} source(s) dari {os.path.basename(path)}")
+    print(f"✅ Loaded {len(registry)} source(s) from {os.path.basename(path)}")
     return registry
 
 
@@ -125,8 +125,8 @@ def _validate_scene(scene: dict, source_registry: dict, clip_id: int, section: s
     if sid not in source_registry:
         raise ValueError(
             f"Clip #{clip_id} → {section} → scene #{idx}: "
-            f"source_id '{sid}' tidak ditemukan di sources.json. "
-            f"ID yang tersedia: {list(source_registry.keys())}"
+            f"source_id '{sid}' not found in sources.json. "
+            f"Available IDs: {list(source_registry.keys())}"
         )
 
     start = scene.get("start")
@@ -137,12 +137,12 @@ def _validate_scene(scene: dict, source_registry: dict, clip_id: int, section: s
         if not isinstance(start, (int, float)) or not isinstance(end, (int, float)):
             raise ValueError(
                 f"Clip #{clip_id} → {section} → scene #{idx}: "
-                f"start/end harus berupa angka atau null."
+                f"start/end must be a number or null."
             )
         if end <= start:
             raise ValueError(
                 f"Clip #{clip_id} → {section} → scene #{idx}: "
-                f"end ({end}) harus lebih besar dari start ({start})."
+                f"end ({end}) must be greater than start ({start})."
             )
 
 
@@ -171,7 +171,7 @@ def load_recipe(path: str, source_registry: dict[str, dict]) -> dict:
         If schema validation fails.
     """
     if not os.path.exists(path):
-        raise FileNotFoundError(f"Recipe file tidak ditemukan: {path}")
+        raise FileNotFoundError(f"Recipe file not found: {path}")
 
     with open(path, "r", encoding="utf-8") as f:
         recipe = json.load(f)
@@ -179,7 +179,7 @@ def load_recipe(path: str, source_registry: dict[str, dict]) -> dict:
     clips = recipe.get("clips", [])
     if not clips:
         raise ValueError(
-            f"story_recipe.json kosong atau tidak memiliki key 'clips': {path}"
+            f"story_recipe.json is empty or missing the 'clips' key: {path}"
         )
 
     seen_ids: set[int] = set()
@@ -201,7 +201,7 @@ def load_recipe(path: str, source_registry: dict[str, dict]) -> dict:
         hook = clip["hook"]
         hook_scenes = hook.get("scenes", [])
         if not hook_scenes:
-            raise ValueError(f"Clip #{cid}: hook.scenes kosong.")
+            raise ValueError(f"Clip #{cid}: hook.scenes is empty.")
         for i, scene in enumerate(hook_scenes):
             _validate_scene(scene, source_registry, cid, "hook", i)
 
@@ -209,7 +209,7 @@ def load_recipe(path: str, source_registry: dict[str, dict]) -> dict:
         highlight = clip["highlight"]
         hl_scenes = highlight.get("scenes", [])
         if not hl_scenes:
-            raise ValueError(f"Clip #{cid}: highlight.scenes kosong.")
+            raise ValueError(f"Clip #{cid}: highlight.scenes is empty.")
         for i, scene in enumerate(hl_scenes):
             _validate_scene(scene, source_registry, cid, "highlight", i)
 
@@ -225,7 +225,7 @@ def load_recipe(path: str, source_registry: dict[str, dict]) -> dict:
     )
 
     print(
-        f"✅ Loaded {len(clips)} clip(s) dari {os.path.basename(path)} "
+        f"✅ Loaded {len(clips)} clip(s) from {os.path.basename(path)} "
         f"(project: {recipe.get('project_name', 'Untitled')})"
     )
     return recipe
@@ -254,7 +254,7 @@ def resolve_scene_path(scene: dict, source_registry: dict, cache_dir: str) -> st
     cached = os.path.join(cache_dir, f"{sid}.mp4")
     if not os.path.exists(cached):
         raise FileNotFoundError(
-            f"Cached video untuk source '{sid}' tidak ditemukan di {cached}. "
-            "Jalankan download terlebih dahulu."
+            f"Cached video for source '{sid}' not found at {cached}. "
+            "Run the download first."
         )
     return cached

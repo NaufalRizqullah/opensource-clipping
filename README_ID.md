@@ -1,6 +1,6 @@
 # 🎬 OpenSource Clipping
 
-**Ultimate AI Auto-Clipper & Teaser Generator** — proyek open-source yang mengubah video panjang menjadi highlight pendek bergaya sinematik, lengkap dengan hook teaser, subtitle karaoke, dan thumbnail otomatis.
+**Ultimate AI Auto-Clipper & Teaser Generator** - proyek open-source yang mengubah video panjang menjadi highlight pendek bergaya sinematik, lengkap dengan hook teaser, subtitle karaoke, dan thumbnail otomatis.
 
 > 🇬🇧 [Read in English](README.md)
 
@@ -21,10 +21,10 @@
 | **Smart Segment Trimming** | AI dinamis memotong bagian kosong/membosankan di tengah video untuk pacing cepat |
 | **Auto-BGM & Ducking** | Musik latar otomatis dari koleksi lokal (`assets/bgm/`) dengan 2 mode: *sidechain ducking* (volume BGM otomatis turun saat bicara) atau *background* (volume konstan). File MP3 di-loop otomatis jika lebih pendek dari video |
 | **Auto-Thumbnail** | Ekstraksi frame dengan overlay gelap dan teks judul besar |
-| **Metadata Lintas Platform** | Judul/deskripsi/tag YouTube + caption TikTok — semua dalam Bahasa Inggris |
+| **Metadata Lintas Platform** | Judul/deskripsi/tag YouTube + caption TikTok - semua dalam Bahasa Inggris |
 | **Auto YouTube Uploader** | Upload klip highlight beserta metadata ke YouTube secara otomatis dengan penjadwalan (opsional) |
 | **Podcast Split-Screen** | Diarization speaker otomatis via **Pyannote** dengan layout split-screen atas-bawah untuk podcast (9:16). Mendukung **3+ speaker lintas scene** dengan frozen frame fallback per-speaker |
-| **Podcast Camera Switch** | Deteksi speaker aktif otomatis dengan switching yang scene-aware — crop full 9:16 fokus ke pembicara aktif; blurred pillarbox hanya saat speaker di scene yang sama bicara bersamaan (9:16) |
+| **Podcast Camera Switch** | Deteksi speaker aktif otomatis dengan switching yang scene-aware - crop full 9:16 fokus ke pembicara aktif; blurred pillarbox hanya saat speaker di scene yang sama bicara bersamaan (9:16) |
 
 > 🎬 **BARU: Mode Story Clip (`--story-mode`)**  
 > Perlu merakit cerita dari potongan adegan spesifik di berbagai sumber video (misalnya untuk *campaign* brand)? Gunakan fitur Story Clip multi-sumber!  
@@ -36,8 +36,8 @@
 - **FFmpeg** terinstall dan tersedia di PATH
 - **GPU CUDA** disarankan (untuk Whisper; bisa fallback ke CPU)
 - **Google Gemini API Key** ([dapatkan di sini](https://aistudio.google.com/apikey))
-- **Pexels API Key** (opsional, untuk B-roll — [dapatkan di sini](https://www.pexels.com/api/))
-- **HuggingFace Token** (opsional, untuk split-screen / camera-switch — [dapatkan di sini](https://huggingface.co/settings/tokens), perlu accept [Pyannote model agreement](https://huggingface.co/pyannote/speaker-diarization-3.1))
+- **Pexels API Key** (opsional, untuk B-roll - [dapatkan di sini](https://www.pexels.com/api/))
+- **HuggingFace Token** (opsional, untuk split-screen / camera-switch - [dapatkan di sini](https://huggingface.co/settings/tokens), perlu accept [Pyannote model agreement](https://huggingface.co/pyannote/speaker-diarization-3.1))
 
 ## ☁️ Menjalankan di Google Colab (Direkomendasikan)
 
@@ -189,7 +189,7 @@ python main.py --help
 
 | Argumen | Default | Deskripsi |
 |---|---|---|
-| `--url`, `-u` | — | URL video yang akan diproses (Wajib) |
+| `--url`, `-u` | - | URL video yang akan diproses (Wajib) |
 | `--source` | `youtube` | Sumber video. Pilihan: `youtube`, `tiktok`, `instagram`, `gdrive`. |
 | `--clips`, `-n` | `7` | Jumlah klip highlight yang dihasilkan |
 | `--ratio`, `-r` | `9:16` | Rasio aspek output (`9:16`, `16:9`, `1:1`, `3:4`, `4:5`) |
@@ -198,7 +198,7 @@ python main.py --help
 | `--nvidia-model` | `deepseek...` | Nama model untuk NVIDIA NIM API (misal `deepseek-ai/deepseek-v3`). |
 | `--render-height` | `1080` | Target tinggi output render (`1080`, `1440`, `2160`, `source`) |
 | `--video-bitrate` | `auto` | Target bitrate video (misal 8M, 12M, auto). 'auto' menyesuaikan resolusi. |
-| `--video-sharpen` | — | Aktifkan filter penajaman (sharpening) ringan untuk hasil lebih jernih. |
+| `--video-sharpen` | - | Aktifkan filter penajaman (sharpening) ringan untuk hasil lebih jernih. |
 | `--video-cq` | `23` | Target kualitas CQ untuk NVENC (lebih kecil = lebih tajam). [Range: 15-20 (Sangat Tajam), 21-25 (Standar), 26-50 (Buram)] |
 | `--video-crf` | `20` | Target kualitas CRF untuk libx264 (lebih kecil = lebih tajam). [Range: 15-20 (Sangat Tajam), 21-25 (Standar), 26-50 (Buram)] |
 | `--video-preset` | `auto` | Override preset encoder (NVENC: `p1`-`p7`, x264: `ultrafast`-`veryslow`). Gunakan `auto` untuk default. |
@@ -206,17 +206,17 @@ python main.py --help
 | `--words-per-sub` | `5` | Maks kata per grup subtitle karaoke |
 | `--hook-duration` | `3` | Durasi hook teaser (detik) |
 | `--font-style` | `HORMOZI` | Preset font (`DEFAULT`, `STORYTELLER`, `HORMOZI`, `CINEMATIC`) |
-| `--no-broll` | — | Nonaktifkan footage B-roll |
-| `--no-hook` | — | Nonaktifkan hook glitch teaser |
+| `--no-broll` | - | Nonaktifkan footage B-roll |
+| `--no-hook` | - | Nonaktifkan hook glitch teaser |
 | `--hook-source` | `None` | URL Google Drive atau path lokal untuk file video custom hook tunggal (.mp4) |
 | `--hook-source-start` | `0.0` | Waktu mulai (detik) di dalam video custom hook |
-| `--no-bgm` | — | Nonaktifkan musik latar |
-| `--bgm-mode` | `ducking` | Mode mixing BGM: `ducking` (sidechain compress — volume BGM otomatis turun saat bicara) atau `background` (volume konstan rendah) |
-| `--no-subs` | — | Nonaktifkan semua rendering subtitle |
-| `--no-karaoke` | — | Gunakan teks biasa tanpa highlight karaoke |
+| `--no-bgm` | - | Nonaktifkan musik latar |
+| `--bgm-mode` | `ducking` | Mode mixing BGM: `ducking` (sidechain compress - volume BGM otomatis turun saat bicara) atau `background` (volume konstan rendah) |
+| `--no-subs` | - | Nonaktifkan semua rendering subtitle |
+| `--no-karaoke` | - | Gunakan teks biasa tanpa highlight karaoke |
 | `--advanced-text` | `False` | Aktifkan typografi kinetik (skala kata & animasi pop) |
 | `--advanced-text-hook` | `False` | Aktifkan typografi kinetik khusus untuk hook teaser |
-| `--use-dlp-subs` | — | Unduh dan gunakan subtitle bawaan YouTube untuk mempercepat proses (melewati Whisper) |
+| `--use-dlp-subs` | - | Unduh dan gunakan subtitle bawaan YouTube untuk mempercepat proses (melewati Whisper) |
 | `--face-detector` | `mediapipe` | Model AI untuk crop wajah (`mediapipe` atau `yolo`) |
 | `--box-face-detection` | `False` | Tampilkan kotak kuning deteksi wajah (debug) |
 | `--dev-mode` | `False` | **[Eksperimental]** Aktifkan visualisasi konteks 16:9 untuk proses tracking/stabilisasi 9:16 |
@@ -233,7 +233,7 @@ python main.py --help
 | `--load-gemini-json` | `False` | Memuat file `gemini_response.json` dari folder output untuk melewati pemanggilan API Gemini AI (berguna untuk reproduksi/debug) |
 | `--split-screen` | `False` | Aktifkan mode split-screen untuk podcast (hanya 9:16, butuh `HF_TOKEN`). Mendukung 3+ speaker lintas scene |
 | `--diarization-speakers` | `auto` | Jumlah speaker untuk diarization (set ke `3` untuk fix 3 orang, atau `auto` untuk deteksi visual AI otomatis) |
-| `--camera-switch` | `False` | Aktifkan mode camera-switch untuk podcast — crop full 9:16 berpindah ke speaker aktif; blurred pillarbox saat kedua speaker bicara bersamaan (hanya 9:16, butuh `HF_TOKEN`) |
+| `--camera-switch` | `False` | Aktifkan mode camera-switch untuk podcast - crop full 9:16 berpindah ke speaker aktif; blurred pillarbox saat kedua speaker bicara bersamaan (hanya 9:16, butuh `HF_TOKEN`) |
 | `--switch-hold-duration` | `2.0` | Durasi minimum (detik) sebelum berpindah speaker (hanya untuk camera-switch) |
 | `--split-zoom` | `1.0` | Faktor zoom manual untuk panel split-screen (misal 1.2, 1.5) |
 | `--split-v-align` | `0.5` | Perataan vertikal untuk panel split-screen (0.0=atas, 0.5=tengah, 1.0=bawah) |
@@ -364,7 +364,7 @@ Contoh Hook V2:
 
 ### Segment Trimming (Pemangkasan Segmen)
 
-Segment Trimming hanya berlaku di **clip utama** (setelah hook). AI menganalisis clip utama dan **membuang/memotong** bagian yang tidak menarik — bukan dipercepat, tapi **dipotong habis** lalu potongan bagus disambung langsung.
+Segment Trimming hanya berlaku di **clip utama** (setelah hook). AI menganalisis clip utama dan **membuang/memotong** bagian yang tidak menarik - bukan dipercepat, tapi **dipotong habis** lalu potongan bagus disambung langsung.
 
 ```
 Contoh:
@@ -384,7 +384,7 @@ Contoh:
 | Flag | Perilaku | Bagian yang Terpengaruh |
 |---|---|---|
 | *(default, tanpa flag)* | AI smart-trim bagian boring/filler | Clip utama saja |
-| `--silence-trim` | AI trim lebih agresif — jeda >0.5 detik dibuang | Clip utama saja |
+| `--silence-trim` | AI trim lebih agresif - jeda >0.5 detik dibuang | Clip utama saja |
 | `--no-segment-trim` | Tidak ada trim, render penuh start-to-end | Clip utama saja |
 
 > [!NOTE]
@@ -476,8 +476,8 @@ Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 
 **🎵 Pengaturan BGM (Background Music)**
 - `--no-bgm` : Matikan fitur BGM sepenuhnya (tanpa musik latar)
-- `--bgm-mode ducking` *(default)* : Mode **Sidechain Ducking** — volume BGM otomatis mengecil saat pembicara bicara, lalu kembali naik saat jeda. Memberikan efek profesional seperti video podcast/YouTube premium.
-- `--bgm-mode background` : Mode **Background Konstan** — BGM diputar di volume rendah yang stabil sepanjang video tanpa penyesuaian dinamis. Cocok untuk konten yang tidak banyak jeda.
+- `--bgm-mode ducking` *(default)* : Mode **Sidechain Ducking** - volume BGM otomatis mengecil saat pembicara bicara, lalu kembali naik saat jeda. Memberikan efek profesional seperti video podcast/YouTube premium.
+- `--bgm-mode background` : Mode **Background Konstan** - BGM diputar di volume rendah yang stabil sepanjang video tanpa penyesuaian dinamis. Cocok untuk konten yang tidak banyak jeda.
 
 > 📁 **Setup BGM:**
 > Taruh file `.mp3` royalty-free Anda ke dalam folder `assets/bgm/<mood>/` (contoh: `assets/bgm/chill/`, `assets/bgm/epic/`, `assets/bgm/sad/`, `assets/bgm/upbeat/`, `assets/bgm/suspense/`). Script akan memilih lagu secara **acak** dari folder mood yang diminta oleh AI. Jika folder kosong, BGM akan dilewati otomatis.
@@ -508,7 +508,7 @@ Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 > 3. Menambahkan `HF_TOKEN=your-token` di file `.env`
 
 **📹 Pengaturan Camera Switch (Podcast)**
-- `--camera-switch` : Aktifkan mode camera-switch penuh — video 9:16 bergantian mengikuti speaker yang aktif. **Scene-aware**: blurred pillarbox hanya muncul saat speaker di scene yang sama bicara bersamaan; jika speaker dari scene berbeda, tetap fokus ke speaker saat ini. **Mutually exclusive** dengan `--split-screen` (split-screen lebih prioritas jika keduanya diaktifkan).
+- `--camera-switch` : Aktifkan mode camera-switch penuh - video 9:16 bergantian mengikuti speaker yang aktif. **Scene-aware**: blurred pillarbox hanya muncul saat speaker di scene yang sama bicara bersamaan; jika speaker dari scene berbeda, tetap fokus ke speaker saat ini. **Mutually exclusive** dengan `--split-screen` (split-screen lebih prioritas jika keduanya diaktifkan).
 - `--switch-hold-duration` : Durasi minimum (detik) sebelum sistem berpindah speaker (default: `2.0`). Berguna agar tidak flickering saat pergantian cepat.
 
 **🔭 Pengaturan Tracking & Kamera (Auto-Framing)**

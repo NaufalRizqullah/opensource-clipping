@@ -1,6 +1,6 @@
 # 🎬 OpenSource Clipping
 
-**Ultimate AI Auto-Clipper & Teaser Generator** — an open-source content factory that transforms long-form videos into cinematic short-form highlights with hook teasers, karaoke subtitles, and auto-thumbnails.
+**Ultimate AI Auto-Clipper & Teaser Generator** - an open-source content factory that transforms long-form videos into cinematic short-form highlights with hook teasers, karaoke subtitles, and auto-thumbnails.
 
 > 🇮🇩 [Baca dalam Bahasa Indonesia](README_ID.md)
 
@@ -21,10 +21,10 @@
 | **Smart Segment Trimming** | AI dynamically selects the best segments to cut out boring/silent parts |
 | **Auto-BGM & Ducking** | Local BGM asset pool (`assets/bgm/`) with 2 modes: *sidechain ducking* (BGM auto-lowers during speech) or *background* (constant low volume). MP3 files auto-loop if shorter than the video |
 | **Auto-Thumbnail** | Frame extraction with dark overlay and large title text |
-| **Cross-Platform Metadata** | YouTube title/description/tags + TikTok caption — all in English |
+| **Cross-Platform Metadata** | YouTube title/description/tags + TikTok caption - all in English |
 | **Auto YouTube Uploader** | Automatically upload highlight clips to YouTube with scheduling support and full metadata (optional) |
 | **Podcast Split-Screen** | Auto speaker diarization via **Pyannote** with top-bottom split-screen layout for podcasts (9:16). Supports **3+ speakers across multiple scenes** with per-speaker frozen frame fallback |
-| **Podcast Camera Switch** | Auto active-speaker detection with scene-aware switching — full 9:16 crop focuses on whoever is talking; blurred pillarbox only when speakers in the same scene talk simultaneously (9:16) |
+| **Podcast Camera Switch** | Auto active-speaker detection with scene-aware switching - full 9:16 crop focuses on whoever is talking; blurred pillarbox only when speakers in the same scene talk simultaneously (9:16) |
 
 > 🎬 **NEW: Story Clip Mode (`--story-mode`)**  
 > Need to assemble a narrative from multiple specific video sources (like a brand campaign)? We've just introduced the Multi-Source Story Clip Mode!  
@@ -36,8 +36,8 @@
 - **FFmpeg** installed and available in PATH
 - **CUDA GPU** recommended (for Whisper; CPU fallback available)
 - **Google Gemini API Key** ([get one here](https://aistudio.google.com/apikey))
-- **Pexels API Key** (optional, for B-roll — [get one here](https://www.pexels.com/api/))
-- **HuggingFace Token** (optional, for split-screen / camera-switch — [get one here](https://huggingface.co/settings/tokens), requires accepting [Pyannote model agreement](https://huggingface.co/pyannote/speaker-diarization-3.1))
+- **Pexels API Key** (optional, for B-roll - [get one here](https://www.pexels.com/api/))
+- **HuggingFace Token** (optional, for split-screen / camera-switch - [get one here](https://huggingface.co/settings/tokens), requires accepting [Pyannote model agreement](https://huggingface.co/pyannote/speaker-diarization-3.1))
 
 ## ☁️ Running on Google Colab (Recommended)
 
@@ -189,7 +189,7 @@ python main.py --help
 
 | Argument | Default | Description |
 |---|---|---|
-| `--url`, `-u` | — | Video URL to process (Required) |
+| `--url`, `-u` | - | Video URL to process (Required) |
 | `--source` | `youtube` | Video source platform. Choices: `youtube`, `tiktok`, `instagram`, `gdrive`. |
 | `--clips`, `-n` | `7` | Number of highlight clips to generate |
 | `--ratio`, `-r` | `9:16` | Output aspect ratio (`9:16`, `16:9`, `1:1`, `3:4`, `4:5`) |
@@ -198,7 +198,7 @@ python main.py --help
 | `--nvidia-model` | `deepseek...` | Model name for NVIDIA NIM API (e.g. `deepseek-ai/deepseek-v3`). |
 | `--render-height` | `1080` | Target render output height (`1080`, `1440`, `2160`, `source`) |
 | `--video-bitrate` | `auto` | Target video bitrate (e.g. 8M, 12M, auto). 'auto' scales based on resolution. |
-| `--video-sharpen` | — | Apply a subtle sharpening filter for clearer output. |
+| `--video-sharpen` | - | Apply a subtle sharpening filter for clearer output. |
 | `--video-cq` | `23` | NVENC CQ quality target (lower is sharper). [Range: 15-20 (Ultra Sharp), 21-25 (Standard), 26-50 (Blurry)] |
 | `--video-crf` | `20` | libx264 CRF quality target (lower is sharper). [Range: 15-20 (Ultra Sharp), 21-25 (Standard), 26-50 (Blurry)] |
 | `--video-preset` | `auto` | Encoder preset override (NVENC: `p1`-`p7`, x264: `ultrafast`-`veryslow`). Use `auto` for default. |
@@ -206,17 +206,17 @@ python main.py --help
 | `--words-per-sub` | `5` | Max words per karaoke subtitle group |
 | `--hook-duration` | `3` | Hook teaser duration (seconds) |
 | `--font-style` | `HORMOZI` | Font preset (`DEFAULT`, `STORYTELLER`, `HORMOZI`, `CINEMATIC`) |
-| `--no-broll` | — | Disable B-roll footage |
-| `--no-hook` | — | Disable hook glitch teaser |
+| `--no-broll` | - | Disable B-roll footage |
+| `--no-hook` | - | Disable hook glitch teaser |
 | `--hook-source` | `None` | Google Drive URL or local path for a single custom hook video (.mp4) |
 | `--hook-source-start` | `0.0` | Start time in seconds for the custom hook video |
-| `--no-bgm` | — | Disable background music |
-| `--bgm-mode` | `ducking` | BGM mixing mode: `ducking` (sidechain compress — BGM auto-lowers during speech) or `background` (constant low volume mix) |
-| `--no-subs` | — | Disable all subtitle rendering |
-| `--no-karaoke` | — | Use clean text instead of karaoke highlight |
+| `--no-bgm` | - | Disable background music |
+| `--bgm-mode` | `ducking` | BGM mixing mode: `ducking` (sidechain compress - BGM auto-lowers during speech) or `background` (constant low volume mix) |
+| `--no-subs` | - | Disable all subtitle rendering |
+| `--no-karaoke` | - | Use clean text instead of karaoke highlight |
 | `--advanced-text` | `False` | Enable kinetic typography (word scaling & animation) |
 | `--advanced-text-hook` | `False` | Enable kinetic typography specifically on the hook teaser |
-| `--use-dlp-subs` | — | Use YouTube's built-in subtitles to speed up process (skips Whisper if found) |
+| `--use-dlp-subs` | - | Use YouTube's built-in subtitles to speed up process (skips Whisper if found) |
 | `--face-detector` | `mediapipe` | AI model for face tracking (`mediapipe` or `yolo`) |
 | `--box-face-detection` | `False` | Draw yellow bounding boxes for tracking debug |
 | `--dev-mode` | `False` | **[Experimental]** Enable 16:9 context visualization for 9:16 tracking/stabilization process |
@@ -235,7 +235,7 @@ python main.py --help
 | `--dynamic-split` | `False` | Automatically switch between full-screen and split-screen based on activity (requires `--split-screen`) |
 | `--split-trigger` | `diarization` | Trigger for splitting: `diarization` (audio-based) or `face` (visual count) |
 | `--diarization-speakers` | `auto` | Number of speakers for diarization (set to `3` for exact 3 speakers, or `auto` for visual AI auto-detection) |
-| `--camera-switch` | `False` | Enable camera-switch mode for podcasts — full 9:16 crop switches to the active speaker; blurred pillarbox on simultaneous speech (9:16 only, requires `HF_TOKEN`) |
+| `--camera-switch` | `False` | Enable camera-switch mode for podcasts - full 9:16 crop switches to the active speaker; blurred pillarbox on simultaneous speech (9:16 only, requires `HF_TOKEN`) |
 | `--switch-hold-duration` | `2.0` | Min seconds to hold on current speaker before switching (camera-switch only) |
 | `--split-zoom` | `1.0` | Manual zoom factor for split-screen panels (e.g. 1.2, 1.5) |
 | `--split-v-align` | `0.5` | Vertical alignment for split-screen panels (0.0=top, 0.5=center, 1.0=bottom) |
@@ -345,8 +345,8 @@ python main.py --url "VIDEO_URL" --hook-v2 --hook-v2-items 4 --hook-v2-style "gl
 ## 🎵 BGM (Background Music) Settings
 
 - `--no-bgm` : Disable the BGM feature entirely.
-- `--bgm-mode ducking` *(default)* : **Sidechain Ducking** mode — BGM volume automatically lowers when the speaker is talking, then rises during pauses. Provides a professional effect like premium podcasts/YouTube videos.
-- `--bgm-mode background` : **Constant Background** mode — BGM plays at a stable, low volume throughout the video without dynamic adjustments. Best for content with few pauses.
+- `--bgm-mode ducking` *(default)* : **Sidechain Ducking** mode - BGM volume automatically lowers when the speaker is talking, then rises during pauses. Provides a professional effect like premium podcasts/YouTube videos.
+- `--bgm-mode background` : **Constant Background** mode - BGM plays at a stable, low volume throughout the video without dynamic adjustments. Best for content with few pauses.
 
 > 📁 **BGM Setup:**
 > Place your royalty-free `.mp3` files into the `assets/bgm/<mood>/` folder (e.g., `assets/bgm/chill/`, `assets/bgm/epic/`, `assets/bgm/sad/`, `assets/bgm/upbeat/`, `assets/bgm/suspense/`). The script will **randomly** select a song from the mood folder requested by the AI. If the folder is empty, BGM will be skipped automatically.
@@ -370,7 +370,7 @@ python main.py --url "VIDEO_URL" --hook-v2 --hook-v2-items 4 --hook-v2-style "gl
 
 ### Hook V2 (Multi-Hook Intro)
 
-Hook V2 creates a **rapid-fire intro** at the beginning of the video — 3-4 short clips (0.5-2 seconds) taken from the most punchy/controversial moments within the clip. Each piece is separated by a white flash or glitch transition. The goal: **stop the viewer from scrolling** within the first 3-5 seconds.
+Hook V2 creates a **rapid-fire intro** at the beginning of the video - 3-4 short clips (0.5-2 seconds) taken from the most punchy/controversial moments within the clip. Each piece is separated by a white flash or glitch transition. The goal: **stop the viewer from scrolling** within the first 3-5 seconds.
 
 ```
 Example Hook V2:
@@ -379,7 +379,7 @@ Example Hook V2:
 
 ### Segment Trimming
 
-Segment Trimming only applies to the **main clip** (after the hook). AI analyzes the main clip and **removes** boring sections — they're not sped up, they're **cut out entirely**, and the good parts are stitched together seamlessly.
+Segment Trimming only applies to the **main clip** (after the hook). AI analyzes the main clip and **removes** boring sections - they're not sped up, they're **cut out entirely**, and the good parts are stitched together seamlessly.
 
 ```
 Example:
@@ -399,13 +399,13 @@ Example:
 | Flag | Behavior | Affected Part |
 |---|---|---|
 | *(default, no flag)* | AI smart-trims boring/filler sections | Main clip only |
-| `--silence-trim` | AI trims more aggressively — pauses >0.5s removed | Main clip only |
+| `--silence-trim` | AI trims more aggressively - pauses >0.5s removed | Main clip only |
 | `--no-segment-trim` | No trimming, full start-to-end render | Main clip only |
 
 > [!NOTE]
 > - **Hook V2 is not affected** by any of the above flags. Hook V2 always picks its rapid-fire clips as chosen by AI.
 > - **`--no-hook` only disables Hook V1** (the 3-second glitch teaser). Hook V2 (`--hook-v2`) works independently even when `--no-hook` is active.
-> - Segment Trimming and Silence Trimming **work without Hook V2** — just omit the `--hook-v2` flag.
+> - Segment Trimming and Silence Trimming **work without Hook V2** - just omit the `--hook-v2` flag.
 > - If AI determines the entire clip is already tight and engaging, `keep_segments` will contain a single segment spanning the full duration (same effect as `--no-segment-trim`).
 
 ---

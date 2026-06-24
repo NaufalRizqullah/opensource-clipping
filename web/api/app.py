@@ -1,7 +1,7 @@
 """
-web.api.app — FastAPI Application Entry Point
+web.api.app - FastAPI Application Entry Point
 
-OpenSource Clipping Studio — Web GUI Backend
+OpenSource Clipping Studio - Web GUI Backend
 
 Run with:
     uvicorn web.api.app:app --host 0.0.0.0 --port 8000 --reload
@@ -21,19 +21,19 @@ from .routes import jobs, files, settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup/shutdown lifecycle."""
-    print("🚀 OpenSource Clipping Studio — Backend starting...")
+    print("🚀 OpenSource Clipping Studio - Backend starting...")
     yield
     print("👋 Backend shutting down...")
 
 
 app = FastAPI(
     title="OpenSource Clipping Studio",
-    description="AI Auto-Clipper & Teaser Generator — Web GUI API",
+    description="AI Auto-Clipper & Teaser Generator - Web GUI API",
     version="1.0.7",
     lifespan=lifespan,
 )
 
-# CORS — allow frontend dev server
+# CORS - allow frontend dev server
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

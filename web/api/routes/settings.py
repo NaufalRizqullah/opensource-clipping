@@ -1,5 +1,5 @@
 """
-web.api.routes.settings — Settings management endpoints.
+web.api.routes.settings - Settings management endpoints.
 """
 
 from __future__ import annotations
@@ -49,12 +49,16 @@ async def get_settings() -> SettingsResponse:
     pexels_key = env.get("PEXELS_API_KEY", os.environ.get("PEXELS_API_KEY", ""))
     hf_token = env.get("HF_TOKEN", os.environ.get("HF_TOKEN", ""))
     nvidia_key = env.get("NVIDIA_API_KEY", os.environ.get("NVIDIA_API_KEY", ""))
+    openai_key = env.get("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
+    anthropic_key = env.get("ANTHROPIC_API_KEY", os.environ.get("ANTHROPIC_API_KEY", ""))
 
     return SettingsResponse(
         google_api_key_set=bool(google_key),
         pexels_api_key_set=bool(pexels_key),
         hf_token_set=bool(hf_token),
         nvidia_api_key_set=bool(nvidia_key),
+        openai_api_key_set=bool(openai_key),
+        anthropic_api_key_set=bool(anthropic_key),
         default_clips=int(env.get("DEFAULT_CLIPS", "7")),
         default_ratio=env.get("DEFAULT_RATIO", "9:16"),
         default_font_style=env.get("DEFAULT_FONT_STYLE", "HORMOZI"),
@@ -78,6 +82,10 @@ async def update_settings(req: SettingsRequest) -> SettingsResponse:
         env_updates["HF_TOKEN"] = req.hf_token
     if req.nvidia_api_key is not None:
         env_updates["NVIDIA_API_KEY"] = req.nvidia_api_key
+    if req.openai_api_key is not None:
+        env_updates["OPENAI_API_KEY"] = req.openai_api_key
+    if req.anthropic_api_key is not None:
+        env_updates["ANTHROPIC_API_KEY"] = req.anthropic_api_key
     if req.default_clips is not None:
         env_updates["DEFAULT_CLIPS"] = str(req.default_clips)
     if req.default_ratio is not None:

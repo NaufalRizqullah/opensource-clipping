@@ -1,5 +1,5 @@
 """
-clipping.studio — Video Rendering Engine
+clipping.studio - Video Rendering Engine
 
 Thin compatibility entry point for the Studio pipeline.
 Public API is re-exported from internal modules under clipping/studio/.

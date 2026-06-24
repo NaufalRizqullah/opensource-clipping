@@ -1,5 +1,5 @@
 """
-web.api.models — Pydantic schemas for request/response validation.
+web.api.models - Pydantic schemas for request/response validation.
 """
 
 from __future__ import annotations
@@ -56,6 +56,8 @@ class FaceDetector(str, enum.Enum):
 class AIProvider(str, enum.Enum):
     GEMINI = "gemini"
     NVIDIA = "nvidia"
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
 
 
 class WhisperDevice(str, enum.Enum):
@@ -88,10 +90,11 @@ class JobCreateRequest(BaseModel):
     hook_duration: int = Field(3, ge=1, le=10)
     use_broll: bool = True
     use_hook_glitch: bool = True
-    use_auto_bgm: bool = True
+    use_auto_bgm: bool = False
     use_karaoke_effect: bool = True
     use_split_screen: bool = False
     use_camera_switch: bool = False
+    use_fit_blur: bool = True
     no_subs: bool = False
 
     # Hook V2
@@ -112,6 +115,9 @@ class JobCreateRequest(BaseModel):
     # AI
     ai_provider: AIProvider = AIProvider.GEMINI
     gemini_model: str = "gemini-3-flash-preview"
+    nvidia_model: Optional[str] = None
+    openai_model: Optional[str] = None
+    anthropic_model: Optional[str] = None
     face_detector: FaceDetector = FaceDetector.MEDIAPIPE
 
 
@@ -184,6 +190,8 @@ class SettingsRequest(BaseModel):
     pexels_api_key: Optional[str] = None
     hf_token: Optional[str] = None
     nvidia_api_key: Optional[str] = None
+    openai_api_key: Optional[str] = None
+    anthropic_api_key: Optional[str] = None
     # Defaults
     default_clips: Optional[int] = None
     default_ratio: Optional[AspectRatio] = None
@@ -199,6 +207,8 @@ class SettingsResponse(BaseModel):
     pexels_api_key_set: bool = False
     hf_token_set: bool = False
     nvidia_api_key_set: bool = False
+    openai_api_key_set: bool = False
+    anthropic_api_key_set: bool = False
     default_clips: int = 7
     default_ratio: str = "9:16"
     default_font_style: str = "HORMOZI"

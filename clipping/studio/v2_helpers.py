@@ -1,5 +1,5 @@
 """
-v2_helpers — Hook V2 transition generators.
+v2_helpers - Hook V2 transition generators.
 
 Creates white-flash and glitch transition clips using FFmpeg lavfi filters.
 These are short (0.1-0.3s) videos designed to be concatenated between micro-hook

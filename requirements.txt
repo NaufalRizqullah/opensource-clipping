@@ -1,6 +1,8 @@
 yt-dlp
 faster-whisper
 google-genai
+openai
+anthropic
 mediapipe
 opencv-python
 Pillow

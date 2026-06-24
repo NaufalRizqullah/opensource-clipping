@@ -1,5 +1,5 @@
 """
-web.api.store — In-memory job store with JSON file persistence.
+web.api.store - In-memory job store with JSON file persistence.
 
 Stores all job state in a dict keyed by job ID.
 Periodically persists to ``jobs.json`` in the outputs directory.

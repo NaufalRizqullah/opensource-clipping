@@ -1,1 +1,1 @@
-# clipping — AI Auto-Clipper & Teaser Generator
+# clipping - AI Auto-Clipper & Teaser Generator

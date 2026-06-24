@@ -1,111 +1,111 @@
 """
 generate_youtube_token.py
 
-Tujuan file ini:
-- Membuka login Google lewat browser.
-- Meminta izin akses YouTube sesuai scope yang dibutuhkan.
-- Membuat file .credentials/youtube_token.json.
-- File token ini nanti dipakai oleh run_upload.py / uploader.py untuk upload video ke YouTube.
+Purpose of this file:
+- Open Google login in the browser.
+- Request the YouTube access scopes the uploader needs.
+- Create the .credentials/youtube_token.json file.
+- This token file is later used by run_upload.py / uploader.py to upload videos to YouTube.
 
-Jalankan file ini hanya saat pertama kali membuat token,
-atau saat token lama rusak / ingin login ulang akun YouTube.
+Run this file only the first time you create the token,
+or when the old token is broken / you want to re-login to the YouTube account.
 """
 
 import os
 
-# Library ini dipakai untuk menjalankan OAuth flow aplikasi desktop/local.
-# Saat dijalankan, browser akan terbuka untuk login Google.
+# This library runs the OAuth flow for a desktop/local app.
+# When run, the browser opens for the Google login.
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 
-# Scope = izin akses yang diminta ke akun Google/YouTube.
-# youtube.upload  -> izin upload video ke YouTube.
-# youtube.readonly -> izin baca data channel/video, misalnya cek jadwal upload yang sudah ada.
+# Scope = the access permissions requested from the Google/YouTube account.
+# youtube.upload   -> permission to upload videos to YouTube.
+# youtube.readonly -> permission to read channel/video data, e.g. to check the existing upload schedule.
 YOUTUBE_SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.readonly",
 ]
 
 
-# File OAuth Client ID dari Google Cloud Console.
-# File ini didapat dari:
+# The OAuth Client ID file from the Google Cloud Console.
+# This file is obtained from:
 # Google Cloud → APIs & Services → Credentials → OAuth client ID → Desktop app → Download JSON
 #
-# Rename hasil download menjadi client_secret.json
-# lalu simpan di folder .credentials/
+# Rename the downloaded file to client_secret.json
+# and save it in the .credentials/ folder.
 CLIENT_SECRET_FILE = ".credentials/client_secret.json"
 
 
-# File output token hasil login Google.
-# File inilah yang nanti dibaca oleh uploader.py.
+# The output token file produced by the Google login.
+# This is the file that uploader.py reads later.
 TOKEN_FILE = ".credentials/youtube_token.json"
 
 
 def main():
     """
-    Fungsi utama untuk generate token YouTube.
+    Main function to generate the YouTube token.
 
-    Alurnya:
-    1. Cek apakah client_secret.json sudah ada.
-    2. Buat folder .credentials jika belum ada.
-    3. Buka OAuth login lewat browser.
-    4. Setelah user approve, simpan token ke youtube_token.json.
+    Flow:
+    1. Check whether client_secret.json exists.
+    2. Create the .credentials folder if it doesn't exist.
+    3. Open the OAuth login in the browser.
+    4. After the user approves, save the token to youtube_token.json.
     """
 
-    # Cek apakah file client_secret.json tersedia.
-    # Kalau belum ada, script dihentikan karena OAuth flow tidak bisa dimulai.
+    # Check whether the client_secret.json file is available.
+    # If it doesn't exist, the script stops because the OAuth flow cannot start.
     if not os.path.exists(CLIENT_SECRET_FILE):
         raise FileNotFoundError(
-            f"{CLIENT_SECRET_FILE} tidak ditemukan. "
-            "Download OAuth Client ID JSON dari Google Cloud, rename jadi client_secret.json, "
-            "lalu simpan ke folder .credentials/"
+            f"{CLIENT_SECRET_FILE} not found. "
+            "Download the OAuth Client ID JSON from Google Cloud, rename it to client_secret.json, "
+            "then save it into the .credentials/ folder"
         )
 
-    # Pastikan folder .credentials tersedia.
-    # Kalau belum ada, folder akan dibuat otomatis.
+    # Make sure the .credentials folder is available.
+    # If it doesn't exist, it is created automatically.
     os.makedirs(".credentials", exist_ok=True)
 
-    # Membuat OAuth flow dari file client_secret.json.
-    # Di sini kita kasih daftar scope/izin YouTube yang dibutuhkan.
+    # Build the OAuth flow from the client_secret.json file.
+    # Here we pass the list of required YouTube scopes/permissions.
     flow = InstalledAppFlow.from_client_secrets_file(
         CLIENT_SECRET_FILE,
         scopes=YOUTUBE_SCOPES,
     )
 
-    # Menjalankan login OAuth lewat browser lokal.
+    # Run the OAuth login via a local browser.
     #
     # port=0:
-    #   Python akan memilih port kosong otomatis.
+    #   Python picks a free port automatically.
     #
     # access_type="offline":
-    #   Meminta refresh_token, supaya token bisa diperbarui otomatis
-    #   tanpa perlu login ulang setiap access_token expired.
+    #   Requests a refresh_token so the token can be refreshed automatically
+    #   without logging in again every time the access_token expires.
     #
     # prompt="consent":
-    #   Memaksa Google menampilkan layar persetujuan lagi.
-    #   Ini berguna supaya refresh_token benar-benar keluar.
+    #   Forces Google to show the consent screen again.
+    #   This is useful so the refresh_token is actually returned.
     creds = flow.run_local_server(
         port=0,
         access_type="offline",
         prompt="consent",
     )
 
-    # Simpan hasil credential/token ke file youtube_token.json.
-    # File ini berisi access_token, refresh_token, client_id, client_secret, dan scope.
+    # Save the resulting credential/token to the youtube_token.json file.
+    # This file contains access_token, refresh_token, client_id, client_secret, and scope.
     #
-    # PENTING:
-    # Jangan upload file youtube_token.json ke GitHub.
-    # Anggap file ini seperti password akses YouTube kamu.
+    # IMPORTANT:
+    # Do not upload youtube_token.json to GitHub.
+    # Treat this file like your YouTube access password.
     with open(TOKEN_FILE, "w", encoding="utf-8") as f:
         f.write(creds.to_json())
 
-    print(f"✅ Token berhasil dibuat: {TOKEN_FILE}")
+    print(f"✅ Token created successfully: {TOKEN_FILE}")
 
 
-# Bagian ini membuat main() hanya berjalan kalau file ini dijalankan langsung:
+# This makes main() run only when this file is executed directly:
 #
 # python generate_youtube_token.py
 #
-# Kalau file ini di-import oleh file Python lain, main() tidak otomatis berjalan.
+# If this file is imported by another Python file, main() does not run automatically.
 if __name__ == "__main__":
     main()

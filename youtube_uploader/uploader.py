@@ -1,5 +1,5 @@
 """
-youtube_uploader.uploader — Core YouTube Upload & Scheduling Logic
+youtube_uploader.uploader - Core YouTube Upload & Scheduling Logic
 """
 
 import os
@@ -27,23 +27,23 @@ YOUTUBE_SCOPES = [
 def get_youtube_service(token_file: str):
     if not os.path.exists(token_file):
         raise FileNotFoundError(
-            f"{token_file} tidak ditemukan. "
-            "Buat/generate dulu token_file di dalam folder credentials."
+            f"{token_file} not found. "
+            "Generate the token file first inside the credentials folder."
         )
 
     creds = Credentials.from_authorized_user_file(token_file, YOUTUBE_SCOPES)
 
     if not creds.valid:
         if creds.expired and creds.refresh_token:
-            print("🔄 Access token expired, mencoba refresh token...")
+            print("🔄 Access token expired, trying to refresh the token...")
             creds.refresh(Request())
             with open(token_file, "w", encoding="utf-8") as tf:
                 tf.write(creds.to_json())
-            print("✅ Token berhasil di-refresh.")
+            print("✅ Token refreshed successfully.")
         else:
             raise RuntimeError(
-                "Token tidak valid dan tidak punya refresh_token. "
-                "Buat ulang token file dari login laptop/PC."
+                "Token is invalid and has no refresh_token. "
+                "Recreate the token file by logging in from a laptop/PC."
             )
 
     return build("youtube", "v3", credentials=creds)
@@ -82,7 +82,7 @@ def get_latest_scheduled_publish_time(youtube, tz_name="Asia/Makassar", max_page
     channel_resp = youtube.channels().list(part="contentDetails", mine=True).execute()
     channel_items = channel_resp.get("items", [])
     if not channel_items:
-        print("⚠️ Tidak bisa menemukan channel milik akun ini.")
+        print("⚠️ Could not find a channel for this account.")
         return None
 
     uploads_playlist_id = (
@@ -93,7 +93,7 @@ def get_latest_scheduled_publish_time(youtube, tz_name="Asia/Makassar", max_page
     )
 
     if not uploads_playlist_id:
-        print("⚠️ Uploads playlist tidak ditemukan.")
+        print("⚠️ Uploads playlist not found.")
         return None
 
     latest_dt = None
@@ -150,7 +150,7 @@ def get_latest_scheduled_publish_time(youtube, tz_name="Asia/Makassar", max_page
             break
 
     if latest_dt:
-        print(f"✅ Scheduled terakhir ditemukan: {latest_dt.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        print(f"✅ Last scheduled time found: {latest_dt.strftime('%Y-%m-%d %H:%M:%S %Z')}")
     else:
         print("ℹ️ Belum ada video scheduled di masa depan. Pakai fallback schedule default.")
 
@@ -174,7 +174,7 @@ def get_first_publish_time(
         latest_scheduled = get_latest_scheduled_publish_time(youtube, tz_name)
         if latest_scheduled is not None:
             first_dt = latest_scheduled + timedelta(hours=interval_hours)
-            print(f"🗓️ Jadwal pertama baru dari YouTube: {first_dt.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+            print(f"🗓️ New first schedule from YouTube: {first_dt.strftime('%Y-%m-%d %H:%M:%S %Z')}")
             return first_dt
 
     now_local = datetime.now(tz)
@@ -183,7 +183,7 @@ def get_first_publish_time(
     if first_dt <= now_local:
         first_dt = first_dt + timedelta(hours=1)
 
-    print(f"🗓️ Fallback jadwal pertama: {first_dt.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+    print(f"🗓️ Fallback first schedule: {first_dt.strftime('%Y-%m-%d %H:%M:%S %Z')}")
     return first_dt
 
 
@@ -289,7 +289,7 @@ def set_custom_thumbnail(youtube, video_id, thumbnail_path, max_retries=3):
         except Exception as e:
             err = format_http_error(e) if isinstance(e, HttpError) else str(e)
             if attempt < max_retries:
-                print(f"   ⚠️ Gagal set thumbnail (attempt {attempt}/{max_retries}), retry...")
+                print(f"   ⚠️ Failed to set thumbnail (attempt {attempt}/{max_retries}), retrying...")
                 time.sleep(5)
             else:
                 return {"thumbnail_set": False, "thumbnail_error": err}
@@ -310,7 +310,6 @@ def upload_video_to_youtube(
     title = (
         item.get("youtube_title_final")
         or item.get("title_inggris")
-        or item.get("title_indonesia")
         or f"Clip Rank {item.get('rank', '?')}"
     )
     title = normalize_text(title)[:100]
@@ -392,27 +391,27 @@ def upload_manifest_to_youtube(
 ):
     render_manifest = load_json_file(manifest_file, default=[])
     if not render_manifest:
-        print(f"⚠️ {manifest_file} kosong / tidak ditemukan.")
+        print(f"⚠️ {manifest_file} is empty / not found.")
         return []
 
     candidates = get_upload_candidates(render_manifest)
     if not candidates:
-        print("⚠️ Tidak ada item yang siap diupload.")
+        print("⚠️ No items ready to upload.")
         return []
 
     pending_items = []
     for item in candidates:
         if item.get("youtube_video_id") and item.get("youtube_upload_status") == "uploaded":
-            print(f"⏭️ Skip Rank {item.get('rank')} karena sudah pernah diupload.")
+            print(f"⏭️ Skipping Rank {item.get('rank')} because it was already uploaded.")
             continue
         pending_items.append(item)
 
     if test_mode and pending_items:
         pending_items = pending_items[:1]
-        print("🧪 Mode test aktif: hanya upload 1 item pertama.")
+        print("🧪 Test mode active: uploading only the first item.")
 
     if not pending_items:
-        print("⚠️ Semua item success sudah pernah diupload.")
+        print("⚠️ All successful items have already been uploaded.")
         return []
 
     youtube = get_youtube_service(token_file)
@@ -428,16 +427,16 @@ def upload_manifest_to_youtube(
     upload_results = []
     updated_manifest = deepcopy(render_manifest)
 
-    print(f"🚀 Mulai upload {len(pending_items)} clip ke YouTube...")
+    print(f"🚀 Starting upload of {len(pending_items)} clips to YouTube...")
 
     for item, publish_at_local in zip(pending_items, schedule_times):
         rank = item.get("rank")
         manifest_row = get_manifest_row_by_rank(updated_manifest, rank)
 
         print(f"\\n=== Upload Rank {rank} ===")
-        print(f"Judul  : {item.get('youtube_title_final')}")
-        print(f"Video  : {item.get('video_path')}")
-        print(f"Jadwal : {publish_at_local.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        print(f"Title    : {item.get('youtube_title_final')}")
+        print(f"Video    : {item.get('video_path')}")
+        print(f"Schedule : {publish_at_local.strftime('%Y-%m-%d %H:%M:%S %Z')}")
 
         try:
             result = upload_video_to_youtube(youtube, item, publish_at_local)
@@ -456,7 +455,7 @@ def upload_manifest_to_youtube(
             row_result = {"rank": rank, "status": "uploaded", **result}
             upload_results.append(row_result)
 
-            print(f"✅ Upload sukses. Video ID: {result['video_id']}")
+            print(f"✅ Upload successful. Video ID: {result['video_id']}")
             print(f"🔗 {result['youtube_url']}")
 
         except Exception as e:
@@ -467,12 +466,12 @@ def upload_manifest_to_youtube(
                 manifest_row["youtube_upload_error"] = err
 
             upload_results.append({"rank": rank, "status": "failed", "error": err})
-            print(f"❌ Upload gagal untuk Rank {rank}: {err}")
+            print(f"❌ Upload failed for Rank {rank}: {err}")
 
         save_json_file(result_file, upload_results)
         save_json_file(updated_manifest_file, updated_manifest)
 
-    print(f"\\n💾 Hasil upload disimpan ke: {result_file}")
-    print(f"💾 Manifest terupdate disimpan ke: {updated_manifest_file}")
+    print(f"\\n💾 Upload results saved to: {result_file}")
+    print(f"💾 Updated manifest saved to: {updated_manifest_file}")
 
     return upload_results

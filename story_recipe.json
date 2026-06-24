@@ -1,48 +1,42 @@
 {
   "$schema": "story_recipe_v1",
-  "project_name": "Shopee Fast Delivery - VeliaDonny Campaign",
+  "project_name": "Sample Story - Product Launch Recap",
   "default_settings": {
     "ratio": "9:16"
   },
   "clips": [
     {
       "clip_id": 1,
-      "title": "Definisi SATSET - CEO Donny Belanja Jam 4 Pagi",
+      "title": "The Idea That Started It All",
       "hook": {
         "scenes": [
           {
-            "source_id": "donny_video_2",
-            "start": 3.0,
-            "end": 9.0,
-            "label": "Donny bilang membeli barang jam 4 pagi dan di hari yang sama sudah sampai"
+            "source_id": "interview_main",
+            "start": 5.0,
+            "end": 11.0,
+            "label": "Founder explains the core idea in a single line"
           }
         ]
       },
       "highlight": {
         "scenes": [
           {
-            "source_id": "donny_video_2",
-            "start": 3.0,
-            "end": 9.0,
-            "label": "Donny beli barang jam 4 pagi, hari yang sama sudah sampai"
+            "source_id": "interview_main",
+            "start": 5.0,
+            "end": 11.0,
+            "label": "Founder explains the core idea"
           },
           {
-            "source_id": "velia_video_2",
+            "source_id": "product_demo",
             "start": 0.0,
-            "end": 10.0,
-            "label": "Scene kurir mengantar paket"
+            "end": 8.0,
+            "label": "Quick look at the product in action"
           },
           {
-            "source_id": "donny_video_2",
-            "start": 27.0,
-            "end": 33.0,
-            "label": "Paket motor Donny sampai"
-          },
-          {
-            "source_id": "velia_video_2",
-            "start": 30.0,
-            "end": 37.0,
-            "label": "Donny membelikan motor dan langsung sampai"
+            "source_id": "broll_city",
+            "start": 2.0,
+            "end": 7.0,
+            "label": "Establishing city b-roll for context"
           }
         ],
         "transition": "cut"
@@ -50,73 +44,30 @@
     },
     {
       "clip_id": 2,
-      "title": "Kurir Secantik Velia - Shopee Cepat",
+      "title": "How It Actually Works",
       "hook": {
         "scenes": [
           {
-            "source_id": "velia_video_4",
-            "start": 39.0,
-            "end": 47.0,
-            "label": "Narasi kurir secantik ini"
+            "source_id": "product_demo",
+            "start": 8.0,
+            "end": 15.0,
+            "label": "Hook on the standout feature"
           }
         ]
       },
       "highlight": {
         "scenes": [
           {
-            "source_id": "velia_video_4",
-            "start": 39.0,
-            "end": 47.0,
-            "label": "Kurir secantik ini"
+            "source_id": "product_demo",
+            "start": 8.0,
+            "end": 15.0,
+            "label": "The standout feature, shown step by step"
           },
           {
-            "source_id": "donny_video_4",
-            "start": 27.0,
-            "end": 31.0,
-            "label": "Ada kurir secantik ini nganter paketnya cepet"
-          },
-          {
-            "source_id": "donny_video_4",
-            "start": 49.0,
-            "end": 57.0,
-            "label": "Donny butuh kacamata karena Velia terlalu bersinar, beli kacamatanya di shopee soalnya nyampenya cepet"
-          }
-        ],
-        "transition": "cut"
-      }
-    },
-    {
-      "clip_id": 3,
-      "title": "CEO Donny Custom Merchandise Cepat Sampai",
-      "hook": {
-        "scenes": [
-          {
-            "source_id": "velia_video_2",
-            "start": 12.0,
-            "end": 22.0,
-            "label": "Donny yang membeli semua paket dan sampainya cepat"
-          }
-        ]
-      },
-      "highlight": {
-        "scenes": [
-          {
-            "source_id": "velia_video_2",
-            "start": 12.0,
-            "end": 22.0,
-            "label": "Donny membeli semua paket dan sampainya cepat"
-          },
-          {
-            "source_id": "velia_video_6",
-            "start": 40.0,
-            "end": 48.0,
-            "label": "Donny custom merchandise di shopee cepet sampenya biar bisa dikasih ke velia"
-          },
-          {
-            "source_id": "ugc_1",
-            "start": 0.0,
-            "end": 3.0,
-            "label": "Scene saat muncul tumpukan paket (dummy 0-3s, silahkan sesuaikan dengan timing aslinya nanti)"
+            "source_id": "interview_main",
+            "start": 30.0,
+            "end": 38.0,
+            "label": "Founder describes why it matters"
           }
         ],
         "transition": "cut"

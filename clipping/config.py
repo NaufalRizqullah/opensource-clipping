@@ -1,7 +1,7 @@
 """
-clipping.config — Master Configuration (Dashboard)
+clipping.config - Master Configuration (Dashboard)
 
-Menyimpan semua default value dan membangun config dari CLI args.
+Stores all default values and builds the config from CLI args.
 """
 
 import argparse
@@ -16,7 +16,7 @@ except ImportError:
     pass
 
 # ==============================================================================
-# DEFAULT VALUES  (sama persis dengan Cell 0 notebook)
+# DEFAULT VALUES
 # ==============================================================================
 
 BASE_DIR = os.getcwd()
@@ -134,7 +134,7 @@ USE_AUTO_BGM = True
 BGM_BASE_VOLUME = 0.25
 BGM_MODE = "ducking"  # 'ducking' = sidechain compress, 'background' = constant volume mix
 
-# Daftar mood yang didukung (sesuai nama folder di assets/bgm/)
+# Supported moods (must match the folder names under assets/bgm/)
 BGM_MOODS = ["chill", "epic", "sad", "upbeat", "suspense"]
 BGM_DIR = os.path.abspath(os.path.join(BASE_DIR, "assets", "bgm"))
 
@@ -152,6 +152,8 @@ RENDER_OUTPUT_HEIGHT = 1080
 # AI Provider
 AI_PROVIDER = "gemini"
 NVIDIA_MODEL = "deepseek-ai/deepseek-v4-pro"
+OPENAI_MODEL = "gpt-4o"
+ANTHROPIC_MODEL = "claude-opus-4-8"
 GEMINI_MODEL = "gemini-3-flash-preview"
 GEMINI_FALLBACK_MODEL = "gemini-2.5-flash"
 
@@ -192,7 +194,7 @@ def _parse_download_height(val: str) -> str | int:
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description="🎬 OpenSource Clipping — AI Auto-Clipper & Teaser Generator",
+        description="🎬 OpenSource Clipping - AI Auto-Clipper & Teaser Generator",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -270,7 +272,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--bgm-mode",
         choices=["ducking", "background"],
         default=BGM_MODE,
-        help="BGM mixing mode: 'ducking' (sidechain compress — BGM auto-lowers during speech) or 'background' (constant low volume mix)",
+        help="BGM mixing mode: 'ducking' (sidechain compress - BGM auto-lowers during speech) or 'background' (constant low volume mix)",
     )
     p.add_argument(
         "--no-karaoke",
@@ -402,14 +404,24 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--ai-provider",
-        choices=["gemini", "nvidia"],
+        choices=["gemini", "nvidia", "openai", "anthropic"],
         default=AI_PROVIDER,
-        help="AI provider for video analysis (gemini or nvidia).",
+        help="AI provider for video analysis (gemini, nvidia, openai, or anthropic).",
     )
     p.add_argument(
         "--nvidia-model",
         default=NVIDIA_MODEL,
         help="Model name for NVIDIA NIM API (e.g. deepseek-ai/deepseek-v3).",
+    )
+    p.add_argument(
+        "--openai-model",
+        default=OPENAI_MODEL,
+        help="Model name for the OpenAI API (e.g. gpt-4o).",
+    )
+    p.add_argument(
+        "--anthropic-model",
+        default=ANTHROPIC_MODEL,
+        help="Model name for the Anthropic API (e.g. claude-opus-4-8).",
     )
     p.add_argument("--gemini-model", default=GEMINI_MODEL, help="Gemini model name")
     p.add_argument(
@@ -451,6 +463,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "--static-crop",
         action="store_true",
         help="Disable face tracking and use static center crop for 1:1, 3:4, and 4:5 ratios",
+    )
+    p.add_argument(
+        "--fit-blur",
+        action="store_true",
+        help="Fit the whole frame (no crop) with blurred bars filling the gaps, for "
+        "vertical ratios - nothing on the sides gets cut out",
     )
 
     # --- Smart Auto-Framing / Tracking ---
@@ -649,6 +667,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         ),
         # API keys (from env)
         api_key_gemini=os.environ.get("GOOGLE_API_KEY", ""),
+        api_key_openai=os.environ.get("OPENAI_API_KEY", ""),
+        api_key_anthropic=os.environ.get("ANTHROPIC_API_KEY", ""),
         hf_token=os.environ.get("HF_TOKEN", ""),
         pexels_api_key=os.environ.get("PEXELS_API_KEY", ""),
         # Pengaturan utama
@@ -718,6 +738,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         ai_provider=args.ai_provider,
         api_key_nvidia=os.environ.get("NVIDIA_API_KEY", ""),
         nvidia_model=args.nvidia_model,
+        openai_model=args.openai_model,
+        anthropic_model=args.anthropic_model,
         gemini_model=args.gemini_model,
         gemini_fallback_model=args.gemini_fallback_model,
         load_gemini_json=args.load_gemini_json,
@@ -743,6 +765,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         dev_mode_with_output_merge=args.dev_mode_with_output_merge,
         track_lines=args.track_lines,
         static_crop=args.static_crop,
+        use_fit_blur=args.fit_blur,
         # Story Clip Mode
         story_mode=args.story_mode,
         story_recipe_path=os.path.abspath(args.story_recipe) if args.story_recipe else None,

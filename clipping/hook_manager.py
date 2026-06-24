@@ -3,8 +3,8 @@ import shutil
 
 def download_custom_hook(cfg) -> str | None:
     """
-    Mengunduh atau menyalin file tunggal custom hook dari argumen --hook-source.
-    Returns: absolute path ke file lokal, atau None jika gagal/tidak ada.
+    Download or copy a single custom hook file from the --hook-source argument.
+    Returns: the absolute path to the local file, or None if it fails / is missing.
     """
     source = cfg.hook_source
     if not source:
@@ -16,7 +16,7 @@ def download_custom_hook(cfg) -> str | None:
 
     # 1. Download if URL
     if source.startswith("http"):
-        print(f"📥 Mengunduh custom hook tunggal dari: {source}")
+        print(f"📥 Downloading single custom hook from: {source}")
         import gdown
         try:
             # Gdown download for a single file
@@ -24,7 +24,7 @@ def download_custom_hook(cfg) -> str | None:
             download_url = f'https://drive.google.com/uc?id={file_id}'
             gdown.download(download_url, local_path, quiet=False)
             if os.path.exists(local_path):
-                print(f"   ✅ Custom hook berhasil diunduh ke {local_path}")
+                print(f"   ✅ Custom hook successfully downloaded to {local_path}")
                 return local_path
             else:
                 # Fallback, maybe it's not a google drive ID but a direct .mp4 link
@@ -35,25 +35,25 @@ def download_custom_hook(cfg) -> str | None:
                         for chunk in r.iter_content(chunk_size=1024):
                             if chunk:
                                 f.write(chunk)
-                    print(f"   ✅ Custom hook berhasil diunduh ke {local_path}")
+                    print(f"   ✅ Custom hook successfully downloaded to {local_path}")
                     return local_path
                 return None
         except Exception as e:
-            print(f"⚠️ Gagal mengunduh custom hook: {e}")
+            print(f"⚠️ Failed to download custom hook: {e}")
             return None
     else:
         # It's a local path
         if not os.path.exists(source):
-            print(f"⚠️ Source hook lokal tidak ditemukan: {source}")
+            print(f"⚠️ Local source hook not found: {source}")
             return None
         
-        print(f"📥 Menggunakan file hook lokal: {source}")
+        print(f"📥 Using local hook file: {source}")
         try:
             shutil.copy(source, local_path)
             return local_path
         except shutil.SameFileError:
             return source
         except Exception as e:
-            print(f"⚠️ Gagal menyalin file hook lokal: {e}")
+            print(f"⚠️ Failed to copy local hook file: {e}")
             return source
 

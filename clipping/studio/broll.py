@@ -75,7 +75,7 @@ def download_pexels_broll(query, rasio, output_filename, pexels_api_key):
     global USED_PEXELS_IDS
 
     if not pexels_api_key:
-        print("   ⚠️ PEXELS_API_KEY tidak ditemukan. B-roll dilewati.")
+        print("   ⚠️ PEXELS_API_KEY not found. B-roll skipped.")
         return False
 
     orientation = "portrait" if _is_vertical_ratio(rasio) else "landscape"
@@ -103,16 +103,16 @@ def download_pexels_broll(query, rasio, output_filename, pexels_api_key):
         with urllib.request.urlopen(req) as response:
             data = json.load(response)
     except Exception as e:
-        print(f"   ⚠️ Error API Pexels saat mencari '{query}': {e}")
+        print(f"   ⚠️ Pexels API error while searching for '{query}': {e}")
         return False
 
     if not data.get("videos"):
-        print(f"   ⚠️ Pexels tidak menemukan video untuk '{query}'.")
+        print(f"   ⚠️ Pexels did not find any video for '{query}'.")
         return False
 
     available_videos = [v for v in data["videos"] if v["id"] not in USED_PEXELS_IDS]
     if not available_videos:
-        print(f"   🔄 B-roll pool untuk '{query}' habis, me-reset.")
+        print(f"   🔄 B-roll pool for '{query}' exhausted, resetting.")
         available_videos = data["videos"]
 
     video_data = random.choice(available_videos)
@@ -124,7 +124,7 @@ def download_pexels_broll(query, rasio, output_filename, pexels_api_key):
         if vf.get("file_type") == "video/mp4"
     ]
     if not video_files:
-        print(f"   ⚠️ Tidak ada file MP4 di dalam data video '{query}'.")
+        print(f"   ⚠️ No MP4 file inside the video data for '{query}'.")
         return False
 
     video_files.sort(
@@ -150,7 +150,7 @@ def download_pexels_broll(query, rasio, output_filename, pexels_api_key):
         os.replace(temp_path, output_filename)
         return True
     except Exception as e:
-        print(f"   ⚠️ Error saat mengunduh B-roll '{query}': {e}")
+        print(f"   ⚠️ Error while downloading B-roll '{query}': {e}")
         return False
 
 

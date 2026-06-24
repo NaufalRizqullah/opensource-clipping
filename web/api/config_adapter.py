@@ -1,5 +1,5 @@
 """
-web.api.config_adapter — Bridge between API JSON payload and the CLI config.
+web.api.config_adapter - Bridge between API JSON payload and the CLI config.
 
 Converts a ``JobCreateRequest`` (or raw dict) into the same
 ``SimpleNamespace`` object that ``clipping.config.build_config()`` produces,
@@ -20,7 +20,9 @@ from clipping.config import (
     ASS_MARGIN_169,
     ASS_MARGIN_916,
     BGM_BASE_VOLUME,
-    BGM_POOL,
+    BGM_DIR,
+    BGM_MODE,
+    BGM_MOODS,
     DAFTAR_FONT,
     GEMINI_FALLBACK_MODEL,
     NAMA_FONT_THUMBNAIL,
@@ -53,7 +55,7 @@ def build_config_from_payload(
     payload : dict
         The job creation payload (from ``JobCreateRequest.model_dump()``).
     job_id : str
-        Unique job identifier — used for per-job output directory.
+        Unique job identifier - used for per-job output directory.
     env_overrides : dict, optional
         Runtime overrides for API keys (e.g. from stored settings).
 
@@ -121,7 +123,7 @@ def build_config_from_payload(
         file_yolo_model=os.path.abspath(
             os.path.join(base_dir, f"face_yolov{yolo_size}.pt")
         ),
-        # API keys — prefer env_overrides, then os.environ
+        # API keys - prefer env_overrides, then os.environ
         api_key_gemini=env.get("GOOGLE_API_KEY", os.environ.get("GOOGLE_API_KEY", "")),
         hf_token=env.get("HF_TOKEN", os.environ.get("HF_TOKEN", "")),
         pexels_api_key=env.get("PEXELS_API_KEY", os.environ.get("PEXELS_API_KEY", "")),
@@ -146,7 +148,7 @@ def build_config_from_payload(
         silence_trim=payload.get("silence_trim", False),
         use_broll=payload.get("use_broll", True),
         use_hook_glitch=payload.get("use_hook_glitch", True),
-        use_auto_bgm=payload.get("use_auto_bgm", True),
+        use_auto_bgm=payload.get("use_auto_bgm", False),
         use_karaoke_effect=payload.get("use_karaoke_effect", True),
         use_split_screen=payload.get("use_split_screen", False),
         use_dynamic_split=payload.get("use_dynamic_split", False),
@@ -180,7 +182,9 @@ def build_config_from_payload(
         url_mediapipe_model=URL_MEDIAPIPE_MODEL,
         # BGM
         bgm_base_volume=BGM_BASE_VOLUME,
-        bgm_pool=BGM_POOL,
+        bgm_mode=BGM_MODE,
+        bgm_moods=BGM_MOODS,
+        bgm_dir=BGM_DIR,
         # Whisper
         use_dlp_subs=payload.get("use_dlp_subs", False),
         whisper_model=payload.get("whisper_model", "large-v3"),
@@ -190,6 +194,10 @@ def build_config_from_payload(
         ai_provider=ai_provider,
         api_key_nvidia=env.get("NVIDIA_API_KEY", os.environ.get("NVIDIA_API_KEY", "")),
         nvidia_model=payload.get("nvidia_model", "deepseek-ai/deepseek-v4-pro"),
+        api_key_openai=env.get("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", "")),
+        openai_model=payload.get("openai_model", "gpt-4o"),
+        api_key_anthropic=env.get("ANTHROPIC_API_KEY", os.environ.get("ANTHROPIC_API_KEY", "")),
+        anthropic_model=payload.get("anthropic_model", "claude-opus-4-8"),
         gemini_model=payload.get("gemini_model", "gemini-3-flash-preview"),
         gemini_fallback_model=payload.get("gemini_fallback_model", GEMINI_FALLBACK_MODEL),
         load_gemini_json=payload.get("load_gemini_json", False),
@@ -215,6 +223,7 @@ def build_config_from_payload(
         dev_mode_with_output_merge=False,
         track_lines=False,
         static_crop=payload.get("static_crop", False),
+        use_fit_blur=payload.get("use_fit_blur", True),
         # Story Clip Mode (not supported via web yet)
         story_mode=False,
         story_recipe_path=None,

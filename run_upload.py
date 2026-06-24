@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-run_upload.py — CLI Entry Point for YouTube Auto-Uploader & Scheduler
+run_upload.py - CLI Entry Point for YouTube Auto-Uploader & Scheduler
 
 Usage:
     python run_upload.py                       # Defaults
@@ -17,7 +17,7 @@ from youtube_uploader import upload_manifest_to_youtube
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description="🚀 OpenSource Clipping — YouTube Auto-Uploader",
+        description="🚀 OpenSource Clipping - YouTube Auto-Uploader",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -55,8 +55,8 @@ def main():
         os.makedirs(creds_dir, exist_ok=True)
 
     if not os.path.exists(args.token_file):
-        print(f"❌ ERROR: File kredensial tidak ditemukan di '{args.token_file}'.")
-        print(f"   Mohon tempatkan file 'youtube_token.json' di dalam folder '{creds_dir}'.")
+        print(f"❌ ERROR: Credentials file not found at '{args.token_file}'.")
+        print(f"   Please place the 'youtube_token.json' file inside the '{creds_dir}' folder.")
         sys.exit(1)
 
     upload_manifest_to_youtube(
@@ -70,7 +70,7 @@ def main():
         test_mode=args.test_mode
     )
 
-    print("\n✅ Proses upload YouTube selesai.")
+    print("\n✅ YouTube upload process complete.")
 
 
 if __name__ == "__main__":

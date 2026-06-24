@@ -1,5 +1,5 @@
 """
-clipping.story.source_manager — Multi-Source Download & Cache Manager
+clipping.story.source_manager - Multi-Source Download & Cache Manager
 
 Handles downloading videos from multiple platforms (YouTube, TikTok,
 Instagram, Google Drive) and caching them locally for reuse across
@@ -63,20 +63,20 @@ def _download_single_source(
     # --- Skip if already cached ---
     if os.path.exists(cached_path):
         size_mb = os.path.getsize(cached_path) / (1024 * 1024)
-        print(f"   ⏩ '{sid}' sudah ada di cache ({size_mb:.1f} MB), skip download.")
+        print(f"   ⏩ '{sid}' already in cache ({size_mb:.1f} MB), skip download.")
         return cached_path
 
     # --- Local file: copy to cache ---
     if platform == "local":
         local_path = source["local_path"]
-        print(f"   📁 [{sid}] Menyalin file lokal: {local_path}")
+        print(f"   📁 [{sid}] Copying local file: {local_path}")
         shutil.copy2(local_path, cached_path)
-        print(f"   ✅ '{sid}' berhasil disalin ke cache.")
+        print(f"   ✅ '{sid}' successfully copied to cache.")
         return cached_path
 
     # --- Remote: download using engine ---
     url = source["url"]
-    print(f"   📥 [{sid}] Mendownload dari {platform}: {url}")
+    print(f"   📥 [{sid}] Downloading from {platform}: {url}")
 
     # Lazy import to avoid pulling in heavy deps (faster_whisper, yt_dlp)
     from .. import engine
@@ -91,12 +91,12 @@ def _download_single_source(
 
     if not os.path.exists(cached_path):
         raise RuntimeError(
-            f"❌ Download gagal untuk source '{sid}' — "
-            f"file tidak ditemukan di {cached_path}"
+            f"❌ Download failed for source '{sid}' - "
+            f"file not found at {cached_path}"
         )
 
     size_mb = os.path.getsize(cached_path) / (1024 * 1024)
-    print(f"   ✅ '{sid}' berhasil didownload ({size_mb:.1f} MB)")
+    print(f"   ✅ '{sid}' successfully downloaded ({size_mb:.1f} MB)")
     return cached_path
 
 
@@ -127,7 +127,7 @@ def download_all_sources(
         Mapping of source_id → cached file path.
     """
     total = len(source_registry)
-    print(f"\n📦 Mendownload {total} sumber video...\n")
+    print(f"\n📦 Downloading {total} video source(s)...\n")
 
     paths: dict[str, str] = {}
     failed: list[str] = []
@@ -140,14 +140,14 @@ def download_all_sources(
             )
             paths[sid] = path
         except Exception as e:
-            print(f"   ⚠️ GAGAL download '{sid}': {e}")
+            print(f"   ⚠️ FAILED to download '{sid}': {e}")
             failed.append(sid)
 
     # --- Summary ---
     print(f"\n{'='*50}")
-    print(f"📦 Download Summary: {len(paths)}/{total} berhasil")
+    print(f"📦 Download Summary: {len(paths)}/{total} succeeded")
     if failed:
-        print(f"   ❌ Gagal: {', '.join(failed)}")
+        print(f"   ❌ Failed: {', '.join(failed)}")
     print(f"{'='*50}\n")
 
     return paths
@@ -190,5 +190,5 @@ def save_sources_status(
     with open(status_path, "w", encoding="utf-8") as f:
         json.dump({"sources": status_entries}, f, indent=2, ensure_ascii=False)
 
-    print(f"💾 Sources status disimpan ke: {status_path}")
+    print(f"💾 Sources status saved to: {status_path}")
     return status_path

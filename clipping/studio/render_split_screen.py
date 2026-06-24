@@ -99,7 +99,7 @@ def buat_video_split_screen(
     detector = None
     if cfg.face_detector == "yolo":
         if not os.path.exists(cfg.file_yolo_model):
-            print(f"   📥 Mendownload YOLOv8 Face Model ({cfg.yolo_size})...")
+            print(f"   📥 Downloading YOLOv8 Face Model ({cfg.yolo_size})...")
             import urllib.request
 
             urllib.request.urlretrieve(cfg.url_yolo_model, cfg.file_yolo_model)
@@ -194,7 +194,7 @@ def buat_video_split_screen(
     #   1 active + N faces → use speaker's last-known position to pick nearest face
     #   otherwise          → skip (ambiguous or no data)
 
-    print(f"🧠 {label} - Analisa wajah (split-screen) dimulai...", flush=True)
+    print(f"🧠 {label} - Face analysis (split-screen) started...", flush=True)
 
     all_frame_data: list[dict] = []  # [{time, face_centers, face_boxes, active_now}]
     speaker_solo_cxs: dict[str, list] = {}  # speaker → [cx, ...] from 1:1 frames
@@ -320,7 +320,7 @@ def buat_video_split_screen(
             min(100, int((current_time / duration) * 100)) if duration > 0 else 100
         )
         if detect_percent != last_detect_percent:
-            print(f"⏳ {label} - Analisa wajah: {detect_percent:3d}%", flush=True)
+            print(f"⏳ {label} - Face analysis: {detect_percent:3d}%", flush=True)
             last_detect_percent = detect_percent
 
         current_time += STEP_DETEKSI
@@ -346,7 +346,7 @@ def buat_video_split_screen(
     }
 
     # ================================================================
-    # Pass B — Canonical-guided face-to-speaker assignment
+    # Pass B - Canonical-guided face-to-speaker assignment
     # ================================================================
     # Re-process all stored frames using canonical_cx built from the entire clip.
     # This handles multi-scene videos correctly: e.g. in a 3-speaker podcast where
@@ -465,7 +465,7 @@ def buat_video_split_screen(
                 raw_data[spk].append({"time": fd["time"], "cx": face[0], "cy": face[1], "dist": d_near})
 
     # ================================================================
-    # FASE 1.5 — Determine Stable Global Zoom
+    # FASE 1.5 - Determine Stable Global Zoom
     # ================================================================
     global_min_dist = width
     for spk_list in raw_data.values():
@@ -473,12 +473,12 @@ def buat_video_split_screen(
             if d.get("dist", width) < global_min_dist:
                 global_min_dist = d["dist"]
     
-    # Calculate a FIXED zoom for the entire clip — no per-frame zoom changes.
+    # Calculate a FIXED zoom for the entire clip - no per-frame zoom changes.
     # This ensures split panels are zoomed-in from frame 0, with no camera "movement".
     def _calc_clip_zoom(min_dist):
         if not cfg.split_auto_zoom or min_dist >= width * 0.9:
             return 1.0
-        # Use PANEL ratio (wider aspect, ~9:8) — NOT 9:16 full-frame ratio
+        # Use PANEL ratio (wider aspect, ~9:8) - NOT 9:16 full-frame ratio
         p_ratio = panel_w / panel_h
         ref_w = int(height * p_ratio) if (width / height) > p_ratio else width
         # Buffer for face width so we don't just barely clip the neighbor
@@ -566,7 +566,7 @@ def buat_video_split_screen(
         cam_cx = _st.median(initial_cxs) if initial_cxs else 0
         cam_cy = _st.median(initial_cys) if initial_cys else 0
         
-        # Per-speaker zoom — fixed for the entire clip, no movement.
+        # Per-speaker zoom - fixed for the entire clip, no movement.
         cam_zoom = speaker_zoom.get(spk_name, clip_fixed_zoom)
         
         # Base the deadzone firmly on the 9:16 narrower crop width, NOT the wider panel
@@ -700,7 +700,7 @@ def buat_video_split_screen(
         frame_count = 0
         last_render_percent = -1
 
-        print(f"🎬 {label} - Render split-screen {'(dynamic)' if is_dynamic else ''} dimulai...", flush=True)
+        print(f"🎬 {label} - Render split-screen {'(dynamic)' if is_dynamic else ''} started...", flush=True)
         tracking_log = [] # Store (t, cx) for subtitle tracking
 
         while True:
@@ -756,7 +756,7 @@ def buat_video_split_screen(
                     else:
                         stable_count = now_count
 
-                    # FAST PATH: split→full — instant when 1 face detected
+                    # FAST PATH: split→full - instant when 1 face detected
                     # Only trigger instant layout switch if an actual camera cut happened.
                     # Otherwise, use the stable majority vote to prevent false positives.
                     force_full = False
@@ -764,7 +764,7 @@ def buat_video_split_screen(
                         if scene_cut_this_frame and now_count == 1:
                             force_full = True
                     
-                    # FAST PATH: full→split — instant when 2 faces detected
+                    # FAST PATH: full→split - instant when 2 faces detected
                     force_split = False
                     if current_layout == "full":
                         if scene_cut_this_frame and now_count >= 2:
@@ -1060,16 +1060,16 @@ def buat_video_split_screen(
             stderr_data = writer_main.stderr.read().decode("utf-8", errors="ignore")
             return_code = writer_main.wait()
             if return_code != 0:
-                raise RuntimeError(f"FFmpeg writer main gagal: {stderr_data[-1000:]}")
+                raise RuntimeError(f"FFmpeg writer main failed: {stderr_data[-1000:]}")
         
         if writer_dev:
             writer_dev.stdin.close()
             stderr_data_dev = writer_dev.stderr.read().decode("utf-8", errors="ignore")
             return_code_dev = writer_dev.wait()
             if return_code_dev != 0:
-                raise RuntimeError(f"FFmpeg writer dev gagal: {stderr_data_dev[-1000:]}")
+                raise RuntimeError(f"FFmpeg writer dev failed: {stderr_data_dev[-1000:]}")
 
-        print(f"✅ {label} selesai.", flush=True)
+        print(f"✅ {label} done.", flush=True)
 
     finally:
         cap.release()

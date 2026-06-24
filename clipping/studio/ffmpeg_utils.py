@@ -134,15 +134,15 @@ def detect_video_encoder(cfg=None, target_h=1080):
     if _ffmpeg_has_encoder("h264_nvenc"):
         ok, _ = _test_encoder_runtime(nvenc_args_fastest)
         if ok:
-            print(f"🚀 Pakai NVIDIA NVENC {nvenc_preset_fast} (Bitrate {target_bitrate}, CQ {nvenc_cq})", flush=True)
+            print(f"🚀 Using NVIDIA NVENC {nvenc_preset_fast} (Bitrate {target_bitrate}, CQ {nvenc_cq})", flush=True)
             return {"name": "h264_nvenc", "args": nvenc_args_fastest}
 
         ok, _ = _test_encoder_runtime(nvenc_args_legacy)
         if ok:
-            print(f"🚀 Pakai NVIDIA NVENC {nvenc_preset_legacy} (Bitrate {target_bitrate}, CQ {nvenc_cq})", flush=True)
+            print(f"🚀 Using NVIDIA NVENC {nvenc_preset_legacy} (Bitrate {target_bitrate}, CQ {nvenc_cq})", flush=True)
             return {"name": "h264_nvenc", "args": nvenc_args_legacy}
 
-    print(f"⚠️ Fallback ke CPU libx264 ({cpu_preset}, CRF {cpu_crf}, Max {target_bitrate})", flush=True)
+    print(f"⚠️ Fallback to CPU libx264 ({cpu_preset}, CRF {cpu_crf}, Max {target_bitrate})", flush=True)
     return {"name": "libx264", "args": cpu_args}
 
 
@@ -268,7 +268,7 @@ def run_ffmpeg_with_progress(ffmpeg_cmd, total_duration, label="Render"):
         Tuple `(return_code, recent_errors)` where `recent_errors` contains
         the latest non-progress stderr lines.
     """
-    print(f"🚀 {label} dimulai...", flush=True)
+    print(f"🚀 {label} started...", flush=True)
 
     process = subprocess.Popen(
         ffmpeg_cmd,

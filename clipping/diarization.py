@@ -1,9 +1,9 @@
 """
-clipping.diarization — Speaker Diarization with Pyannote
+clipping.diarization - Speaker Diarization with Pyannote
 
-Deteksi speaker berbeda dalam audio/video menggunakan model
-pyannote/speaker-diarization-3.1. Digunakan untuk fitur split-screen
-pada klip podcast.
+Detects distinct speakers in audio/video using the
+pyannote/speaker-diarization-3.1 model. Used for the split-screen
+feature on podcast clips.
 """
 
 import os
@@ -99,11 +99,11 @@ def run_diarization(
     """
     if not hf_token:
         raise RuntimeError(
-            "HF_TOKEN tidak ditemukan. Pyannote membutuhkan HuggingFace token. "
-            "Set via: export HF_TOKEN='your-token' atau di file .env"
+            "HF_TOKEN not found. Pyannote requires a HuggingFace token. "
+            "Set via: export HF_TOKEN='your-token' or in the .env file"
         )
 
-    print("🎙️ Memuat model Pyannote speaker-diarization-3.1...")
+    print("🎙️ Loading Pyannote speaker-diarization-3.1 model...")
 
     from pyannote.audio import Pipeline
 
@@ -127,15 +127,15 @@ def run_diarization(
             import torch
 
             pipeline.to(torch.device("cuda"))
-            print("   ✅ Pyannote menggunakan GPU (CUDA)")
+            print("   ✅ Pyannote using GPU (CUDA)")
         else:
-            print("   ℹ️ Pyannote menggunakan CPU")
+            print("   ℹ️ Pyannote using CPU")
     except Exception:
-        print("   ℹ️ Pyannote menggunakan CPU")
+        print("   ℹ️ Pyannote using CPU")
 
-    print("🎙️ Menjalankan speaker diarization...")
+    print("🎙️ Running speaker diarization...")
     if str(num_speakers).lower() == "auto":
-        # Gunakan min_speakers dan max_speakers jika tersedia
+        # Use min_speakers and max_speakers if available
         kwargs = {}
         if min_speakers is not None:
             kwargs["min_speakers"] = min_speakers
@@ -170,12 +170,12 @@ def run_diarization(
             )
     except AttributeError as e:
         raise RuntimeError(
-            f"Gagal memproses hasil diarization ({type(diarization)}): {e}. "
-            "Pastikan model pyannote/speaker-diarization-3.1 terinstal dengan benar."
+            f"Failed to process diarization result ({type(diarization)}): {e}. "
+            "Make sure the pyannote/speaker-diarization-3.1 model is installed correctly."
         )
 
     if not raw_segments:
-        raise RuntimeError("Diarization tidak menghasilkan segment apapun.")
+        raise RuntimeError("Diarization did not produce any segments.")
 
     # Merge adjacent segments from same speaker (gap < 0.5s)
     merged = _merge_adjacent_segments(raw_segments, max_gap=0.5)
@@ -183,7 +183,7 @@ def run_diarization(
     # Get unique speakers
     speakers = sorted(set(s["speaker"] for s in merged))
     print(
-        f"   ✅ Diarization selesai: {len(merged)} segments, {len(speakers)} speakers ({', '.join(speakers)})"
+        f"   ✅ Diarization complete: {len(merged)} segments, {len(speakers)} speakers ({', '.join(speakers)})"
     )
 
     return merged

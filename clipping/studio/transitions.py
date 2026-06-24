@@ -1,5 +1,5 @@
 """
-clipping.studio.transitions — Transition Asset Downloader & Manager
+clipping.studio.transitions - Transition Asset Downloader & Manager
 
 Downloads and caches transition overlay videos (film burn, light leak,
 film grain, film leader) from YouTube sources (Think Make Push channel).
@@ -34,7 +34,7 @@ _is_vertical_ratio = utils._is_vertical_ratio
 RATIO_MAP = utils.RATIO_MAP
 
 # ═══════════════════════════════════════════════════════════════════════
-# TRANSITION POOL  (source: Think Make Push — YouTube)
+# TRANSITION POOL  (source: Think Make Push - YouTube)
 #
 # Each entry:
 #   url         : YouTube watch URL
@@ -162,14 +162,14 @@ def download_transition_raw(entry: dict, cfg) -> str | None:
             }
         ).download([entry["url"]])
     except Exception as e:
-        print(f"   ⚠️ [Transition] Download gagal ({entry['label']}): {e}")
+        print(f"   ⚠️ [Transition] Download failed ({entry['label']}): {e}")
         return None
 
     if os.path.exists(raw_path) and os.path.getsize(raw_path) > 10_000:
-        print(f"   ✅ [Transition] Tersimpan: {raw_path}")
+        print(f"   ✅ [Transition] Saved: {raw_path}")
         return raw_path
 
-    print(f"   ⚠️ [Transition] File terlalu kecil / gagal: {raw_path}")
+    print(f"   ⚠️ [Transition] File too small / failed: {raw_path}")
     return None
 
 
@@ -183,7 +183,7 @@ def download_all_transitions(cfg, types: list[str] | None = None) -> list[dict]:
                If None, downloads everything.
 
     Returns:
-        List of dicts — each original pool entry augmented with
+        List of dicts - each original pool entry augmented with
         ``"raw_path"`` pointing to the local file.  Entries that failed
         to download are excluded.
     """
@@ -200,7 +200,7 @@ def download_all_transitions(cfg, types: list[str] | None = None) -> list[dict]:
             results.append(enriched)
 
     print(
-        f"   📦 [Transition] {len(results)}/{len(pool)} asset berhasil diunduh."
+        f"   📦 [Transition] {len(results)}/{len(pool)} assets successfully downloaded."
     )
     return results
 
@@ -326,5 +326,5 @@ def prepare_transition_clip(
         )
         return ts_path
     except subprocess.CalledProcessError as e:
-        print(f"   ⚠️ [Transition] FFmpeg gagal untuk {entry['label']}: {e}")
+        print(f"   ⚠️ [Transition] FFmpeg failed for {entry['label']}: {e}")
         return None

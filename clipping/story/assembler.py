@@ -1,5 +1,5 @@
 """
-clipping.story.assembler — Scene Trim, Concat & Render for Story Clip
+clipping.story.assembler - Scene Trim, Concat & Render for Story Clip
 
 Handles:
   - Trimming individual scenes from cached source videos (FFmpeg)
@@ -28,7 +28,7 @@ def _run_ffmpeg(cmd: list[str], label: str = "") -> None:
     except subprocess.CalledProcessError as e:
         stderr_text = e.stderr.decode("utf-8", errors="replace") if e.stderr else ""
         raise RuntimeError(
-            f"FFmpeg gagal{' (' + label + ')' if label else ''}: {stderr_text[:500]}"
+            f"FFmpeg failed{' (' + label + ')' if label else ''}: {stderr_text[:500]}"
         ) from e
 
 
@@ -172,7 +172,7 @@ def concat_scenes(
         Path to the concatenated output.
     """
     if not scene_paths:
-        raise ValueError("Tidak ada scene untuk di-concat.")
+        raise ValueError("No scenes to concatenate.")
 
     if len(scene_paths) == 1:
         # Single scene, just copy
@@ -401,7 +401,7 @@ def assemble_hook(
             video_path = os.path.join(cache_dir, f"{sid}.mp4")
 
         if not os.path.exists(video_path):
-            print(f"      ⚠️ Scene #{idx} ({sid}): file tidak ditemukan, skip.")
+            print(f"      ⚠️ Scene #{idx} ({sid}): file not found, skip.")
             continue
 
         # Trim
@@ -414,10 +414,10 @@ def assemble_hook(
         normalized_parts.append(normed)
 
     if not normalized_parts:
-        print(f"      ❌ Hook #{cid}: tidak ada scene yang valid.")
+        print(f"      ❌ Hook #{cid}: no valid scenes.")
         return None
 
-    # Concat — hooks are always clean video (no text overlay, no subs)
+    # Concat - hooks are always clean video (no text overlay, no subs)
     output_path = os.path.join(output_dir, f"hook_{cid}.mp4")
     concat_scenes(normalized_parts, output_path, transition="cut")
 
@@ -425,7 +425,7 @@ def assemble_hook(
     import shutil
     shutil.rmtree(temp_dir, ignore_errors=True)
 
-    print(f"      ✅ hook_{cid}.mp4 berhasil dirender.")
+    print(f"      ✅ hook_{cid}.mp4 rendered successfully.")
     return output_path
 
 
@@ -497,7 +497,7 @@ def assemble_highlight(
             video_path = os.path.join(cache_dir, f"{sid}.mp4")
 
         if not os.path.exists(video_path):
-            print(f"      ⚠️ Scene #{idx} ({sid}): file tidak ditemukan, skip.")
+            print(f"      ⚠️ Scene #{idx} ({sid}): file not found, skip.")
             continue
 
         # Trim
@@ -510,10 +510,10 @@ def assemble_highlight(
         normalized_parts.append(normed)
 
         duration = end - start
-        print(f"      ✅ Scene #{idx}: {sid} [{start:.1f}s - {end:.1f}s] ({duration:.1f}s) — {label}")
+        print(f"      ✅ Scene #{idx}: {sid} [{start:.1f}s - {end:.1f}s] ({duration:.1f}s) - {label}")
 
     if not normalized_parts:
-        print(f"      ❌ Highlight #{cid}: tidak ada scene yang valid.")
+        print(f"      ❌ Highlight #{cid}: no valid scenes.")
         return None
 
     # Concat with transition
@@ -525,5 +525,5 @@ def assemble_highlight(
     shutil.rmtree(temp_dir, ignore_errors=True)
 
     total_scenes = len(normalized_parts)
-    print(f"      ✅ highlight_{cid}.mp4 berhasil dirender ({total_scenes} scene, transition: {transition}).")
+    print(f"      ✅ highlight_{cid}.mp4 rendered successfully ({total_scenes} scene, transition: {transition}).")
     return output_path
