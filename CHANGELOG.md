@@ -8,6 +8,14 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.7.5] - 2026-06-26
+
+### Added
+- **URL Checker**: Added a new sidebar menu item "URL Checker" under Views. Users can paste a YouTube URL to quickly check if the video is already in the local tracker, view its status, and see which playlists it belongs to, without accidentally adding it to the database.
+
+### Fixed
+- **UI & Modal Layout Bug**: Fixed a frontend layout issue where the URL Checker results were overlapping, and fixed a broken "Edit Video Status" modal caused by rogue whitespace in HTML string templates and API fetch URLs.
+
 ## [v1.7.4] - 2026-06-23
 
 ### Fixed

@@ -244,15 +244,15 @@
   // Progress Polling
   // -----------------------------------------------------------------------
   window._activePulls = {};
-  
+
   async function pollProgress() {
     try {
       const res = await api('/api/sources/pull_runs/active');
       const runs = res.pull_runs || [];
       const running = runs.filter(r => r.status === 'running');
-      
+
       let changed = false;
-      
+
       for (const r of running) {
         window._activePulls[r.source_id] = r;
         const bar = document.getElementById(`pull-progress-${r.source_id}`);
@@ -280,7 +280,7 @@
       if (changed) {
         handleRoute(); // Refresh UI to show new videos
       }
-    } catch(e) {}
+    } catch (e) { }
   }
 
   setInterval(pollProgress, 2000);
@@ -651,9 +651,9 @@
     if (window._fetchingAvatars && window._fetchingAvatars.has(chId)) return;
     window._fetchingAvatars = window._fetchingAvatars || new Set();
     window._fetchingAvatars.add(chId);
-    
+
     try {
-      const res = await api(`/api/channels/${chId}/avatar`, {method: 'POST'});
+      const res = await api(`/api/channels/${chId}/avatar`, { method: 'POST' });
       if (res.thumbnail_url) {
         const el = document.getElementById(elementId);
         if (el) {
@@ -664,7 +664,7 @@
           el.replaceWith(img);
         }
       }
-    } catch(e) {}
+    } catch (e) { }
   }
 
   // -----------------------------------------------------------------------
@@ -688,10 +688,10 @@
       html += '<div class="channel-grid">';
       for (const ch of channels) {
         const initials = (ch.name || '?').substring(0, 2).toUpperCase();
-        const avatarHtml = ch.thumbnail_url 
+        const avatarHtml = ch.thumbnail_url
           ? `<img src="${escHtml(ch.thumbnail_url)}" class="channel-avatar" alt="" onerror="this.outerHTML='<div class=\\'channel-avatar\\'>${initials}</div>'">`
           : `<div class="channel-avatar" id="ch-grid-avatar-${ch.id}">${initials}</div>`;
-        
+
         if (!ch.thumbnail_url) {
           setTimeout(() => fetchAvatar(ch.id, `ch-grid-avatar-${ch.id}`), 50);
         }
@@ -737,10 +737,10 @@
       const videos = data.videos || [];
 
       const initials = (ch.name || '?').substring(0, 2).toUpperCase();
-      const avatarHtml = ch.thumbnail_url 
+      const avatarHtml = ch.thumbnail_url
         ? `<img src="${escHtml(ch.thumbnail_url)}" class="channel-avatar" style="width:64px;height:64px;font-size:1.6rem;" alt="" onerror="this.outerHTML='<div class=\\'channel-avatar\\' style=\\'width:64px;height:64px;font-size:1.6rem;\\'>${initials}</div>'">`
         : `<div class="channel-avatar" id="ch-detail-avatar-${ch.id}" style="width:64px;height:64px;font-size:1.6rem;">${initials}</div>`;
-        
+
       if (!ch.thumbnail_url) {
         setTimeout(() => fetchAvatar(ch.id, `ch-detail-avatar-${ch.id}`), 50);
       }
@@ -1038,6 +1038,85 @@
   // -----------------------------------------------------------------------
   // Settings
   // -----------------------------------------------------------------------
+  // URL Checker
+  // -----------------------------------------------------------------------
+
+  registerRoute('/checker', async () => {
+    let html = `
+      <div class="page-header">
+        <h2>URL Checker</h2>
+        <p class="page-subtitle">Check if a YouTube video is already in your tracker</p>
+      </div>
+
+      <div class="filter-bar" style="display:flex; gap:10px;">
+        <input type="text" class="form-input" style="flex:1" placeholder="Paste YouTube URL here..." id="checker-input" autofocus />
+        <button class="btn btn-primary" id="btn-checker">Check URL</button>
+      </div>
+
+      <div id="checker-result" style="margin-top: 24px;"></div>
+    `;
+
+    $app.innerHTML = html;
+
+    async function checkUrl() {
+      const url = document.getElementById('checker-input').value.trim();
+      const $result = document.getElementById('checker-result');
+      if (!url) return;
+
+      const m = url.match(/(?:v=|youtu\.be\/|embed\/)([^&?\/\s]{11})/);
+      if (!m) {
+        $result.innerHTML = emptyState('❌', 'Invalid URL', 'Could not find a valid YouTube Video ID in the URL.');
+        return;
+      }
+      const vidId = m[1];
+
+      $result.innerHTML = loading('Checking database...');
+      try {
+        const video = await api(`/api/videos/${vidId}`);
+
+        let sourcesHtml = (video.sources || []).map(s => `
+          <div style="background:var(--bg-elevated); padding:8px 12px; border-radius:var(--radius-sm); margin-bottom:8px;">
+            <a href="#/source/${s.id}" style="color:var(--text-link);font-weight:600">${escHtml(s.title)}</a>
+            <span class="source-type-badge badge-${s.source_type}" style="margin-left:8px;font-size:0.7rem">${s.source_type}</span>
+            <div style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;">
+              Missing since: ${s.missing_since ? fmtDate(s.missing_since) : 'Present'} | Position: ${s.position || 'N/A'}
+            </div>
+          </div>
+        `).join('');
+
+        if (!sourcesHtml) sourcesHtml = '<div class="text-secondary text-sm">Not linked to any sources.</div>';
+
+        $result.innerHTML = `
+          <div style="display: flex; gap: 16px; align-items: center; padding: 16px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
+            ${thumbImg(video.thumbnail_url, video.title)}
+            <div style="flex: 1;">
+              <div class="video-title" style="font-size: 1rem; margin-bottom: 4px;">${escHtml(video.title)}</div>
+              <div class="video-channel text-sm" style="margin-bottom: 8px;">${video.ch_name ? escHtml(video.ch_name) : ''}</div>
+              <div class="text-sm">Status: ${statusPill(video.status)}</div>
+            </div>
+            <div>
+              <button class="btn btn-ghost btn-sm" onclick="window._editStatus('${escHtml(vidId)}','${escHtml(video.status)}')">✏️ Edit Status</button>
+            </div>
+          </div>
+          <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 1.1rem;">Found in Sources:</h3>
+          ${sourcesHtml}
+        `;
+      } catch (err) {
+        if (err.message.includes('404')) {
+          $result.innerHTML = emptyState('🤷', 'Video Not Found', 'This video is not in your local tracker database. You can add it via Manual Videos or pull its playlist.');
+        } else {
+          $result.innerHTML = emptyState('⚠️', 'Error', err.message);
+        }
+      }
+    }
+
+    document.getElementById('btn-checker').addEventListener('click', checkUrl);
+    document.getElementById('checker-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') checkUrl();
+    });
+  });
+
+  // -----------------------------------------------------------------------
 
   registerRoute('/settings', async () => {
     $app.innerHTML = loading('Loading settings...');
@@ -1053,10 +1132,10 @@
     ];
 
     let html = `
-      <div class="page-header">
+          < div class= "page-header" >
         <h2>Settings</h2>
         <p class="page-subtitle">Default clipping command options</p>
-      </div>
+      </div >
 
       <div class="settings-grid">`;
 
@@ -1159,7 +1238,7 @@
         <button class="btn btn-secondary" onclick="window._hideModal()">Cancel</button>
         <button class="btn btn-primary" id="modal-save">Save</button>
       </div>
-    `);
+        `);
 
     // Pre-fill from API
     api(`/api/videos/${ytVideoId}`).then(v => {
