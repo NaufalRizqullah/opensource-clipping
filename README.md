@@ -469,7 +469,7 @@ GEMINI_MODEL = "gemini-2.0-flash"
 
 ## 📂 Project Structure
 
-```
+```text
 opensource-clipping/
 ├── main.py                  # CLI entry point
 ├── run_upload.py            # YouTube auto-uploader CLI
@@ -479,17 +479,23 @@ opensource-clipping/
 ├── README.md                # English docs
 ├── README_ID.md             # Indonesian docs
 ├── clipping/
-│   ├── __init__.py
 │   ├── config.py            # Master configuration & argparse
 │   ├── engine.py            # Download → Transcribe → Gemini AI
-│   ├── diarization.py       # Pyannote speaker diarization (split-screen & camera-switch)
+│   ├── diarization.py       # Pyannote speaker diarization
 │   ├── metadata.py          # QA metadata normalization
-│   ├── studio.py            # Video render engine (face-track, split-screen, camera-switch, subs, B-roll, BGM)
-│   └── runner.py            # Pipeline orchestrator
-└── youtube_uploader/
-    ├── __init__.py
-    └── uploader.py          # YouTube upload & scheduling logic
+│   ├── runner.py            # Pipeline orchestrator
+│   ├── story/               # Story mode modules
+│   └── studio/              # Video render engine modules
+├── web/                     # Web API and React Dashboard
+├── youtube_tracker/         # YouTube Tracker Web App
+└── youtube_uploader/        # YouTube upload & scheduling logic
 ```
+
+## 📊 Results
+
+| 1 video 9:16 | 1 video split from youtube shorts link |
+|:---:|:---:|
+| <a href="https://www.youtube.com/shorts/hTtU4iI-aKA"><img src="https://img.youtube.com/vi/hTtU4iI-aKA/0.jpg" width="250"></a><br><br>[**Watch Example**](https://www.youtube.com/shorts/hTtU4iI-aKA)<br>*(Standard 9:16 Auto-Framing)* | <a href="https://www.youtube.com/shorts/RnoJqC8Yur4"><img src="https://img.youtube.com/vi/RnoJqC8Yur4/0.jpg" width="250"></a><br><br>[**Watch Example**](https://www.youtube.com/shorts/RnoJqC8Yur4)<br>*(Split-Screen Podcast Mode)* |
 
 ## 🔄 Pipeline Flow
 
@@ -551,6 +557,10 @@ We provide a simple bash script to safely clean up all temporary files while pre
 ```bash
 bash cleanup.sh
 ```
+
+## ❤️ Support & Contributing
+
+Feel free for contributing, support, fork, likes, etc. Any feedback is greatly appreciated to keep this open-source project growing!
 
 ## 📄 License
 

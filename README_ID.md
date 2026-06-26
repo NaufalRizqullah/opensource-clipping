@@ -397,7 +397,7 @@ Contoh:
 
 ## 📂 Struktur Proyek
 
-```
+```text
 opensource-clipping/
 ├── main.py                  # Entry point CLI
 ├── run_upload.py            # CLI auto-uploader YouTube
@@ -407,17 +407,23 @@ opensource-clipping/
 ├── README.md                # Dokumentasi (English)
 ├── README_ID.md             # Dokumentasi (Indonesia)
 ├── clipping/
-│   ├── __init__.py
 │   ├── config.py            # Konfigurasi master & argparse
 │   ├── engine.py            # Download → Transkripsi → Gemini AI
-│   ├── diarization.py       # Pyannote speaker diarization (split-screen & camera-switch)
+│   ├── diarization.py       # Pyannote speaker diarization
 │   ├── metadata.py          # Normalisasi & QA metadata
-│   ├── studio.py            # Mesin render video (face-track, split-screen, camera-switch, subs, B-roll, BGM)
-│   └── runner.py            # Orkestrator pipeline
-└── youtube_uploader/
-    ├── __init__.py
-    └── uploader.py          # Logika upload & penjadwalan YouTube
+│   ├── runner.py            # Orkestrator pipeline
+│   ├── story/               # Modul mode Story Clip
+│   └── studio/              # Modul mesin render video
+├── web/                     # Web API dan React Dashboard
+├── youtube_tracker/         # Aplikasi Web YouTube Tracker
+└── youtube_uploader/        # Logika upload & penjadwalan YouTube
 ```
+
+## 📊 Hasil (Results)
+
+| 1 video 9:16 | 1 video split dari link youtube shorts |
+|:---:|:---:|
+| <a href="https://www.youtube.com/shorts/hTtU4iI-aKA"><img src="https://img.youtube.com/vi/hTtU4iI-aKA/0.jpg" width="250"></a><br><br>[**Tonton Contoh**](https://www.youtube.com/shorts/hTtU4iI-aKA)<br>*(Auto-Framing 9:16 Standar)* | <a href="https://www.youtube.com/shorts/RnoJqC8Yur4"><img src="https://img.youtube.com/vi/RnoJqC8Yur4/0.jpg" width="250"></a><br><br>[**Tonton Contoh**](https://www.youtube.com/shorts/RnoJqC8Yur4)<br>*(Mode Podcast Split-Screen)* |
 
 ## 🔄 Alur Pipeline
 
@@ -616,6 +622,10 @@ Kami menyediakan script bash sederhana untuk membersihkan semua file *temporary*
 ```bash
 bash cleanup.sh
 ```
+
+## ❤️ Support & Contributing
+
+Feel free for contributing, support, fork, likes, dll. Dukungan Anda sangat berarti untuk terus mengembangkan proyek open-source ini.
 
 ## 📄 Lisensi
 
