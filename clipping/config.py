@@ -610,6 +610,44 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Skip source downloads and use existing cached files.",
     )
 
+    # --- Voice-Over Commentary Pipeline ---
+    vo_group = p.add_argument_group("Voice-Over Commentary (TTS)")
+    vo_group.add_argument(
+        "--voiceover",
+        action="store_true",
+        default=False,
+        help="Enable AI voice-over commentary mode using Gemini and edge-tts.",
+    )
+    vo_group.add_argument(
+        "--voiceover-voice",
+        default="en-US-AvaNeural",
+        help="TTS voice for edge-tts (e.g. id-ID-ArdiNeural, en-US-AvaNeural).",
+    )
+    vo_group.add_argument(
+        "--voiceover-lang",
+        choices=["id", "en"],
+        default="en",
+        help="Language for the commentary script generation.",
+    )
+    vo_group.add_argument(
+        "--voiceover-style",
+        choices=["analysis", "reaction", "lesson", "summary"],
+        default="analysis",
+        help="Style of the generated commentary.",
+    )
+    vo_group.add_argument(
+        "--voiceover-volume",
+        type=float,
+        default=1.0,
+        help="Volume of the voice-over audio (0.0 to 1.0+).",
+    )
+    vo_group.add_argument(
+        "--original-volume",
+        type=float,
+        default=0.15,
+        help="Volume of the original video audio when voice-over is active.",
+    )
+
     return p
 
 
@@ -753,6 +791,13 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
             else os.path.join(outputs_dir, "story_clips")
         ),
         skip_download=args.skip_download,
+        # Voice-Over Commentary
+        voiceover=args.voiceover,
+        voiceover_voice=args.voiceover_voice,
+        voiceover_lang=args.voiceover_lang,
+        voiceover_style=args.voiceover_style,
+        voiceover_volume=args.voiceover_volume,
+        original_volume=args.original_volume,
     )
 
     return cfg

@@ -8,6 +8,16 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.8.0] - 2026-06-29
+
+### Added
+- **AI Voice-Over Commentary Pipeline**: Added `--voiceover` flag to transform auto-clips into original commentary/reaction videos to prevent copyright/reused content bans.
+  - Generates sharp analysis/opinion scripts (3-5 sentences) using Gemini AI.
+  - Synthesizes natural-sounding narration using `edge-tts` (free, no GPU required).
+  - Automatically ducks original video audio (to 15%) and overlays the AI narration as the dominant track.
+  - Overrides the burned-in video subtitles to display the AI's commentary text instead of the original transcript.
+- **Voice-Over Config Options**: Added `--voiceover-voice` (default: `en-US-AvaNeural`), `--voiceover-lang` (default: `en`), `--voiceover-style` (analysis, reaction, lesson, summary), `--voiceover-volume`, and `--original-volume`.
+
 ## [v1.7.6] - 2026-06-26
 
 ### Added

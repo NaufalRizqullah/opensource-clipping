@@ -63,13 +63,19 @@ def _normalize_keyword_tags(tags, min_items=5, max_items=8):
     return out
 
 
-def _build_youtube_description(hook, context, hashtags):
+def _build_youtube_description(hook, context, hashtags, source_url=None):
     parts = [
         _normalize_spaces(hook),
         _normalize_spaces(context),
         _normalize_spaces(hashtags),
     ]
-    return "\n\n".join([p for p in parts if p]).strip()
+    desc = "\n\n".join([p for p in parts if p]).strip()
+
+    # Auto-add source attribution if available
+    if source_url:
+        desc += f"\n\nSource: {source_url}"
+
+    return desc
 
 
 def _build_tiktok_caption(caption, hashtags):
@@ -157,6 +163,7 @@ def normalize_and_validate(hasil_json: list[dict]) -> list[dict]:
             item.get("description_hook", ""),
             item.get("description_context", ""),
             item.get("hastag", ""),
+            source_url=item.get("source_url"),
         )
         item["youtube_tags_final"] = item.get("keyword_tags", [])
 
@@ -201,6 +208,11 @@ def normalize_and_validate(hasil_json: list[dict]) -> list[dict]:
             warning.append("tiktok_caption_id kosong")
         if not item["tiktok_caption"]:
             warning.append("tiktok_caption kosong")
+
+        # Safety: warn if description is too short (looks like spam/lazy reupload)
+        yt_desc = item.get("youtube_description_final", "")
+        if len(yt_desc) < 30:
+            warning.append("youtube_description terlalu pendek (< 30 karakter) — terlihat seperti spam")
 
         if _looks_indonesian(item["title_inggris"]):
             warning.append("title_inggris terdeteksi bukan English penuh")

@@ -623,9 +623,13 @@ def proses_klip(
                     label=f"Rank {rank} Main",
                 )
 
+            vo_data = clip.get("voiceover")
+            
             if not cfg.no_subs:
+                # If VO is active, use VO segments for subtitles instead of original transcript
+                subs_data = vo_data["segments"] if vo_data else data_segmen
                 buat_file_ass(
-                    data_segmen,
+                    subs_data,
                     m_start,
                     m_end,
                     a_main,
@@ -667,79 +671,79 @@ def proses_klip(
             for input_silent_ts, output_final_ts in zip(runs, out_targets):
                 lbl_suffix = "" if input_silent_ts == m_silent else " (DEV)"
                 
+                v_filter_parts = [f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"] if not cfg.no_subs else ["null"]
+                if cfg.video_sharpen:
+                    v_filter_parts.append("unsharp=5:5:0.5:5:5:0.0")
+                v_filter = ",".join(v_filter_parts)
+
+                # Initialize FFmpeg command
+                cmd_m_base = [
+                    "ffmpeg", "-hide_banner", "-loglevel", "verbose", "-y",
+                    "-i", input_silent_ts,
+                    "-ss", str(m_start), "-to", str(m_end),
+                    "-i", cfg.file_video_asli
+                ]
+
+                # Map inputs
+                input_idx_bgm = -1
+                input_idx_vo = -1
+                
                 if aktif_bgm and file_bgm:
-                    v_filter_parts = [f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"] if not cfg.no_subs else ["null"]
-                    if cfg.video_sharpen:
-                        v_filter_parts.append("unsharp=5:5:0.5:5:5:0.0")
-                    v_filter = ",".join(v_filter_parts)
+                    cmd_m_base.extend(["-stream_loop", "-1", "-i", file_bgm])
+                    input_idx_bgm = 2
                     
+                if vo_data and os.path.exists(vo_data["audio_path"]):
+                    cmd_m_base.extend(["-i", vo_data["audio_path"]])
+                    input_idx_vo = 3 if (aktif_bgm and file_bgm) else 2
+
+                # Audio mixing logic
+                if input_idx_vo != -1:
+                    # Voice-over active: Duck original audio severely, overlay VO, optionally duck BGM under VO
+                    orig_vol = getattr(cfg, "original_volume", 0.15)
+                    vo_vol = getattr(cfg, "voiceover_volume", 1.0)
+                    
+                    audio_filters = []
+                    audio_filters.append(f"[1:a]volume={orig_vol}[orig_ducked]")
+                    audio_filters.append(f"[{input_idx_vo}:a]volume={vo_vol}[vo_loud]")
+                    
+                    if input_idx_bgm != -1:
+                        # Duck BGM under VO using sidechain or just lower volume
+                        bgm_vol = cfg.bgm_base_volume
+                        audio_filters.append(f"[{input_idx_bgm}:a]volume={bgm_vol}[bgm_vol]")
+                        # Mix all three
+                        audio_filters.append("[orig_ducked][bgm_vol][vo_loud]amix=inputs=3:duration=first:dropout_transition=2[a_out]")
+                    else:
+                        # Mix only original and VO
+                        audio_filters.append("[orig_ducked][vo_loud]amix=inputs=2:duration=first:dropout_transition=2[a_out]")
+                        
+                    filter_complex = f"[0:v]{v_filter}[v_out]; " + "; ".join(audio_filters)
+                    
+                    cmd_m_base.extend([
+                        "-filter_complex", filter_complex,
+                        "-map", "[v_out]", "-map", "[a_out]", "-shortest"
+                    ])
+                    
+                elif input_idx_bgm != -1:
+                    # Only BGM, no VO
                     bgm_mode = getattr(cfg, "bgm_mode", "ducking")
                     audio_filter = build_bgm_filter(
                         bgm_mode, cfg.bgm_base_volume,
-                        audio_input_voc="[1:a]", audio_input_bgm="[2:a]"
+                        audio_input_voc="[1:a]", audio_input_bgm=f"[{input_idx_bgm}:a]"
                     )
-                    filter_complex = (
-                        f"[0:v]{v_filter}[v_out]; "
-                        f"{audio_filter}"
-                    )
-
-                    cmd_m_base = [
-                        "ffmpeg",
-                        "-hide_banner",
-                        "-loglevel",
-                        "verbose",
-                        "-y",
-                        "-i",
-                        input_silent_ts,
-                        "-ss",
-                        str(m_start),
-                        "-to",
-                        str(m_end),
-                        "-i",
-                        cfg.file_video_asli,
-                        "-stream_loop",
-                        "-1",
-                        "-i",
-                        file_bgm,
-                        "-filter_complex",
-                        filter_complex,
-                        "-map",
-                        "[v_out]",
-                        "-map",
-                        "[a_out]",
-                        "-shortest",
-                    ] + std_p
+                    filter_complex = f"[0:v]{v_filter}[v_out]; {audio_filter}"
+                    
+                    cmd_m_base.extend([
+                        "-filter_complex", filter_complex,
+                        "-map", "[v_out]", "-map", "[a_out]", "-shortest"
+                    ])
+                    
                 else:
-                    cmd_m_base = [
-                        "ffmpeg",
-                        "-hide_banner",
-                        "-loglevel",
-                        "verbose",
-                        "-y",
-                        "-i",
-                        input_silent_ts,
-                        "-ss",
-                        str(m_start),
-                        "-to",
-                        str(m_end),
-                        "-i",
-                        cfg.file_video_asli,
-                        "-map",
-                        "0:v:0",
-                        "-map",
-                        "1:a:0",
-                    ]
-                    if not cfg.no_subs:
-                        vf_main_parts = [f"subtitles={esc_ass_main}:fontsdir={esc_fontsdir}"]
-                    else:
-                        vf_main_parts = []
-                    
-                    if cfg.video_sharpen:
-                        vf_main_parts.append("unsharp=5:5:0.5:5:5:0.0")
-                    
-                    if vf_main_parts:
-                        cmd_m_base += ["-vf", ",".join(vf_main_parts)]
-                    cmd_m_base += std_p
+                    # No VO, No BGM — just original audio with subtitles
+                    cmd_m_base.extend(["-map", "0:v:0", "-map", "1:a:0"])
+                    if v_filter != "null":
+                        cmd_m_base.extend(["-vf", v_filter])
+                        
+                cmd_m_base += std_p
 
                 cmd_m = build_ffmpeg_progress_cmd(cmd_m_base, output_final_ts)
                 rc_m, err_m = run_ffmpeg_with_progress(

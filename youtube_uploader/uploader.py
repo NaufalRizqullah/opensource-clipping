@@ -388,8 +388,30 @@ def upload_manifest_to_youtube(
     tz_name: str = "Asia/Makassar",
     interval_hours: int = 2,
     start_local: str = None,
-    test_mode: bool = False
+    test_mode: bool = False,
+    safety_config: dict = None,
+    skip_approval: bool = False,
 ):
+    # ── Load Safety Config ────────────────────────────────────────
+    from . import safety as safety_mod
+
+    if safety_config is None:
+        safety_config = safety_mod.load_safety_config()
+
+    safety_mod.print_safety_summary(safety_config, tz_name)
+
+    # ── Daily Limit Check ────────────────────────────────────────
+    is_allowed, uploads_today, max_per_day = safety_mod.check_daily_limit(
+        safety_config, tz_name
+    )
+    if not is_allowed:
+        print(
+            f"🚫 Upload dibatalkan: sudah {uploads_today}/{max_per_day} upload hari ini. "
+            f"Coba lagi besok atau ubah max_upload_per_day di upload_safety.json."
+        )
+        return []
+
+    # ── Load Manifest ────────────────────────────────────────────
     render_manifest = load_json_file(manifest_file, default=[])
     if not render_manifest:
         print(f"⚠️ {manifest_file} kosong / tidak ditemukan.")
@@ -411,11 +433,32 @@ def upload_manifest_to_youtube(
         pending_items = pending_items[:1]
         print("🧪 Mode test aktif: hanya upload 1 item pertama.")
 
+    # ── Safety: Per-Run Limit ────────────────────────────────────
+    if not test_mode:
+        pending_items = safety_mod.limit_pending_items(pending_items, safety_config)
+
     if not pending_items:
         print("⚠️ Semua item success sudah pernah diupload.")
         return []
 
+    # ── Safety: Enforce Minimum Interval ─────────────────────────
+    interval_hours = safety_mod.enforce_min_interval(interval_hours, safety_config)
+
     youtube = get_youtube_service(token_file)
+
+    # ── Safety: Queue Limit Check ────────────────────────────────
+    queue_ok, queue_count, queue_max = safety_mod.check_queue_limit(
+        youtube, safety_config, tz_name
+    )
+    if not queue_ok:
+        print(
+            f"🚫 Upload dibatalkan: scheduled queue penuh ({queue_count}/{queue_max}). "
+            f"Tunggu video terjadwal dipublish dulu, atau ubah max_scheduled_queue "
+            f"di upload_safety.json."
+        )
+        return []
+    if queue_count > 0:
+        print(f"📋 Scheduled queue saat ini: {queue_count}/{queue_max}")
 
     schedule_times = build_schedule_times(
         count=len(pending_items),
@@ -430,6 +473,8 @@ def upload_manifest_to_youtube(
 
     print(f"🚀 Mulai upload {len(pending_items)} clip ke YouTube...")
 
+    require_approval = safety_config.get("require_manual_approval", True) and not skip_approval
+
     for item, publish_at_local in zip(pending_items, schedule_times):
         rank = item.get("rank")
         manifest_row = get_manifest_row_by_rank(updated_manifest, rank)
@@ -438,6 +483,26 @@ def upload_manifest_to_youtube(
         print(f"Judul  : {item.get('youtube_title_final')}")
         print(f"Video  : {item.get('video_path')}")
         print(f"Jadwal : {publish_at_local.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+
+        # ── Safety: Manual Approval Gate ─────────────────────────
+        if require_approval:
+            if not safety_mod.prompt_manual_approval(item, publish_at_local):
+                print(f"⏭️ Rank {rank} dilewati (tidak di-approve).")
+                if manifest_row is not None:
+                    manifest_row["youtube_upload_status"] = "skipped_approval"
+                upload_results.append({"rank": rank, "status": "skipped_approval"})
+                continue
+
+        # ── Re-check daily limit before each upload ──────────────
+        is_still_ok, up_today, max_day = safety_mod.check_daily_limit(
+            safety_config, tz_name
+        )
+        if not is_still_ok:
+            print(
+                f"🚫 Daily limit tercapai ({up_today}/{max_day}). "
+                f"Sisa item di-skip."
+            )
+            break
 
         try:
             result = upload_video_to_youtube(youtube, item, publish_at_local)
@@ -455,6 +520,14 @@ def upload_manifest_to_youtube(
 
             row_result = {"rank": rank, "status": "uploaded", **result}
             upload_results.append(row_result)
+
+            # ── Safety: Record Upload ────────────────────────────
+            safety_mod.record_upload(
+                safety_config["upload_log_file"],
+                result["video_id"],
+                result.get("uploaded_title", ""),
+                tz_name,
+            )
 
             print(f"✅ Upload sukses. Video ID: {result['video_id']}")
             print(f"🔗 {result['youtube_url']}")

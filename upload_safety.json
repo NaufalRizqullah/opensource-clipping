@@ -1,0 +1,9 @@
+{
+  "$schema": "upload_safety_v1",
+  "max_upload_per_run": 1,
+  "max_upload_per_day": 2,
+  "interval_hours_min": 24,
+  "max_scheduled_queue": 7,
+  "require_manual_approval": true,
+  "upload_log_file": "outputs/upload_history.json"
+}

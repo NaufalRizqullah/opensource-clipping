@@ -9,7 +9,7 @@ import json
 import os
 
 from . import diarization as diarization_mod
-from . import engine, metadata, studio, hook_manager
+from . import engine, metadata, studio, hook_manager, voiceover
 
 
 def run_pipeline(cfg) -> list[dict]:
@@ -179,6 +179,49 @@ def run_pipeline(cfg) -> list[dict]:
         print("\n🎣 Mengunduh sumber klip Hook kustom...")
         custom_hook_path = hook_manager.download_custom_hook(cfg)
 
+    # Step 5.5 — Generate Voice-Over (if enabled)
+    if getattr(cfg, "voiceover", False):
+        print(f"\n🎙️ Meng-generate Voice-Over untuk {len(hasil_json)} klip...")
+        for klip in hasil_json:
+            try:
+                # 1. Generate commentary script from snippet
+                start = float(klip["start_time"])
+                end = float(klip["end_time"])
+                # Extract transcript snippet for this time range
+                snippet_lines = []
+                for seg in data_segmen:
+                    if float(seg["end"]) > start and float(seg["start"]) < end:
+                        snippet_lines.append(seg["text"])
+                snippet_text = " ".join(snippet_lines)
+
+                script = voiceover.generate_commentary_script(
+                    snippet_text,
+                    cfg,
+                    style=cfg.voiceover_style,
+                    language=cfg.voiceover_lang
+                )
+
+                if script:
+                    # 2. Synthesize TTS
+                    audio_path, vo_segments = voiceover.synthesize_voice(
+                        script,
+                        cfg.voiceover_voice,
+                        cfg.outputs_dir,
+                        str(klip["rank"])
+                    )
+                    
+                    if os.path.exists(audio_path):
+                        klip["voiceover"] = {
+                            "script": script,
+                            "audio_path": audio_path,
+                            "segments": vo_segments,
+                            "voice": cfg.voiceover_voice
+                        }
+                        # Pre-check the safety checklist since they have VO now
+                        klip.setdefault("safety_checklist", {})["has_original_narration"] = True
+            except Exception as e:
+                print(f"   ⚠️ Gagal generate voice-over untuk Rank {klip['rank']}: {e}")
+
     for klip in sorted(hasil_json, key=lambda x: x["rank"]):
         
         if custom_hook_path:
@@ -197,7 +240,22 @@ def run_pipeline(cfg) -> list[dict]:
         if hasil_render:
             render_manifest.append(hasil_render)
 
-    # Step 7 — Save manifest
+    # Step 7 — Inject source metadata for attribution & safety tracking
+    for row in render_manifest:
+        # Attach source URL so metadata.py can auto-add source credit
+        if not row.get("source_url"):
+            row["source_url"] = getattr(cfg, "url_youtube", None)
+        # Safety checklist — default unchecked, user must verify before upload
+        if "safety_checklist" not in row:
+            row["safety_checklist"] = {
+                "has_original_narration": False,
+                "source_clip_under_10s": False,
+                "manually_reviewed": False,
+                "title_not_imitating_source": False,
+                "description_has_source_credit": False,
+            }
+
+    # Step 8 — Save manifest
     manifest_path = os.path.join(cfg.outputs_dir, "render_manifest.json")
     with open(manifest_path, "w", encoding="utf-8") as f:
         json.dump(render_manifest, f, ensure_ascii=False, indent=2)
@@ -205,4 +263,22 @@ def run_pipeline(cfg) -> list[dict]:
     print(
         f"\n💾 Render manifest disimpan ke {manifest_path} ({len(render_manifest)} item)"
     )
+
+    # Step 9 — Safety reminder
+    print("\n" + "=" * 70)
+    print("🛡️ SAFETY CHECKLIST — Sebelum Upload")
+    print("=" * 70)
+    print("  □ Sudah menambahkan narasi/voice-over/analisis sendiri?")
+    print("  □ Clip sumber ≤ 10 detik per potongan?")
+    print("  □ Sudah review manual setiap video?")
+    print("  □ Judul & thumbnail BUKAN meniru channel/creator sumber?")
+    print("  □ Description mencantumkan credit sumber?")
+    print("  □ Konten kamu yang DOMINAN, bukan konten orang?")
+    print("=" * 70)
+    print("  ⚠️  Jangan upload tanpa memenuhi checklist di atas.")
+    print("  ⚠️  Channel clipping mentah sangat rentan kena banned.")
+    print("  💡 Jadikan channel analisis/komentar, bukan channel repost clip.")
+    print("=" * 70)
+
     return render_manifest
+
