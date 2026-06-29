@@ -89,6 +89,40 @@ def _download_gdrive(url: str, output_path: str) -> None:
     gdown.download(download_url, output_path, quiet=False)
 
 
+def _ydl_progress_hook(d: dict) -> None:
+    """Render satu baris progress bar download dari data hook yt-dlp.
+
+    yt-dlp mengunduh stream video dan audio secara terpisah, jadi hook ini
+    dipanggil untuk masing-masing; newline saat "finished" menjaga tiap bar
+    berada di barisnya sendiri.
+    """
+    status = d.get("status")
+    if status == "downloading":
+        total = d.get("total_bytes") or d.get("total_bytes_estimate")
+        downloaded = d.get("downloaded_bytes", 0)
+        speed = d.get("speed")
+        eta = d.get("eta")
+        spd = f"{speed / 1024 / 1024:4.1f}MB/s" if speed else "  --MB/s"
+        eta_s = f"{eta:>3}s" if eta is not None else " --s"
+        if total:
+            pct = downloaded / total * 100
+            filled = int(20 * downloaded / total)
+            bar = "█" * filled + " " * (20 - filled)
+            print(
+                f"\r      Unduh: {pct:3.0f}%|{bar}| "
+                f"{downloaded / 1048576:.0f}/{total / 1048576:.0f}MB {spd} ETA {eta_s}   ",
+                end="", flush=True,
+            )
+        else:
+            # Ukuran tidak diketahui (live/streamed manifest) — tampilkan byte + speed saja.
+            print(
+                f"\r      Unduh: {downloaded / 1048576:.0f}MB {spd}   ",
+                end="", flush=True,
+            )
+    elif status == "finished":
+        print(flush=True)  # tutup baris bar untuk stream ini
+
+
 def download_video(
     url: str,
     output_path: str,
@@ -133,6 +167,7 @@ def download_video(
             "quiet": True,
             "merge_output_format": "mp4",
             "remote_components": ["ejs:github"],
+            "progress_hooks": [_ydl_progress_hook],
         }
     else:
         # TikTok / Instagram: ensure video and audio are merged
@@ -143,6 +178,7 @@ def download_video(
             "outtmpl": output_path,
             "quiet": True,
             "merge_output_format": "mp4",
+            "progress_hooks": [_ydl_progress_hook],
         }
 
     # --- Subtitle download — only supported for YouTube ---
@@ -317,13 +353,37 @@ def transcribe_video(
     """
     print("[2/3] Memulai transkripsi dengan Faster-Whisper (Level Per-Kata)...")
 
+    # Langkah-langkah ini berjalan tanpa output di dalam faster-whisper sebelum
+    # segmen pertama dihasilkan, jadi kita umumkan tiap fase — kalau tidak, run
+    # pertama di CPU (download model + decode seluruh audio) terlihat seperti hang.
+    print(
+        f"      ⏳ Memuat model Whisper '{model_size}' ({device})"
+        " — unduhan pertama kali bisa memakan waktu...",
+        flush=True,
+    )
     model = WhisperModel(model_size, device=device, compute_type=compute_type)
-    segments, _info = model.transcribe(video_path, beam_size=5, word_timestamps=True)
+
+    print("      ⏳ Mendekode audio & mengekstrak fitur (belum ada output)...", flush=True)
+    segments, info = model.transcribe(video_path, beam_size=5, word_timestamps=True)
 
     transkrip_lengkap = ""
     data_segmen: list[dict] = []
 
+    # Progress bar berdasarkan timestamp audio. faster-whisper men-stream segmen
+    # secara lazy, jadi bar dimajukan ke waktu akhir tiap segmen saat tiba.
+    from tqdm import tqdm
+
+    total_dur = round(info.duration, 2)
+    progress = tqdm(
+        total=total_dur,
+        unit="s",
+        desc="      Transkripsi",
+        bar_format="{desc}: {percentage:3.0f}%|{bar}| {n:.0f}/{total:.0f}s [{elapsed}<{remaining}]",
+    )
+
     for segment in segments:
+        # Clamp agar floating-point drift melewati durasi tidak overshoot.
+        progress.update(min(segment.end, total_dur) - progress.n)
         transkrip_lengkap += f"[{segment.start:.1f} - {segment.end:.1f}] {segment.text}\n"
 
         if segment.words:
@@ -348,6 +408,8 @@ def transcribe_video(
                     })
                     chunk_words = []
 
+    progress.update(total_dur - progress.n)  # snap ke 100% saat selesai
+    progress.close()
     return transkrip_lengkap, data_segmen
 
 
