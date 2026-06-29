@@ -730,11 +730,14 @@ def proses_klip(
             
             # Extract first frame
             frame_path = os.path.join(cfg.outputs_dir, f"vo_bg_{rank}.jpg")
-            subprocess.run([
-                "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-                "-ss", str(m_start), "-i", cfg.file_video_asli,
-                "-vframes", "1", "-q:v", "2", frame_path
-            ], check=True)
+            try:
+                subprocess.run([
+                    "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                    "-ss", str(m_start), "-i", cfg.file_video_asli,
+                    "-vframes", "1", "-q:v", "2", frame_path
+                ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(f"Gagal mengekstrak frame awal untuk VO Intro:\n{e.stderr}")
             
             vo_duration = float(vo_data["segments"][-1]["end"]) + 0.5 if vo_data.get("segments") else 5.0
             
@@ -752,9 +755,9 @@ def proses_klip(
                     
                 v_filter_vo = (
                     f"scale={vo_w}:{vo_h}:force_original_aspect_ratio=increase,crop={vo_w}:{vo_h},"
-                    f"drawbox=x=0:y=0:w=iw:h=ih:color=black@0.7:t=fill[v_bg]; "
+                    f"drawbox=x=0:y=0:w=iw:h=ih:color=black@0.7:t=max[v_bg]; "
                     f"[1:a]asplit=2[vo_a][vo_wave_in]; "
-                    f"[vo_wave_in]showwaves=s=800x300:mode=cline:colors=0x00FFFF:rate=30,format=rgba,colorkey=black:0.1:0.1[wave_v]; "
+                    f"[vo_wave_in]showwaves=s=800x300:mode=cline:colors=0x00FFFF:rate=30,format=rgba,colorkey=0x000000:0.1:0.1[wave_v]; "
                     f"[v_bg][wave_v]overlay=(W-w)/2:(H-h)/2:shortest=1[v_out]"
                 )
                 
@@ -785,7 +788,10 @@ def proses_klip(
                 ])
                 cmd_vo_base += std_p
                 
-                subprocess.run(cmd_vo_base, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                try:
+                    subprocess.run(cmd_vo_base, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+                except subprocess.CalledProcessError as e:
+                    raise RuntimeError(f"FFmpeg VO intro gagal (Rank {rank}):\nCommand: {' '.join(cmd_vo_base)}\nError:\n{e.stderr}")
                 
             if os.path.exists(frame_path):
                 os.remove(frame_path)
