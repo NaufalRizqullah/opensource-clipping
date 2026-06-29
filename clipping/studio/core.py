@@ -722,6 +722,7 @@ def proses_klip(
         # VOICE-OVER INTRO GENERATION
         vo_ts = None
         vo_ts_dev = None
+        vo_data = clip.get("voiceover")
         if vo_data and os.path.exists(vo_data["audio_path"]):
             vo_ts = os.path.join(cfg.outputs_dir, f"vo_intro_{rank}.ts")
             vo_ts_dev = os.path.join(cfg.outputs_dir, f"vo_intro_{rank}_dev.ts")
