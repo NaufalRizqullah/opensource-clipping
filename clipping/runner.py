@@ -191,7 +191,10 @@ def run_pipeline(cfg) -> list[dict]:
                 snippet_lines = []
                 for seg in data_segmen:
                     if float(seg["end"]) > start and float(seg["start"]) < end:
-                        snippet_lines.append(seg["text"])
+                        # Support both Whisper format (has 'text') and YouTube JSON3 (only 'words')
+                        seg_text = seg.get("text") or " ".join(w["word"] for w in seg.get("words", []))
+                        if seg_text:
+                            snippet_lines.append(seg_text)
                 snippet_text = " ".join(snippet_lines)
 
                 script = voiceover.generate_commentary_script(
