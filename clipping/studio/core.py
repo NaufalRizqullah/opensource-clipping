@@ -739,7 +739,15 @@ def proses_klip(
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(f"Gagal mengekstrak frame awal untuk VO Intro:\n{e.stderr}")
             
-            vo_duration = float(vo_data["segments"][-1]["end"]) + 0.5 if vo_data.get("segments") else 5.0
+            try:
+                # Dapatkan durasi asli dari mp3 menggunakan ffprobe agar tidak terpotong
+                res = subprocess.run([
+                    "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1", vo_data["audio_path"]
+                ], stdout=subprocess.PIPE, text=True, check=True)
+                vo_duration = float(res.stdout.strip()) + 0.5
+            except Exception:
+                vo_duration = float(vo_data["segments"][-1]["end"]) + 0.5 if vo_data.get("segments") else 5.0
             
             # Generate for both normal and dev dual if needed
             out_targets_vo = [vo_ts] if not dev_dual else [vo_ts, vo_ts_dev]
@@ -753,12 +761,36 @@ def proses_klip(
                 elif getattr(cfg, "dev_mode", False) and not dev_dual:
                     vo_w, vo_h = 1920, 1080
                     
+                ass_vo_filter = ""
+                overlay_out = "[v_out]"
+                
+                # Buat file ASS subtitle khusus untuk VO intro jika ada segments
+                if not cfg.no_subs and vo_data.get("segments"):
+                    ass_vo = os.path.join(cfg.outputs_dir, f"vo_subs_{rank}.ass")
+                    buat_file_ass(
+                        vo_data["segments"],
+                        0.0, # Waktu relatif mulai dari 0 karena ini file terpisah
+                        vo_duration,
+                        ass_vo,
+                        rasio,
+                        cfg,
+                        typography_plan=typography_plan,
+                        gunakan_advanced=True,
+                        get_x_func=get_x_main,
+                        source_dim=(vo_w, vo_h) 
+                    )
+                    esc_ass_vo = escape_ffmpeg_filter_value(os.path.abspath(ass_vo))
+                    esc_fontsdir_vo = escape_ffmpeg_filter_value(os.path.abspath(cfg.font_dir))
+                    ass_vo_filter = f"; [v_over]subtitles={esc_ass_vo}:fontsdir={esc_fontsdir_vo}[v_out]"
+                    overlay_out = "[v_over]"
+
                 v_filter_vo = (
                     f"scale={vo_w}:{vo_h}:force_original_aspect_ratio=increase,crop={vo_w}:{vo_h},"
                     f"colorchannelmixer=rr=0.3:gg=0.3:bb=0.3[v_bg]; "
                     f"[1:a]asplit=2[vo_a][vo_wave_in]; "
                     f"[vo_wave_in]showwaves=s=800x300:mode=cline:colors=0x00FFFF:rate=30,format=rgba,colorkey=0x000000:0.1:0.1[wave_v]; "
-                    f"[v_bg][wave_v]overlay=(W-w)/2:(H-h)/2:shortest=1[v_out]"
+                    f"[v_bg][wave_v]overlay=(W-w)/2:(H-h)/2:shortest=1{overlay_out}"
+                    f"{ass_vo_filter}"
                 )
                 
                 cmd_vo_base = [
