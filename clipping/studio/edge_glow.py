@@ -113,8 +113,6 @@ def generate_edge_glow_video(
     pos_map = pos_map / perimeter  # normalise to 0→1
 
     # ---- 3. Render frames via piped FFmpeg ----
-    from clipping.studio.ffmpeg_utils import detect_video_encoder
-    
     cmd = [
         "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
         "-f", "rawvideo", "-pix_fmt", "bgr24",
