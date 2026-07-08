@@ -792,7 +792,8 @@ def proses_klip(
                     f"scale={vo_w}:{vo_h}:force_original_aspect_ratio=increase,crop={vo_w}:{vo_h},"
                     f"colorchannelmixer=rr=0.3:gg=0.3:bb=0.3[v_bg]; "
                     f"[1:a]asplit=2[vo_a][vo_wave_in]; "
-                    f"[vo_wave_in]showwaves=s=800x300:mode=cline:colors=0x00FFFF:rate=30,format=rgba,colorkey=0x000000:0.1:0.1[wave_v]; "
+                    # f"[vo_wave_in]showwaves=s=800x300:mode=cline:colors=0x00FFFF:rate=30,format=rgba,colorkey=0x000000:0.1:0.1[wave_v]; "
+                    f"[vo_wave_in]lowpass=f=400,showwaves=s=800x300:mode=cline:colors=0x00FFFF:rate=20,format=rgba,colorkey=0x000000:0.1:0.1[wave_v]; "
                     f"[v_bg][wave_v]overlay=(W-w)/2:(H-h)/2:shortest=1{overlay_out}"
                     f"{ass_vo_filter}"
                 )

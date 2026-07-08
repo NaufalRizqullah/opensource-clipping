@@ -115,7 +115,7 @@ def _consolidate_segments(raw_segments: list[dict], words_per_seg: int = 3) -> l
 # AI COMMENTARY SCRIPT GENERATION
 # ==============================================================================
 
-def get_commentary_prompt(transcript_snippet: str, style: str, language: str) -> str:
+def get_commentary_prompt(transcript_snippet: str, style: str, language: str, length: str) -> str:
     lang_instruction = "Gunakan bahasa Indonesia yang gaul tapi profesional (seperti narator YouTube/TikTok)."
     if language == "en":
         lang_instruction = "Use engaging, conversational English suitable for a YouTube/TikTok narrator."
@@ -137,8 +137,20 @@ def get_commentary_prompt(transcript_snippet: str, style: str, language: str) ->
         
     chosen_style = style_instructions.get(style, style_instructions["analysis"])
 
+    length_instruction = "berdurasi pendek (3-5 kalimat, sekitar 20-40 detik saat diucapkan)"
+    if length == "short":
+        length_instruction = "berdurasi sangat pendek (1-2 kalimat, sekitar 5-15 detik saat diucapkan)"
+    elif length == "long":
+        length_instruction = "berdurasi lumayan panjang (5-7 kalimat, sekitar 40-60 detik saat diucapkan)"
+    if language == "en":
+        length_instruction = "short duration (3-5 sentences, around 20-40 seconds when spoken)"
+        if length == "short":
+            length_instruction = "very short duration (1-2 sentences, around 5-15 seconds when spoken)"
+        elif length == "long":
+            length_instruction = "medium duration (5-7 sentences, around 40-60 seconds when spoken)"
+
     prompt = f"""Kamu adalah seorang narator/komentator video pendek (Shorts/TikTok/Reels).
-Tugasmu adalah membuat script voice-over berdurasi pendek (3-5 kalimat, sekitar 20-40 detik saat diucapkan) 
+Tugasmu adalah membuat script voice-over {length_instruction} 
 berdasarkan transkrip video berikut.
 
 {lang_instruction}
@@ -157,16 +169,16 @@ TRANSKRIP KLIP:
 SCRIPT VOICE-OVER (Hanya teks yang dibacakan, tanpa tanda kutip di awal/akhir):"""
     return prompt
 
-def generate_commentary_script(transcript_snippet: str, cfg, style="analysis", language="id") -> str:
+def generate_commentary_script(transcript_snippet: str, cfg, style="analysis", language="id", length="short") -> str:
     """Generate commentary script using Gemini AI."""
-    print(f"   🧠 Generating {style} commentary script via Gemini ({language})...")
+    print(f"   🧠 Generating {style} commentary script via Gemini ({language}, {length})...")
     
     api_key = cfg.api_key_gemini
     if not api_key:
         raise ValueError("GOOGLE_API_KEY tidak ditemukan di environment atau config.")
 
     client = genai.Client(api_key=api_key)
-    prompt = get_commentary_prompt(transcript_snippet, style, language)
+    prompt = get_commentary_prompt(transcript_snippet, style, language, length)
     
     gemini_config = types.GenerateContentConfig(
         temperature=0.7,

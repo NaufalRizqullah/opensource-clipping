@@ -201,7 +201,8 @@ def run_pipeline(cfg) -> list[dict]:
                     snippet_text,
                     cfg,
                     style=cfg.voiceover_style,
-                    language=cfg.voiceover_lang
+                    language=cfg.voiceover_lang,
+                    length=cfg.voiceover_length,
                 )
 
                 if script:

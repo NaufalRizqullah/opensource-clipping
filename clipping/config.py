@@ -636,6 +636,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Style of the generated commentary.",
     )
     vo_group.add_argument(
+        "--voiceover-length",
+        choices=["short", "normal", "long"],
+        default="short",
+        help="Length of the generated commentary (short: ~10s, normal: ~30s, long: ~50s).",
+    )
+    vo_group.add_argument(
         "--voiceover-volume",
         type=float,
         default=1.0,
@@ -796,6 +802,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         voiceover_voice=args.voiceover_voice,
         voiceover_lang=args.voiceover_lang,
         voiceover_style=args.voiceover_style,
+        voiceover_length=args.voiceover_length,
         voiceover_volume=args.voiceover_volume,
         original_volume=args.original_volume,
     )
