@@ -48,6 +48,9 @@ _get_render_dims = utils._get_render_dims
 face_detection = _load_studio_internal_module("face_detection.py", "clipping_studio_face_detection")
 get_face_detector = face_detection.get_face_detector
 
+broll = _load_studio_internal_module("broll.py", "clipping_studio_broll")
+crop_center_broll = broll.crop_center_broll
+
 def buat_video_camera_switch(
     input_video,
     output_video,
@@ -94,6 +97,20 @@ def buat_video_camera_switch(
     BLUR_SIGMA = 30
 
     video_encoder = detect_video_encoder(cfg)
+
+    if broll_data is None:
+        broll_data = []
+
+    broll_caps = []
+    for br in broll_data:
+        if "filepath" in br and os.path.exists(br["filepath"]):
+            broll_caps.append(
+                {
+                    "start": br["start_time"],
+                    "end": br["end_time"],
+                    "cap": cv2.VideoCapture(br["filepath"]),
+                }
+            )
 
     # ---------------------------------------------------------------- face detector
     yolo_model = None
@@ -625,6 +642,37 @@ def buat_video_camera_switch(
                     cx = (width - crop_w) // 2 # Center for blurred view
                     out_frame = _make_blurred_pillarbox(frame)
 
+            # --- B-ROLL OVERLAY ---
+            waktu_absolut = start_clip + t
+            TRANSITION_DUR = 0.3
+            MAX_ZOOM = 1.10
+            for bc in broll_caps:
+                if bc["start"] <= waktu_absolut <= bc["end"]:
+                    elapsed_broll = waktu_absolut - bc["start"]
+                    bc["cap"].set(cv2.CAP_PROP_POS_MSEC, elapsed_broll * 1000)
+                    ret_b, frame_b = bc["cap"].read()
+
+                    if ret_b:
+                        durasi_total_broll = bc["end"] - bc["start"]
+                        progress_broll = elapsed_broll / durasi_total_broll if durasi_total_broll > 0 else 0
+                        zoom_factor = 1.0 + ((MAX_ZOOM - 1.0) * progress_broll)
+
+                        frame_b_crop = crop_center_broll(frame_b, out_w, out_h)
+                        M = cv2.getRotationMatrix2D((out_w / 2, out_h / 2), 0, zoom_factor)
+                        frame_b_zoomed = cv2.warpAffine(frame_b_crop, M, (out_w, out_h))
+
+                        alpha = 1.0
+                        if elapsed_broll < TRANSITION_DUR:
+                            alpha = elapsed_broll / TRANSITION_DUR
+                        elif (bc["end"] - waktu_absolut) < TRANSITION_DUR:
+                            alpha = (bc["end"] - waktu_absolut) / TRANSITION_DUR
+
+                        if alpha >= 1.0:
+                            out_frame = frame_b_zoomed
+                        else:
+                            out_frame = cv2.addWeighted(frame_b_zoomed, alpha, out_frame, 1.0 - alpha, 0)
+                    break
+
             tracking_log.append((t, cx))
             writer.stdin.write(out_frame.tobytes())
             frame_count += 1
@@ -667,5 +715,7 @@ def buat_video_camera_switch(
 
     finally:
         cap.release()
+        for bc in broll_caps:
+            bc["cap"].release()
 
 

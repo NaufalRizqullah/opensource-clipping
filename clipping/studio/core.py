@@ -476,12 +476,14 @@ def proses_klip(
                         cfg.file_video_asli, s_silent, s_start, s_end,
                         rasio, diarization_data, cfg,
                         label=f"Rank {rank} Seg {idx} SplitScreen",
+                        broll_data=broll_aktif,
                     )
                 elif use_camera_switch:
                     get_x_main = buat_video_camera_switch(
                         cfg.file_video_asli, s_silent, s_start, s_end,
                         rasio, diarization_data, cfg,
                         label=f"Rank {rank} Seg {idx} CameraSwitch",
+                        broll_data=broll_aktif,
                     )
                 else:
                     get_x_main = buat_video_hybrid(
@@ -596,6 +598,7 @@ def proses_klip(
                     diarization_data,
                     cfg,
                     label=f"Rank {rank} Main SplitScreen",
+                    broll_data=broll_aktif,
                 )
             elif use_camera_switch:
                 # Note: Camera Switch doesn't currently support dev_mode frames but we pass it anyway
@@ -609,6 +612,7 @@ def proses_klip(
                     diarization_data,
                     cfg,
                     label=f"Rank {rank} Main CameraSwitch",
+                    broll_data=broll_aktif,
                 )
             else:
                 print("   📸 [Main] Hybrid render (Visual)...")

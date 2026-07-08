@@ -48,6 +48,9 @@ _get_render_dims = utils._get_render_dims
 face_detection = _load_studio_internal_module("face_detection.py", "clipping_studio_face_detection")
 get_face_detector = face_detection.get_face_detector
 
+broll = _load_studio_internal_module("broll.py", "clipping_studio_broll")
+crop_center_broll = broll.crop_center_broll
+
 def buat_video_split_screen(
     input_video,
     output_video,
@@ -57,6 +60,7 @@ def buat_video_split_screen(
     diarization_data,
     cfg,
     label="SplitScreen",
+    broll_data=None,
 ):
     """
     Render a split-screen video layout containing two vertically stacked views for multi-speaker contexts.
@@ -93,6 +97,20 @@ def buat_video_split_screen(
     ACTIVE_BORDER = 3  # px, highlight border for active speaker
 
     video_encoder = detect_video_encoder(cfg)
+
+    if broll_data is None:
+        broll_data = []
+
+    broll_caps = []
+    for br in broll_data:
+        if "filepath" in br and os.path.exists(br["filepath"]):
+            broll_caps.append(
+                {
+                    "start": br["start_time"],
+                    "end": br["end_time"],
+                    "cap": cv2.VideoCapture(br["filepath"]),
+                }
+            )
 
     # Setup face detector
     yolo_model = None
@@ -912,10 +930,41 @@ def buat_video_split_screen(
 
 
             # Ensure exact output dimensions
-            if not dev_visualize:
-                if final_frame.shape[0] != out_h_final or final_frame.shape[1] != out_w_final:
-                    final_frame = _resize_frame(final_frame, (out_w_final, out_h_final))
-            else:
+            if final_frame.shape[0] != out_h_final or final_frame.shape[1] != out_w_final:
+                final_frame = _resize_frame(final_frame, (out_w_final, out_h_final))
+
+            # --- B-ROLL OVERLAY ---
+            waktu_absolut = start_clip + t
+            TRANSITION_DUR = 0.3
+            MAX_ZOOM = 1.10
+            for bc in broll_caps:
+                if bc["start"] <= waktu_absolut <= bc["end"]:
+                    elapsed_broll = waktu_absolut - bc["start"]
+                    bc["cap"].set(cv2.CAP_PROP_POS_MSEC, elapsed_broll * 1000)
+                    ret_b, frame_b = bc["cap"].read()
+
+                    if ret_b:
+                        durasi_total_broll = bc["end"] - bc["start"]
+                        progress_broll = elapsed_broll / durasi_total_broll if durasi_total_broll > 0 else 0
+                        zoom_factor = 1.0 + ((MAX_ZOOM - 1.0) * progress_broll)
+
+                        frame_b_crop = crop_center_broll(frame_b, out_w_final, out_h_final)
+                        M = cv2.getRotationMatrix2D((out_w_final / 2, out_h_final / 2), 0, zoom_factor)
+                        frame_b_zoomed = cv2.warpAffine(frame_b_crop, M, (out_w_final, out_h_final))
+
+                        alpha = 1.0
+                        if elapsed_broll < TRANSITION_DUR:
+                            alpha = elapsed_broll / TRANSITION_DUR
+                        elif (bc["end"] - waktu_absolut) < TRANSITION_DUR:
+                            alpha = (bc["end"] - waktu_absolut) / TRANSITION_DUR
+
+                        if alpha >= 1.0:
+                            final_frame = frame_b_zoomed
+                        else:
+                            final_frame = cv2.addWeighted(frame_b_zoomed, alpha, final_frame, 1.0 - alpha, 0)
+                    break
+            
+            if dev_visualize:
                 # --- DIRECTOR'S CONSOLE (DEV MODE) ---
                 # UI Constants
                 HUD_COLOR = (0, 255, 0)
@@ -1073,6 +1122,8 @@ def buat_video_split_screen(
 
     finally:
         cap.release()
+        for bc in broll_caps:
+            bc["cap"].release()
 
     def get_x_final(t):
         if not tracking_log: return default_x_full
