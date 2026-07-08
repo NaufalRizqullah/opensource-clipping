@@ -16,7 +16,7 @@
 | **Cinematic Teaser Hook** | 3-second hook with dark overlay, cinematic bars, and **TV Glitch** transition |
 | **Karaoke Subtitles** | Word-by-word highlighted `.ASS` subtitles (Alex Hormozi / Veed style) |
 | **Kinetic Typography** | AI-driven word emphasis with bounce/stagger animations & dual-font system |
-| **B-Roll Integration** | Auto-fetches contextual stock footage from **Pexels** with crossfade & Ken Burns |
+| **B-Roll Integration** | Auto-fetches contextual stock footage from **Pexels** with crossfade & Ken Burns (Supports Hybrid, Split-Screen & Camera-Switch) |
 | **Multi-Hook Intro (V2)** | Creates high-retention 3-4 micro-hook intros with flash/glitch transitions |
 | **Smart Segment Trimming** | AI dynamically selects the best segments to cut out boring/silent parts |
 | **Auto-BGM & Ducking** | Local BGM asset pool (`assets/bgm/`) with 2 modes: *sidechain ducking* (BGM auto-lowers during speech) or *background* (constant low volume). MP3 files auto-loop if shorter than the video |
@@ -25,7 +25,7 @@
 | **Auto YouTube Uploader** | Automatically upload highlight clips to YouTube with scheduling support and full metadata (optional) |
 | **Podcast Split-Screen** | Auto speaker diarization via **Pyannote** with top-bottom split-screen layout for podcasts (9:16). Supports **3+ speakers across multiple scenes** with per-speaker frozen frame fallback |
 | **Podcast Camera Switch** | Auto active-speaker detection with scene-aware switching — full 9:16 crop focuses on whoever is talking; blurred pillarbox only when speakers in the same scene talk simultaneously (9:16) |
-| **AI Voice-Over** | Converts auto-clips into original commentary/reaction videos using **Gemini** (script generation) and **edge-tts** (free text-to-speech), complete with audio ducking and text override |
+| **AI Voice-Over** | Converts auto-clips into original commentary/reaction videos using **Gemini** (script generation) and **edge-tts** (free text-to-speech), complete with audio ducking, text override, and ambient edge glow |
 
 > 🎬 **NEW: Story Clip Mode (`--story-mode`)**  
 > Need to assemble a narrative from multiple specific video sources (like a brand campaign)? We've just introduced the Multi-Source Story Clip Mode!  
@@ -213,6 +213,7 @@ python main.py --help
 | `--hook-source-start` | `0.0` | Start time in seconds for the custom hook video |
 | `--no-bgm` | — | Disable background music |
 | `--bgm-mode` | `ducking` | BGM mixing mode: `ducking` (sidechain compress — BGM auto-lowers during speech) or `background` (constant low volume mix) |
+| `--edge-glow` | `False` | Apply ambient edge glow to the entire output video (hook, clip, broll, voiceover). By default, glow only appears on voice-over intros. |
 | `--no-subs` | — | Disable all subtitle rendering |
 | `--no-karaoke` | — | Use clean text instead of karaoke highlight |
 | `--advanced-text` | `False` | Enable kinetic typography (word scaling & animation) |
@@ -348,10 +349,11 @@ python main.py --url "VIDEO_URL" --hook-v2 --hook-v2-items 4 --hook-v2-style "gl
 Prevent YouTube copyright/reused content strikes by turning raw clips into **original commentary/reaction videos** automatically.
 
 When you pass the `--voiceover` flag, the pipeline will:
-1. Generate a sharp, opinionated 3-5 sentence analysis script using **Gemini AI** based on the clip's specific transcript.
+1. Generate a sharp, opinionated analysis script using **Gemini AI** based on the clip's specific transcript.
 2. Synthesize the script into natural-sounding speech using **edge-tts** (free, no GPU required).
 3. **Duck** the original video's audio down to 15% volume and overlay the AI voice-over at 100% volume.
 4. **Override** the burned-in karaoke subtitles so they display the AI narrator's words instead of the original video transcript.
+5. **Visual Enhancements**: Displays a relaxed audio spectrum visualizer and a premium, slow-moving ambient edge glow around the freeze-frame intro.
 
 **Example Usage:**
 ```bash
@@ -366,8 +368,10 @@ python main.py --url "VIDEO_URL" --voiceover --voiceover-lang id --voiceover-voi
 - `--voiceover-voice`: Choose the TTS voice (e.g. `en-US-AvaNeural`, `id-ID-GadisNeural`).
 - `--voiceover-lang`: Script language (`en` or `id`).
 - `--voiceover-style`: `analysis` (default), `reaction`, `lesson`, or `summary`.
+- `--voiceover-length`: Length of the script (`short` [default: 5-15s], `normal` [20-40s], `long` [40-60s]).
 - `--voiceover-volume`: Volume of narrator (default 1.0).
 - `--original-volume`: Volume of ducked video audio (default 0.15).
+- `--edge-glow`: Apply the ambient edge glow effect to the **entire** video, instead of just the voice-over intro.
 
 ## 🎵 BGM (Background Music) Settings
 

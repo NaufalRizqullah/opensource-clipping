@@ -16,7 +16,7 @@
 | **Cinematic Teaser Hook** | Hook 3 detik dengan overlay gelap, cinematic bars, dan transisi **TV Glitch** |
 | **Karaoke Subtitles** | Subtitle `.ASS` yang menyala per-kata (gaya Alex Hormozi / Veed) |
 | **Kinetic Typography** | Penekanan kata otomatis dengan animasi bounce/stagger & sistem dual-font |
-| **B-Roll Integration** | Mengambil stock footage kontekstual dari **Pexels** dengan crossfade & Ken Burns |
+| **B-Roll Integration** | Mengambil stock footage kontekstual dari **Pexels** dengan crossfade & Ken Burns (Mendukung Hybrid, Split-Screen & Camera-Switch) |
 | **Multi-Hook Intro (V2)** | Membuat intro dengan 3-4 potongan hook cepat yang disertai transisi white flash/glitch |
 | **Smart Segment Trimming** | AI dinamis memotong bagian kosong/membosankan di tengah video untuk pacing cepat |
 | **Auto-BGM & Ducking** | Musik latar otomatis dari koleksi lokal (`assets/bgm/`) dengan 2 mode: *sidechain ducking* (volume BGM otomatis turun saat bicara) atau *background* (volume konstan). File MP3 di-loop otomatis jika lebih pendek dari video |
@@ -25,7 +25,7 @@
 | **Auto YouTube Uploader** | Upload klip highlight beserta metadata ke YouTube secara otomatis dengan penjadwalan (opsional) |
 | **Podcast Split-Screen** | Diarization speaker otomatis via **Pyannote** dengan layout split-screen atas-bawah untuk podcast (9:16). Mendukung **3+ speaker lintas scene** dengan frozen frame fallback per-speaker |
 | **Podcast Camera Switch** | Deteksi speaker aktif otomatis dengan switching yang scene-aware — crop full 9:16 fokus ke pembicara aktif; blurred pillarbox hanya saat speaker di scene yang sama bicara bersamaan (9:16) |
-| **AI Voice-Over** | Mengubah auto-clip menjadi video reaksi/komentar original menggunakan **Gemini** (pembuat script) dan **edge-tts** (text-to-speech gratis), lengkap dengan audio ducking dan penimpaan teks subtitle |
+| **AI Voice-Over** | Mengubah auto-clip menjadi video reaksi/komentar original menggunakan **Gemini** (pembuat script) dan **edge-tts** (text-to-speech gratis), lengkap dengan audio ducking, penimpaan teks subtitle, dan ambient edge glow |
 
 > 🎬 **BARU: Mode Story Clip (`--story-mode`)**  
 > Perlu merakit cerita dari potongan adegan spesifik di berbagai sumber video (misalnya untuk *campaign* brand)? Gunakan fitur Story Clip multi-sumber!  
@@ -213,6 +213,7 @@ python main.py --help
 | `--hook-source-start` | `0.0` | Waktu mulai (detik) di dalam video custom hook |
 | `--no-bgm` | — | Nonaktifkan musik latar |
 | `--bgm-mode` | `ducking` | Mode mixing BGM: `ducking` (sidechain compress — volume BGM otomatis turun saat bicara) atau `background` (volume konstan rendah) |
+| `--edge-glow` | `False` | Terapkan efek ambient edge glow ke seluruh output video (hook, klip, broll, voiceover). Secara default, glow hanya muncul pada intro voice-over. |
 | `--no-subs` | — | Nonaktifkan semua rendering subtitle |
 | `--no-karaoke` | — | Gunakan teks biasa tanpa highlight karaoke |
 | `--advanced-text` | `False` | Aktifkan typografi kinetik (skala kata & animasi pop) |
@@ -346,10 +347,11 @@ python main.py --url "URL_VIDEO" --hook-v2 --hook-v2-items 4 --hook-v2-style "gl
 Cegah teguran hak cipta (copyright) atau konten berulang (reused content) dari YouTube dengan mengubah klip mentah menjadi **video komentar/reaksi original** secara otomatis.
 
 Ketika Anda menggunakan argumen `--voiceover`, sistem akan:
-1. Membuat script analisis/opini tajam (3-5 kalimat) menggunakan **Gemini AI** berdasarkan transkrip khusus klip tersebut.
+1. Membuat script analisis/opini tajam menggunakan **Gemini AI** berdasarkan transkrip khusus klip tersebut.
 2. Mengubah script menjadi suara natural menggunakan **edge-tts** (gratis, tanpa butuh GPU).
 3. **Mengecilkan (ducking)** suara video asli ke volume 15% dan menimpa dengan suara AI Voice-Over di volume 100%.
 4. **Menimpa** teks subtitle karaoke di layar sehingga menampilkan kata-kata dari narator AI, bukan dari transkrip video asli.
+5. **Peningkatan Visual**: Menampilkan visualizer spektrum audio yang tenang dan ambient edge glow yang elegan bergerak perlahan mengitari intro freeze-frame.
 
 **Contoh Penggunaan:**
 ```bash
@@ -364,8 +366,10 @@ python main.py --url "URL_VIDEO" --voiceover --voiceover-lang id --voiceover-voi
 - `--voiceover-voice`: Pilih suara TTS (misal `en-US-AvaNeural`, `id-ID-GadisNeural`).
 - `--voiceover-lang`: Bahasa script (`en` atau `id`).
 - `--voiceover-style`: Gaya bahasa `analysis` (default), `reaction`, `lesson`, atau `summary`.
+- `--voiceover-length`: Panjang naskah (`short` [default: 5-15 dtk], `normal` [20-40 dtk], `long` [40-60 dtk]).
 - `--voiceover-volume`: Volume suara narator (default 1.0).
 - `--original-volume`: Volume suara video asli saat narator bicara (default 0.15).
+- `--edge-glow`: Terapkan efek ambient edge glow ke **seluruh** video, tidak hanya di intro voice-over.
 
 ## 🎬 Penjelasan Hook V2 & Segment Trimming
 
