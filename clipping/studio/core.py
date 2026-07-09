@@ -802,19 +802,89 @@ def proses_klip(
                 )
 
                 # Build filter: bg_frame → overlay glow → overlay spectrum → [subtitles]
+                
+                # =========================
+                # Manual Wave/Spectrum Config
+                # =========================
+                
+                wave_enabled = True
+                
+                # Ukuran wave
+                wave_w = 800
+                wave_h = 260
+                
+                # Smoothness visual
+                # Pakai 30 kalau render final 30fps
+                # Pakai 60 kalau render final 60fps
+                wave_rate = 30
+                
+                # Biar tidak terlalu ramai
+                wave_lowpass = 300      # 250-400 cocok untuk VO
+                wave_use_lowpass = True
+                
+                # Tampilan
+                wave_mode = "cline"     # cline lebih halus, line lebih tegas
+                wave_color = "0x00FFFF"
+                wave_scale = "sqrt"     # sqrt lebih kalem dari linear
+                # Alternatif scale:
+                # "lin"  = linear/default, bentuk wave paling asli tapi bisa terlihat ramai/agresif
+                # "sqrt" = lebih smooth dan seimbang, cocok untuk VO
+                # "cbrt" = lebih kalem/soft dari sqrt, cocok jika wave masih terlalu ramai
+                # "log"  = detail kecil lebih terlihat, tapi kadang malah terasa lebih aktif/ramai
+                
+                
+                # Transparansi wave
+                wave_alpha = 0.65       # 0.4-0.8, makin kecil makin soft
+                
+                # Posisi overlay wave
+                wave_x = "(W-w)/2"
+                wave_y = "(H-h)/2"
+                
+                # Colorkey untuk hilangkan background hitam dari showwaves
+                wave_key_color = "0x000000"
+                wave_key_similarity = 0.1
+                wave_key_blend = 0.1
+                
+
+                if wave_use_lowpass:
+                    wave_audio_filter = f"[vo_wave_in]lowpass=f={wave_lowpass}"
+                else:
+                    wave_audio_filter = "[vo_wave_in]anull"
+                
+                wave_filter = (
+                    f"{wave_audio_filter},"
+                    f"showwaves="
+                    f"s={wave_w}x{wave_h}:"
+                    f"mode={wave_mode}:"
+                    f"colors={wave_color}:"
+                    f"rate={wave_rate}:"
+                    f"scale={wave_scale},"
+                    f"format=rgba,"
+                    f"colorkey={wave_key_color}:{wave_key_similarity}:{wave_key_blend},"
+                    f"colorchannelmixer=aa={wave_alpha}"
+                    f"[wave_v]; "
+                )
+
+                # Build filter: bg_frame → overlay glow → overlay spectrum → [subtitles]
                 # Input 0: freeze frame (looped)
                 # Input 1: VO audio
                 # Input 2: edge glow video (stream_looped)
                 # Input 3 (optional): BGM
+                
                 v_filter_vo = (
-                    f"[0:v]scale={vo_w}:{vo_h}:force_original_aspect_ratio=increase,crop={vo_w}:{vo_h},"
+                    f"[0:v]scale={vo_w}:{vo_h}:force_original_aspect_ratio=increase,"
+                    f"crop={vo_w}:{vo_h},"
                     f"colorchannelmixer=rr=0.3:gg=0.3:bb=0.3[v_bg]; "
+                
                     f"[2:v]scale={vo_w}:{vo_h}[glow_scaled]; "
+                
                     f"[v_bg][glow_scaled]blend=all_mode=screen:shortest=1[v_glowed]; "
+                
                     f"[1:a]asplit=2[vo_a][vo_wave_in]; "
-                    # f"[vo_wave_in]showwaves=s=800x300:mode=cline:colors=0x00FFFF:rate=30,format=rgba,colorkey=0x000000:0.1:0.1[wave_v]; "
-                    f"[vo_wave_in]lowpass=f=400,showwaves=s=800x300:mode=cline:colors=0x00FFFF:rate=20,format=rgba,colorkey=0x000000:0.1:0.1[wave_v]; "
-                    f"[v_glowed][wave_v]overlay=(W-w)/2:(H-h)/2:shortest=1{overlay_out}"
+                
+                    f"{wave_filter}"
+                
+                    f"[v_glowed][wave_v]overlay={wave_x}:{wave_y}:shortest=1{overlay_out}"
                     f"{ass_vo_filter}"
                 )
                 
