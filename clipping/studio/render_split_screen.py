@@ -702,6 +702,41 @@ def buat_video_split_screen(
     MIN_HOLD = float(getattr(cfg, "switch_hold_duration", 2.0))
     # Initialize with a large negative time to allow instant layout decision at t=0
     last_switch_time = -MIN_HOLD
+
+    # --- Anti-Sliding: Last-known position cache per speaker ---
+    # Menyimpan koordinat crop terakhir (cx, cy) per speaker untuk mode full/solo.
+    # Saat switch kembali ke speaker yang sudah pernah aktif, snap langsung
+    # ke posisi terakhirnya, menghindari sliding/panning besar.
+    last_speaker_pos: dict[str, tuple[float, float]] = {}
+    prev_speaker_split = None  # speaker sebelum switch, untuk deteksi transisi
+    is_new_switch_split = False  # flag: apakah frame ini adalah frame pertama setelah switch
+    SWITCH_BLEND_DUR = float(getattr(cfg, "switch_blend_duration", 0.0))
+    switch_blend_t0 = -1.0  # waktu mulai blending setelah switch
+
+    def _resolve_switch_pos_split(speaker, t, is_new_switch):
+        """Return (cx, cy) with anti-sliding cache + optional blend."""
+        nonlocal switch_blend_t0
+        smoothed_cx, smoothed_cy, _ = _get_pos_full(speaker, t)
+        smoothed = (smoothed_cx, smoothed_cy)
+        if is_new_switch and speaker in last_speaker_pos:
+            cached = last_speaker_pos[speaker]
+            if SWITCH_BLEND_DUR <= 0:
+                result = cached
+            else:
+                switch_blend_t0 = t
+                result = cached
+        elif SWITCH_BLEND_DUR > 0 and switch_blend_t0 >= 0 and (t - switch_blend_t0) < SWITCH_BLEND_DUR:
+            frac = min(1.0, (t - switch_blend_t0) / SWITCH_BLEND_DUR)
+            cached = last_speaker_pos.get(speaker, smoothed)
+            result = (
+                cached[0] + (smoothed[0] - cached[0]) * frac,
+                cached[1] + (smoothed[1] - cached[1]) * frac,
+            )
+        else:
+            result = smoothed
+            switch_blend_t0 = -1.0
+        last_speaker_pos[speaker] = result
+        return result
     
     # Stability window for layout decisions (Majority Vote of face counts)
     LAYOUT_SMOOTH_WINDOW = getattr(cfg, "track_smooth_window", 12)
@@ -792,12 +827,15 @@ def buat_video_split_screen(
                     
                     if force_full:
                         current_layout = "full"
+                        prev_speaker_split = current_speaker
                         current_speaker = active_speaker or ranked[0]
+                        is_new_switch_split = prev_speaker_split is not None and prev_speaker_split != current_speaker
                         last_switch_time = t
                         face_count_history.clear()
                     elif force_split:
                         current_layout = "split"
                         current_speaker = ranked[0]
+                        is_new_switch_split = False
                         last_switch_time = t
                         face_count_history.clear()
                     else:
@@ -814,7 +852,9 @@ def buat_video_split_screen(
 
                         if target_layout != current_layout and (t - last_switch_time) >= MIN_HOLD:
                             current_layout = target_layout
+                            prev_speaker_split = current_speaker
                             current_speaker = target_speaker
+                            is_new_switch_split = prev_speaker_split is not None and prev_speaker_split != current_speaker
                             last_switch_time = t
                 else:
                     if len(active_speakers) == 1:
@@ -829,7 +869,9 @@ def buat_video_split_screen(
                 
                     if target_layout != current_layout and (t - last_switch_time) >= MIN_HOLD:
                         current_layout = target_layout
+                        prev_speaker_split = current_speaker
                         current_speaker = target_speaker
+                        is_new_switch_split = prev_speaker_split is not None and prev_speaker_split != current_speaker
                         last_switch_time = t
                 
                 if current_layout == "full":
@@ -837,7 +879,9 @@ def buat_video_split_screen(
                     if not cfg.split_trigger == "face":
                         if len(active_speakers) == 1 and active_speakers[0] != current_speaker:
                             if (t - last_switch_time) >= MIN_HOLD:
+                                prev_speaker_split = current_speaker
                                 current_speaker = active_speakers[0]
+                                is_new_switch_split = True
                                 last_switch_time = t
             else:
                 current_layout = "split"
@@ -845,7 +889,9 @@ def buat_video_split_screen(
             if current_layout == "full":
                 # Solo mode: Render full 9:16 crop
                 spk = current_speaker or (speaker_top if speaker_top in ranked else ranked[0])
-                smooth_cx, smooth_cy, _ = _get_pos_full(spk, t)
+                # Anti-sliding: resolve position with cache + optional blend
+                smooth_cx, smooth_cy = _resolve_switch_pos_split(spk, t, is_new_switch_split)
+                is_new_switch_split = False  # Reset flag setelah digunakan
                 # Calculate Top-Left X for full 9:16 crop
                 x_full = int(max(0, min(smooth_cx - crop_w_full / 2, width - crop_w_full)))
                 y_full = int(max(0, min(smooth_cy - crop_h_full / 2, height - crop_h_full)))

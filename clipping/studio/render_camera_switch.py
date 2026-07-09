@@ -491,6 +491,42 @@ def buat_video_camera_switch(
     current_speaker = None
     last_switch_time = 0.0
 
+    # --- Anti-Sliding: Last-known position cache per speaker ---
+    # Menyimpan koordinat crop terakhir (cx, cy, zoom) per speaker.
+    # Saat switch kembali ke speaker yang sudah pernah aktif, snap langsung
+    # ke posisi terakhirnya, menghindari sliding/panning besar.
+    last_speaker_pos: dict[str, tuple[float, float, float]] = {}
+    prev_speaker = None  # speaker sebelum switch, untuk deteksi transisi
+    SWITCH_BLEND_DUR = float(getattr(cfg, "switch_blend_duration", 0.0))
+    switch_blend_t0 = -1.0  # waktu mulai blending setelah switch
+
+    def _resolve_switch_pos(speaker, t, is_new_switch):
+        """Return (cx, cy, zoom) with anti-sliding cache + optional blend."""
+        nonlocal switch_blend_t0
+        smoothed = _get_pos_cs(speaker, t)
+        if is_new_switch and speaker in last_speaker_pos:
+            cached = last_speaker_pos[speaker]
+            if SWITCH_BLEND_DUR <= 0:
+                # Instant snap
+                result = cached
+            else:
+                switch_blend_t0 = t
+                result = cached
+        elif SWITCH_BLEND_DUR > 0 and switch_blend_t0 >= 0 and (t - switch_blend_t0) < SWITCH_BLEND_DUR:
+            # Still blending from cached → smoothed
+            frac = min(1.0, (t - switch_blend_t0) / SWITCH_BLEND_DUR)
+            cached = last_speaker_pos.get(speaker, smoothed)
+            result = (
+                cached[0] + (smoothed[0] - cached[0]) * frac,
+                cached[1] + (smoothed[1] - cached[1]) * frac,
+                cached[2] + (smoothed[2] - cached[2]) * frac,
+            )
+        else:
+            result = smoothed
+            switch_blend_t0 = -1.0
+        last_speaker_pos[speaker] = result
+        return result
+
     try:
         cap.set(cv2.CAP_PROP_POS_MSEC, start_clip * 1000)
         frame_count = 0
@@ -599,10 +635,14 @@ def buat_video_camera_switch(
                     cx = (width - crop_w) // 2
                     out_frame = _make_blurred_pillarbox(frame)
                 else:
+                    is_new_switch = False
                     if current_speaker is None or current_speaker not in active_speakers:
+                        prev_speaker = current_speaker
                         current_speaker = active_speakers[0]
                         last_switch_time = t
-                    cx, cy, s_zoom = _get_pos_cs(current_speaker, t)
+                        is_new_switch = prev_speaker is not None
+                    # Anti-sliding: resolve position with cache + optional blend
+                    cx, cy, s_zoom = _resolve_switch_pos(current_speaker, t, is_new_switch)
                     eff_cw = int(crop_w / s_zoom)
                     eff_ch = int(crop_h / s_zoom)
                     x_full = int(max(0, min(cx - eff_cw / 2, width - eff_cw)))
@@ -612,6 +652,7 @@ def buat_video_camera_switch(
 
             elif len(active_speakers) == 1:
                 new_speaker = active_speakers[0]
+                is_new_switch = False
                 if current_speaker is None:
                     current_speaker = new_speaker
                     last_switch_time = t
@@ -619,9 +660,12 @@ def buat_video_camera_switch(
                     new_speaker != current_speaker
                     and (t - last_switch_time) >= MIN_HOLD
                 ):
+                    prev_speaker = current_speaker
                     current_speaker = new_speaker
                     last_switch_time = t
-                cx, cy, s_zoom = _get_pos_cs(current_speaker, t)
+                    is_new_switch = True
+                # Anti-sliding: resolve position with cache + optional blend
+                cx, cy, s_zoom = _resolve_switch_pos(current_speaker, t, is_new_switch)
                 eff_cw = int(crop_w / s_zoom)
                 eff_ch = int(crop_h / s_zoom)
                 x_full = int(max(0, min(cx - eff_cw / 2, width - eff_cw)))
@@ -631,7 +675,7 @@ def buat_video_camera_switch(
 
             else:
                 if current_speaker is not None:
-                    cx, cy, s_zoom = _get_pos_cs(current_speaker, t)
+                    cx, cy, s_zoom = _resolve_switch_pos(current_speaker, t, False)
                     eff_cw = int(crop_w / s_zoom)
                     eff_ch = int(crop_h / s_zoom)
                     x_full = int(max(0, min(cx - eff_cw / 2, width - eff_cw)))

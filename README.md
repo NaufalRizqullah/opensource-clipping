@@ -145,7 +145,8 @@ python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
   --clips 3 \
   --ratio "9:16" \
   --camera-switch \
-  --switch-hold-duration 2.0
+  --switch-hold-duration 2.0 \
+  --switch-blend-duration 0.0
 
 # Multi-Speaker Podcast (3 speakers across 2 scenes)
 python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
@@ -239,6 +240,7 @@ python main.py --help
 | `--diarization-speakers` | `auto` | Number of speakers for diarization (set to `3` for exact 3 speakers, or `auto` for visual AI auto-detection) |
 | `--camera-switch` | `False` | Enable camera-switch mode for podcasts — full 9:16 crop switches to the active speaker; blurred pillarbox on simultaneous speech (9:16 only, requires `HF_TOKEN`) |
 | `--switch-hold-duration` | `2.0` | Min seconds to hold on current speaker before switching (camera-switch only) |
+| `--switch-blend-duration` | `0.0` | Transition duration when switching speakers (0 = instant snap, 0.2 = smooth blend) |
 | `--split-zoom` | `1.0` | Manual zoom factor for split-screen panels (e.g. 1.2, 1.5) |
 | `--split-v-align` | `0.5` | Vertical alignment for split-screen panels (0.0=top, 0.5=center, 1.0=bottom) |
 | `--split-auto-zoom` | `False` | **[New]** Automatically zoom into each panel to separate speakers for a clean frameless look |

@@ -145,7 +145,8 @@ python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
   --clips 3 \
   --ratio "9:16" \
   --camera-switch \
-  --switch-hold-duration 2.0
+  --switch-hold-duration 2.0 \
+  --switch-blend-duration 0.0
 
 # Mode Multi-Speaker Podcast (3 speaker lintas 2 scene)
 python main.py --url "https://youtube.com/watch?v=PODCAST_ID" \
@@ -235,8 +236,9 @@ python main.py --help
 | `--load-gemini-json` | `False` | Memuat file `gemini_response.json` dari folder output untuk melewati pemanggilan API Gemini AI (berguna untuk reproduksi/debug) |
 | `--split-screen` | `False` | Aktifkan mode split-screen untuk podcast (hanya 9:16, butuh `HF_TOKEN`). Mendukung 3+ speaker lintas scene |
 | `--diarization-speakers` | `auto` | Jumlah speaker untuk diarization (set ke `3` untuk fix 3 orang, atau `auto` untuk deteksi visual AI otomatis) |
-| `--camera-switch` | `False` | Aktifkan mode camera-switch untuk podcast — crop full 9:16 berpindah ke speaker aktif; blurred pillarbox saat kedua speaker bicara bersamaan (hanya 9:16, butuh `HF_TOKEN`) |
+| `--camera-switch` | `False` | Potong ke speaker yang sedang aktif secara dinamis (Hanya 9:16). Butuh Token HF |
 | `--switch-hold-duration` | `2.0` | Durasi minimum (detik) sebelum berpindah speaker (hanya untuk camera-switch) |
+| `--switch-blend-duration` | `0.0` | Durasi transisi saat berganti speaker (0 = instant snap, 0.2 = smooth blend) |
 | `--split-zoom` | `1.0` | Faktor zoom manual untuk panel split-screen (misal 1.2, 1.5) |
 | `--split-v-align` | `0.5` | Perataan vertikal untuk panel split-screen (0.0=atas, 0.5=tengah, 1.0=bawah) |
 | `--split-auto-zoom` | `False` | **[Baru]** Aktifkan zoom otomatis untuk memisahkan speaker agar frame tetap bersih dan fokus |
@@ -547,6 +549,7 @@ Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 **📹 Pengaturan Camera Switch (Podcast)**
 - `--camera-switch` : Aktifkan mode camera-switch penuh — video 9:16 bergantian mengikuti speaker yang aktif. **Scene-aware**: blurred pillarbox hanya muncul saat speaker di scene yang sama bicara bersamaan; jika speaker dari scene berbeda, tetap fokus ke speaker saat ini. **Mutually exclusive** dengan `--split-screen` (split-screen lebih prioritas jika keduanya diaktifkan).
 - `--switch-hold-duration` : Durasi minimum (detik) sebelum sistem berpindah speaker (default: `2.0`). Berguna agar tidak flickering saat pergantian cepat.
+- `--switch-blend-duration` : Durasi transisi (detik) saat berganti speaker (default: `0.0` / instant snap). Gunakan nilai > 0 (misal: `0.2`) untuk pergerakan kamera *smooth blend* ke posisi speaker.
 
 **🔭 Pengaturan Tracking & Kamera (Auto-Framing)**
 - `--track-step` : Frekuensi pengecekan wajah dalam detik (default: `0.25`). Makin kecil makin responsif tapi makin berat.

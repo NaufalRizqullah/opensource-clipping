@@ -35,6 +35,7 @@ USE_SPLIT_SCREEN = False
 USE_CAMERA_SWITCH = False
 DIARIZATION_NUM_SPEAKERS = "auto"
 SWITCH_HOLD_DURATION = 2.0
+SWITCH_BLEND_DURATION = 0.0  # 0 = instant snap, >0 = smooth blend in seconds
 
 # Source Platform
 SOURCE_PLATFORM = "youtube"
@@ -301,6 +302,12 @@ def _build_parser() -> argparse.ArgumentParser:
         type=float,
         default=SWITCH_HOLD_DURATION,
         help="Minimum seconds to hold on the current speaker before switching cameras (camera-switch mode only)",
+    )
+    p.add_argument(
+        "--switch-blend-duration",
+        type=float,
+        default=SWITCH_BLEND_DURATION,
+        help="Blend duration when switching speakers (0 = instant snap, 0.2 = smooth 200ms transition). Default is 0 (instant snap).",
     )
     p.add_argument(
         "--no-subs",
@@ -730,6 +737,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         use_camera_switch=args.camera_switch,
         diarization_num_speakers=args.diarization_speakers,
         switch_hold_duration=args.switch_hold_duration,
+        switch_blend_duration=args.switch_blend_duration,
         split_zoom=args.split_zoom,
         split_v_align=args.split_v_align,
         split_auto_zoom=args.split_auto_zoom,

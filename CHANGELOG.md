@@ -8,6 +8,16 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.9.1] - 2026-07-09
+
+### Added
+- **Anti-Sliding Speaker Snap**: Implemented a caching mechanism for the last-known crop coordinates (`cx`, `cy`, `zoom`) per speaker in `--camera-switch` and `--dynamic-split` (`full` layout) modes. When switching back to a known speaker, the camera instantly snaps to their last location instead of awkwardly sliding across the 16:9 frame.
+- **Switch Blend Duration (`--switch-blend-duration`)**: Added an option to customize the transition behavior when switching speakers. 
+  - `0.0` (default) performs an instant snap (zero sliding).
+  - `> 0` (e.g. `0.2`) performs a smooth, quick blend from the last-known position to the current smoothed position over the specified seconds.
+
+---
+
 ## [v1.9.0] - 2026-07-09
 
 ### Added
