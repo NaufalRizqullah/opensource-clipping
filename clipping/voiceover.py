@@ -18,6 +18,52 @@ except ImportError:
 
 
 # ==============================================================================
+# AVAILABLE EDGE-TTS VOICES (REFERENCE)
+# ==============================================================================
+# Daftar voice edge-tts yang tersedia untuk referensi.
+# Gunakan value (string voice name) sebagai argumen `voice` di synthesize_voice().
+# Jalankan `edge-tts --list-voices` untuk daftar lengkap.
+
+AVAILABLE_VOICES = {
+    "id": {
+        "male": [
+            "id-ID-ArdiNeural",
+            "id-ID-GadisNeural",       # Note: despite name, check output
+            "id-ID-ArdiNeural",         # Primary Indonesian male
+            # Edge-TTS hanya menyediakan 2 voice ID Indonesia (Ardi & Gadis).
+            # Alternatif Melayu (ms-MY) bisa digunakan untuk variasi:
+            "ms-MY-OsmanNeural",        # Malay male (mirip ID)
+            "ms-MY-YasminNeural",       # Malay female (mirip ID)
+            "jv-ID-DimasNeural",        # Javanese male
+        ],
+        "female": [
+            "id-ID-GadisNeural",        # Primary Indonesian female
+            "jv-ID-SitiNeural",         # Javanese female
+            "su-ID-TutiNeural",         # Sundanese female
+            "ms-MY-YasminNeural",       # Malay female (mirip ID)
+            "su-ID-JajangNeural",       # Sundanese (check gender)
+        ],
+    },
+    "en": {
+        "male": [
+            "en-US-GuyNeural",          # US English male (natural)
+            "en-US-ChristopherNeural",  # US English male (formal)
+            "en-US-EricNeural",         # US English male (warm)
+            "en-GB-RyanNeural",         # British English male
+            "en-AU-WilliamNeural",      # Australian English male
+        ],
+        "female": [
+            "en-US-JennyNeural",        # US English female (natural)
+            "en-US-AriaNeural",         # US English female (expressive)
+            "en-US-MichelleNeural",     # US English female (warm)
+            "en-GB-SoniaNeural",        # British English female
+            "en-AU-NatashaNeural",      # Australian English female
+        ],
+    },
+}
+
+
+# ==============================================================================
 # TTS SYNTHESIS (EDGE-TTS)
 # ==============================================================================
 
