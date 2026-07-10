@@ -276,9 +276,20 @@ def parse_youtube_json3_subs(json_path: str, max_words_per_subtitle: int = 5) ->
                 if seg_end <= seg_start:
                     seg_end = seg_start + 1.0  # Fallback duration
 
-                # Clean up word text
+                # Clean up YouTube subtitle artifacts
                 clean_text = text.replace("\n", " ").replace("\u200b", "").strip()
-                clean_text = re.sub(r"[^\x00-\x7F\u00C0-\u017F\u2018-\u201F\u2026]", "", clean_text)
+                # Remove HTML tags (e.g., <i>, </i>, <b>, </b>, <font color="...">)
+                clean_text = re.sub(r"<[^>]+>", "", clean_text)
+                # Remove YouTube annotation brackets: [Music], [Applause], [Laughter], etc.
+                clean_text = re.sub(r"\[[\w\s]+\]", "", clean_text)
+                # Remove speaker change markers: >> 
+                clean_text = re.sub(r">>\s*", "", clean_text)
+                # Remove music symbols: ♪, ♫, etc.
+                clean_text = re.sub(r"[♪♫♬♩]", "", clean_text)
+                # Remove leading dashes often used for speaker identification
+                clean_text = re.sub(r"^\s*-\s+", "", clean_text)
+                # Collapse multiple spaces into one
+                clean_text = re.sub(r"\s{2,}", " ", clean_text).strip()
 
                 if clean_text:
                     # Memecah teks menjadi kata tunggal agar karaoke per-kata bekerja seperti whisper
