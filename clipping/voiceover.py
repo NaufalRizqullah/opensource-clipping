@@ -23,6 +23,9 @@ except ImportError:
 # Daftar voice edge-tts yang tersedia untuk referensi.
 # Gunakan value (string voice name) sebagai argumen `voice` di synthesize_voice().
 # Jalankan `edge-tts --list-voices` untuk daftar lengkap.
+# GitHub: https://github.com/rany2/edge-tts
+# Preview: https://geeksta.net/tools/tts-samples/
+# Sample in git: https://github.com/yaph/tts-samples/blob/main/mp3/English/en-US-GuyNeural.mp3
 
 AVAILABLE_VOICES = {
     "id": {

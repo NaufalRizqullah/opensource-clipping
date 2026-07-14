@@ -627,7 +627,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     vo_group.add_argument(
         "--voiceover-voice",
-        default="en-US-AvaNeural",
+        default="en-GB-MaisieNeural",
         help="TTS voice for edge-tts (e.g. id-ID-ArdiNeural, en-US-AvaNeural).",
     )
     vo_group.add_argument(
