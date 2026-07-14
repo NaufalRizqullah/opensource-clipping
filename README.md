@@ -23,6 +23,7 @@
 | **Auto-Thumbnail** | Frame extraction with dark overlay and large title text |
 | **Cross-Platform Metadata** | YouTube title/description/tags + TikTok caption — all in English |
 | **Auto YouTube Uploader** | Automatically upload highlight clips to YouTube with scheduling support and full metadata (optional) |
+| **Auto Facebook Reels Uploader** | Upload Reels to Facebook Pages via Meta Graph API with smart scheduling — first clip publishes immediately, subsequent clips auto-schedule at configurable intervals (optional) |
 | **Podcast Split-Screen** | Auto speaker diarization via **Pyannote** with top-bottom split-screen layout for podcasts (9:16). Supports **3+ speakers across multiple scenes** with per-speaker frozen frame fallback |
 | **Podcast Camera Switch** | Auto active-speaker detection with scene-aware switching — full 9:16 crop focuses on whoever is talking; blurred pillarbox only when speakers in the same scene talk simultaneously (9:16) |
 | **AI Voice-Over** | Converts auto-clips into original commentary/reaction videos using **Gemini** (script generation) and **edge-tts** (free text-to-speech), complete with audio ducking, text override, and ambient edge glow |
@@ -506,6 +507,7 @@ GEMINI_MODEL = "gemini-2.0-flash"
 opensource-clipping/
 ├── main.py                  # CLI entry point
 ├── run_upload.py            # YouTube auto-uploader CLI
+├── run_fb_upload.py         # Facebook Pages Reels uploader CLI
 ├── pyproject.toml           # Dependencies & metadata
 ├── .env.sample              # API key template
 ├── .gitignore
@@ -519,6 +521,7 @@ opensource-clipping/
 │   ├── runner.py            # Pipeline orchestrator
 │   ├── story/               # Story mode modules
 │   └── studio/              # Video render engine modules
+├── facebook_uploader/       # Facebook Pages Reels upload & scheduling
 ├── web/                     # Web API and React Dashboard
 ├── youtube_tracker/         # YouTube Tracker Web App
 └── youtube_uploader/        # YouTube upload & scheduling logic
@@ -580,6 +583,44 @@ The project now includes a standalone YouTube auto-uploader with scheduling supp
    python run_upload.py --interval-hours 12 --tz-name "Asia/Jakarta"
    ```
 3. To run a test with only the first video, use `python run_upload.py --test-mode`. Run `python run_upload.py --help` to see all scheduling and timezone options.
+
+## 📘 Auto-Upload to Facebook Pages (Reels)
+
+The project also includes a standalone Facebook Pages Reels uploader with native scheduling support via the Meta Graph API!
+
+**Prerequisites:**
+- A Facebook Page Access Token (long-lived) with `pages_manage_posts` and `pages_read_engagement` permissions.
+- Set `META_PAGE_ID`, `META_PAGE_ACCESS_TOKEN`, and `META_GRAPH_VERSION` in your `.env` file.
+
+**How it works:**
+1. Validates your Page Access Token against the Graph API.
+2. Reads existing scheduled posts to determine the next available time slot.
+3. Uploads each clip as a Reel: create session → upload binary → poll processing → publish/schedule.
+4. First clip publishes immediately if no queue exists; subsequent clips are scheduled at 5-hour intervals (configurable).
+5. If any step fails, the batch **stops immediately** (no fallback to instant publish).
+
+```bash
+# Basic run (reads .env for META_PAGE_ID & META_PAGE_ACCESS_TOKEN)
+python run_fb_upload.py
+
+# Test mode — only upload the first clip
+python run_fb_upload.py --test-mode
+
+# Custom interval (3 hours between videos)
+python run_fb_upload.py --interval-hours 3
+
+# See all options
+python run_fb_upload.py --help
+```
+
+| Argument | Default | Description |
+|---|---|---|
+| `--manifest-file` | `outputs/render_manifest.json` | Input manifest from clipping pipeline |
+| `--result-file` | `outputs/fb_upload_results.json` | Output JSON trace file |
+| `--updated-manifest` | `outputs/render_manifest_fb_uploaded.json` | Updated manifest with upload status |
+| `--tz-name` | `Asia/Makassar` | Timezone for scheduling (IANA format) |
+| `--interval-hours` | `5` | Gap between scheduled uploads (hours) |
+| `--test-mode` | `false` | Upload only the first video |
 
 ## 🧹 Disk Cleanup
 

@@ -23,6 +23,7 @@
 | **Auto-Thumbnail** | Ekstraksi frame dengan overlay gelap dan teks judul besar |
 | **Metadata Lintas Platform** | Judul/deskripsi/tag YouTube + caption TikTok — semua dalam Bahasa Inggris |
 | **Auto YouTube Uploader** | Upload klip highlight beserta metadata ke YouTube secara otomatis dengan penjadwalan (opsional) |
+| **Auto Facebook Reels Uploader** | Upload Reels ke Facebook Pages via Meta Graph API dengan penjadwalan otomatis — klip pertama langsung publish, klip berikutnya dijadwalkan otomatis dengan interval yang bisa dikonfigurasi (opsional) |
 | **Podcast Split-Screen** | Diarization speaker otomatis via **Pyannote** dengan layout split-screen atas-bawah untuk podcast (9:16). Mendukung **3+ speaker lintas scene** dengan frozen frame fallback per-speaker |
 | **Podcast Camera Switch** | Deteksi speaker aktif otomatis dengan switching yang scene-aware — crop full 9:16 fokus ke pembicara aktif; blurred pillarbox hanya saat speaker di scene yang sama bicara bersamaan (9:16) |
 | **AI Voice-Over** | Mengubah auto-clip menjadi video reaksi/komentar original menggunakan **Gemini** (pembuat script) dan **edge-tts** (text-to-speech gratis), lengkap dengan audio ducking, penimpaan teks subtitle, dan ambient edge glow |
@@ -434,6 +435,7 @@ Contoh:
 opensource-clipping/
 ├── main.py                  # Entry point CLI
 ├── run_upload.py            # CLI auto-uploader YouTube
+├── run_fb_upload.py         # CLI auto-uploader Facebook Pages Reels
 ├── pyproject.toml           # Dependensi & metadata proyek
 ├── .env.sample              # Template API key
 ├── .gitignore
@@ -447,6 +449,7 @@ opensource-clipping/
 │   ├── runner.py            # Orkestrator pipeline
 │   ├── story/               # Modul mode Story Clip
 │   └── studio/              # Modul mesin render video
+├── facebook_uploader/       # Upload & penjadwalan Reels Facebook Pages
 ├── web/                     # Web API dan React Dashboard
 ├── youtube_tracker/         # Aplikasi Web YouTube Tracker
 └── youtube_uploader/        # Logika upload & penjadwalan YouTube
@@ -646,6 +649,44 @@ Proyek ini sekarang menyertakan uploader YouTube mandiri (standalone) dengan duk
    python run_upload.py --interval-hours 12 --tz-name "Asia/Jakarta"
    ```
 3. Untuk mengetes hanya dengan video pertama, jalankan dengan argumen `--test-mode`. Gunakan perintah `python run_upload.py --help` untuk melihat opsi timezone dan interval penjadwalan.
+
+## 📘 Upload Otomatis ke Facebook Pages (Reels)
+
+Proyek ini juga menyertakan uploader Reels Facebook Pages mandiri dengan dukungan penjadwalan native via Meta Graph API!
+
+**Prasyarat:**
+- Page Access Token (long-lived) Facebook dengan izin `pages_manage_posts` dan `pages_read_engagement`.
+- Set `META_PAGE_ID`, `META_PAGE_ACCESS_TOKEN`, dan `META_GRAPH_VERSION` di file `.env` Anda.
+
+**Cara Kerja:**
+1. Memvalidasi Page Access Token terhadap Graph API.
+2. Membaca jadwal post yang sudah ada untuk menentukan slot waktu berikutnya.
+3. Upload setiap klip sebagai Reel: buat sesi → upload binary → poll status processing → publish/jadwalkan.
+4. Klip pertama langsung di-publish jika belum ada antrian; klip berikutnya dijadwalkan dengan interval 5 jam (bisa dikonfigurasi).
+5. Jika ada langkah yang gagal, batch **langsung berhenti** (tidak fallback ke publish langsung).
+
+```bash
+# Mode biasa (baca .env untuk META_PAGE_ID & META_PAGE_ACCESS_TOKEN)
+python run_fb_upload.py
+
+# Mode test — hanya upload klip pertama
+python run_fb_upload.py --test-mode
+
+# Interval kustom (3 jam antar video)
+python run_fb_upload.py --interval-hours 3
+
+# Lihat semua opsi
+python run_fb_upload.py --help
+```
+
+| Argumen | Default | Deskripsi |
+|---|---|---|
+| `--manifest-file` | `outputs/render_manifest.json` | Input manifest dari pipeline clipping |
+| `--result-file` | `outputs/fb_upload_results.json` | Output file JSON trace upload |
+| `--updated-manifest` | `outputs/render_manifest_fb_uploaded.json` | Manifest terupdate dengan status upload |
+| `--tz-name` | `Asia/Makassar` | Timezone untuk penjadwalan (format IANA) |
+| `--interval-hours` | `5` | Jarak antar upload terjadwal (jam) |
+| `--test-mode` | `false` | Upload hanya video pertama |
 
 ## 🧹 Pembersihan Disk (Cleanup)
 

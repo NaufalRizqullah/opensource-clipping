@@ -8,6 +8,28 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.10.0] - 2026-07-14
+
+### Added
+- **Facebook Pages Reels Auto-Uploader (`facebook_uploader`)**: New standalone module for uploading Reels to Facebook Pages via the Meta Graph API. Follows the same manifest-based architecture as the YouTube uploader.
+  - **4-Step Reel Upload Flow**: Create session → upload binary → poll processing status → finish (publish or schedule).
+  - **Smart Scheduling with Cursor**: Reads existing scheduled posts from Facebook (`/{PAGE_ID}/scheduled_posts`), maintains a `last_assigned_time` cursor during the batch, and schedules subsequent clips at configurable intervals (default: 5 hours).
+  - **Publish or Schedule**: First clip is published immediately if no existing queue; subsequent clips are scheduled via `video_state=SCHEDULED` with `scheduled_publish_time`.
+  - **Fail-Fast Safety**: If any upload step fails or `SCHEDULED` is rejected by the API, the batch stops immediately — no fallback to `PUBLISHED` (prevents accidental mass-publish).
+  - **Incremental Save**: Upload results and updated manifest are saved after each clip, so progress is never lost.
+- **Facebook Uploader CLI (`run_fb_upload.py`)**: New CLI entry point mirroring `run_upload.py` for YouTube.
+  - `--manifest-file`: Input manifest from clipping pipeline (default: `outputs/render_manifest.json`).
+  - `--result-file`: Output upload trace JSON (default: `outputs/fb_upload_results.json`).
+  - `--interval-hours`: Gap between scheduled videos (default: `5`).
+  - `--test-mode`: Upload only the first video for testing.
+  - `--tz-name`: Timezone for scheduling (default: `Asia/Makassar`).
+
+### New Modules
+- **`facebook_uploader/__init__.py`**: Package init, exports `upload_manifest_to_facebook`.
+- **`facebook_uploader/uploader.py`**: Core upload logic — config/auth, scheduling, 4-step Meta Graph API flow, and main pipeline orchestrator.
+
+---
+
 ## [v1.9.1] - 2026-07-09
 
 ### Added
