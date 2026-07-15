@@ -146,10 +146,10 @@ def get_latest_future_schedule(config: dict, tz_name: str = "Asia/Makassar") -> 
 
 def create_reel_session(config: dict) -> dict:
     """
-    POST /me/video_reels (upload_phase=start)
+    POST /{PAGE_ID}/video_reels (upload_phase=start)
     Returns {"video_id": "...", "upload_url": "..."}.
     """
-    url = f"{config['base_url']}/me/video_reels"
+    url = f"{config['base_url']}/{config['page_id']}/video_reels"
     payload = {"upload_phase": "start"}
 
     resp = requests.post(url, headers=_auth_headers(config), data=payload, timeout=30)
@@ -197,50 +197,142 @@ def upload_reel_binary(upload_url: str, file_path: str, token: str) -> bool:
 def poll_reel_status(
     config: dict,
     video_id: str,
-    timeout_seconds: int = 60,
+    timeout_seconds: int = 300,
     poll_interval: int = 10,
-) -> bool:
+    wait_for: str = "publishing",
+) -> dict:
     """
-    GET /{VIDEO_ID}?fields=status — poll until processing is complete, or progress to next if still processing.
-    Returns True if completed/ready, False if still processing when timeout reached.
+    wait_for:
+      - "publishing": untuk Reel PUBLISHED
+      - "processing": untuk Reel SCHEDULED
     """
+    if wait_for not in {"processing", "publishing"}:
+        raise ValueError(
+            "wait_for harus bernilai 'processing' atau 'publishing'"
+        )
+
     url = f"{config['base_url']}/{video_id}"
     params = {"fields": "status"}
 
     start_time = time.time()
+    last_data = {}
+
+    processing_complete = False
+    publishing_complete = False
 
     while True:
         elapsed = time.time() - start_time
+
         try:
-            resp = requests.get(url, headers=_auth_headers(config), params=params, timeout=30)
-            resp.raise_for_status()
+            resp = requests.get(
+                url,
+                headers=_auth_headers(config),
+                params=params,
+                timeout=30,
+            )
+
+            if not resp.ok:
+                try:
+                    error_body = resp.json()
+                except ValueError:
+                    error_body = resp.text
+
+                raise RuntimeError(
+                    f"Status request gagal HTTP {resp.status_code}: {error_body}"
+                )
+
             data = resp.json()
-        except Exception as e:
-            print(f"   ⚠️ Gagal mengecek status video: {e}")
-            if elapsed > timeout_seconds:
-                return False
+            last_data = data
+
+        except Exception as exc:
+            print(f"   ⚠️ Gagal mengecek status video: {exc}")
+
+            if elapsed >= timeout_seconds:
+                return {
+                    "complete": False,
+                    "published": False,
+                    "processing_complete": processing_complete,
+                    "publishing_complete": publishing_complete,
+                    "status": {},
+                    "raw": last_data,
+                }
+
             time.sleep(poll_interval)
             continue
 
         status = data.get("status", {})
+
         video_status = status.get("video_status", "")
-        processing_phase = status.get("processing_phase", {}).get("status", "")
-
         progress = status.get("processing_progress", 0)
-        print(f"   ... processing: {progress}% (status={video_status})")
 
-        # Processing complete
-        if video_status == "ready" or processing_phase == "complete":
-            return True
+        uploading_phase = status.get("uploading_phase", {})
+        processing_phase = status.get("processing_phase", {})
+        publishing_phase = status.get("publishing_phase", {})
 
-        # Error
+        uploading_status = uploading_phase.get("status", "")
+        processing_status = processing_phase.get("status", "")
+        publishing_status = publishing_phase.get("status", "")
+
+        processing_complete = (
+            processing_status == "complete"
+            or video_status == "ready"
+        )
+        publishing_complete = publishing_status == "complete"
+
+        print(
+            "   ... "
+            f"video={video_status}, "
+            f"uploading={uploading_status}, "
+            f"processing={processing_status}, "
+            f"publishing={publishing_status}, "
+            f"progress={progress}%"
+        )
+
+        for phase_name, phase_data in (
+            ("uploading_phase", uploading_phase),
+            ("processing_phase", processing_phase),
+            ("publishing_phase", publishing_phase),
+        ):
+            if phase_data.get("status") == "error":
+                error_info = phase_data.get("error", phase_data)
+                raise RuntimeError(
+                    f"Facebook Reel gagal pada {phase_name}: {error_info}"
+                )
+
         if video_status == "error":
-            error_info = status.get("processing_phase", {}).get("error", {})
-            raise RuntimeError(f"Video processing error: {error_info}")
+            raise RuntimeError(
+                f"Facebook Reel video_status=error: {status}"
+            )
 
-        if elapsed > timeout_seconds:
-            print(f"   ℹ️ Video masih diproses di background oleh Meta (status={video_status}). Melanjutkan batch...")
-            return False
+        target_complete = (
+            publishing_complete
+            if wait_for == "publishing"
+            else processing_complete
+        )
+
+        if target_complete:
+            return {
+                "complete": True,
+                "published": publishing_complete,
+                "processing_complete": processing_complete,
+                "publishing_complete": publishing_complete,
+                "status": status,
+                "raw": data,
+            }
+
+        if elapsed >= timeout_seconds:
+            print(
+                f"   ℹ️ Fase {wait_for} belum selesai setelah {timeout_seconds} detik."
+            )
+
+            return {
+                "complete": False,
+                "published": publishing_complete,
+                "processing_complete": processing_complete,
+                "publishing_complete": publishing_complete,
+                "status": status,
+                "raw": data,
+            }
 
         time.sleep(poll_interval)
 
@@ -254,10 +346,10 @@ def finish_reel(
     scheduled_timestamp: int | None = None,
 ) -> dict:
     """
-    POST /me/video_reels (upload_phase=finish)
+    POST /{PAGE_ID}/video_reels (upload_phase=finish)
     Publish immediately or schedule for later.
     """
-    url = f"{config['base_url']}/me/video_reels"
+    url = f"{config['base_url']}/{config['page_id']}/video_reels"
     payload = {
         "video_id": video_id,
         "upload_phase": "finish",
@@ -386,6 +478,13 @@ def upload_manifest_to_facebook(
 
     print("🔑 Validasi Page Access Token...")
     page_info = validate_page_token(config)
+    
+    if str(page_info.get("id")) != str(config["page_id"]):
+        raise RuntimeError(
+            "META_PAGE_ACCESS_TOKEN tidak cocok dengan META_PAGE_ID. "
+            f"Token mengarah ke ID {page_info.get('id')}, "
+            f"sedangkan konfigurasi menggunakan {config['page_id']}."
+        )
     print(f"✅ Token valid untuk Page: {page_info.get('name')} (ID: {page_info.get('id')})")
 
     # --- Load Manifest ---
@@ -401,9 +500,23 @@ def upload_manifest_to_facebook(
 
     # Filter out already-uploaded items
     pending_items = []
+    completed_statuses = {
+        "uploaded",              # kompatibilitas manifest lama
+        "published",
+        "pending",
+        "scheduled",
+        "scheduled_processing",
+    }
+
     for item in candidates:
-        if item.get("fb_video_id") and item.get("fb_upload_status") == "uploaded":
-            print(f"⏭️ Skip Rank {item.get('rank')} karena sudah pernah diupload ke Facebook.")
+        fb_video_id = item.get("fb_video_id")
+        fb_status = item.get("fb_upload_status")
+
+        if fb_video_id and fb_status in completed_statuses:
+            print(
+                f"⏭️ Skip Rank {item.get('rank')} karena sudah memiliki "
+                f"Facebook Video ID: {fb_video_id} (status={fb_status})"
+            )
             continue
         pending_items.append(item)
 
@@ -469,6 +582,7 @@ def upload_manifest_to_facebook(
         print(f"Mode   : {mode_label}")
         print(f"{'=' * 60}")
 
+        video_id = None
         try:
             # Step 1: Create Reel session
             print("   📝 Membuat sesi upload Reel...")
@@ -494,13 +608,40 @@ def upload_manifest_to_facebook(
             )
             print(f"   ✅ Reel {video_state} berhasil didaftarkan!")
 
-            # Step 4: Poll processing status (Non-blocking: max 60s, for logging status only)
-            print("   ⏳ Mengecek status processing awal...")
-            poll_reel_status(config, video_id, timeout_seconds=60, poll_interval=10)
+            # Step 4: Poll status (Wait for publishing or processing to become complete)
+            if video_state == "PUBLISHED":
+                print("   ⏳ Menunggu status publishing...")
+                status_result = poll_reel_status(
+                    config=config,
+                    video_id=video_id,
+                    timeout_seconds=300,
+                    poll_interval=10,
+                    wait_for="publishing",
+                )
+                final_status = (
+                    "published"
+                    if status_result["publishing_complete"]
+                    else "pending"
+                )
+            else:
+                print("   ⏳ Menunggu processing Reel terjadwal...")
+                status_result = poll_reel_status(
+                    config=config,
+                    video_id=video_id,
+                    timeout_seconds=180,
+                    poll_interval=10,
+                    wait_for="processing",
+                )
+                final_status = (
+                    "scheduled"
+                    if status_result["processing_complete"]
+                    else "scheduled_processing"
+                )
 
             # --- Update manifest row ---
             if manifest_row is not None:
-                manifest_row["fb_upload_status"] = "uploaded"
+                manifest_row["fb_upload_status"] = final_status
+                manifest_row["fb_publish_status_raw"] = status_result.get("status", {})
                 manifest_row["fb_video_id"] = video_id
                 manifest_row["fb_video_state"] = video_state
                 manifest_row["fb_scheduled_at"] = (
@@ -513,7 +654,7 @@ def upload_manifest_to_facebook(
 
             row_result = {
                 "rank": rank,
-                "status": "uploaded",
+                "status": final_status,
                 "filename": os.path.basename(video_path),
                 "video_id": video_id,
                 "mode": video_state,
@@ -521,10 +662,20 @@ def upload_manifest_to_facebook(
                     scheduled_at.isoformat() if scheduled_at else None
                 ),
                 "api_response": finish_result,
+                "facebook_status": status_result.get("status", {}),
             }
             upload_results.append(row_result)
 
-            print(f"   ✅ Upload sukses. Video ID: {video_id}")
+            if final_status == "published":
+                print(f"   ✅ Reel benar-benar published. Video ID: {video_id}")
+            elif final_status == "scheduled":
+                print(
+                    f"   ✅ Reel berhasil dijadwalkan untuk {scheduled_at.strftime('%Y-%m-%d %H:%M:%S %Z')}. Video ID: {video_id}"
+                )
+            else:
+                print(
+                    f"   ⚠️ Reel diterima Meta dengan status {final_status}. Video ID: {video_id}"
+                )
 
         except Exception as e:
             err = str(e)
@@ -532,6 +683,8 @@ def upload_manifest_to_facebook(
             if manifest_row is not None:
                 manifest_row["fb_upload_status"] = "failed"
                 manifest_row["fb_upload_error"] = err
+                if video_id:
+                    manifest_row["fb_video_id"] = video_id
 
             upload_results.append({
                 "rank": rank,

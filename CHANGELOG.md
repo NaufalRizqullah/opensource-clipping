@@ -11,7 +11,12 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 ## [v1.10.1] - 2026-07-15
 
 ### Fixed
-- **Meta Reels API Timing / Sequence Timeout**: Fixed a critical bug in `facebook_uploader` where status polling was called before the `finish` endpoint. Reels will remain in `upload_complete` (0% progress) indefinitely until the upload phase is finished. Swapped the step order to finish first, and changed polling to a 60-second non-blocking informational logger.
+- **Meta Reels API Timing / Sequence Timeout & Polling Logic**: Overhauled the Reels upload and status checking flow:
+  - **Differentiated Polling**: Swapped sequence to call `finish_reel` before checking status. `PUBLISHED` reels now poll until `publishing_phase == "complete"`, while `SCHEDULED` reels only poll until `processing_phase == "complete"` (since scheduled reels remain pending-publication until their schedule time).
+  - **Comprehensive 3-Phase Status Checks**: `poll_reel_status` now tracks and checks status for `uploading_phase`, `processing_phase`, and `publishing_phase`, raising a detailed exception on any error state.
+  - **Old Manifest Compatibility**: Manifest candidate selector now skips ranks that match `"uploaded"`, `"published"`, `"pending"`, `"scheduled"`, or `"scheduled_processing"` to prevent duplicate uploads.
+  - **Explicit Page ID & Validation Match**: Exchanged implicit `/me/video_reels` endpoints with explicit `/{page_id}/video_reels` and verified that the validated access token matches the configured `META_PAGE_ID`.
+  - **Exception Tracking**: Initialized `video_id = None` before the upload session to ensure partially-created Reel session IDs are persisted in the manifest on failure.
 
 ---
 
