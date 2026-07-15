@@ -8,6 +8,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.10.1] - 2026-07-15
+
+### Fixed
+- **Meta Reels API Timing / Sequence Timeout**: Fixed a critical bug in `facebook_uploader` where status polling was called before the `finish` endpoint. Reels will remain in `upload_complete` (0% progress) indefinitely until the upload phase is finished. Swapped the step order to finish first, and changed polling to a 60-second non-blocking informational logger.
+
+---
+
 ## [v1.10.0] - 2026-07-14
 
 ### Added
