@@ -5,10 +5,10 @@ Uploads Reels to a Facebook Page via the Meta Graph API.
 Follows the same manifest-based pattern as youtube_uploader.
 
 API Flow per clip:
-  1. Create Reel session  (POST /me/video_reels, upload_phase=start)
-  2. Upload binary file   (POST to upload_url)
-  3. Poll processing      (GET /{VIDEO_ID}?fields=status)
-  4. Finish: publish/schedule (POST /me/video_reels, upload_phase=finish)
+  1. Create Reel session      (POST /{PAGE_ID}/video_reels, upload_phase=start)
+  2. Upload binary file       (POST to upload_url)
+  3. Finish: publish/schedule (POST /{PAGE_ID}/video_reels, upload_phase=finish)
+  4. Poll status              (GET /{VIDEO_ID}?fields=status)
 """
 
 import os
@@ -420,6 +420,63 @@ def get_manifest_row_by_rank(manifest_rows, rank):
     return None
 
 
+def refresh_existing_facebook_statuses(
+    config: dict,
+    manifest_rows: list,
+    updated_manifest_file: str,
+) -> None:
+    """
+    Check Facebook Graph API for existing pending/scheduled_processing Reels
+    and update their statuses in-place in the manifest.
+    """
+    modified = False
+    target_statuses = {"pending", "scheduled_processing"}
+
+    for row in manifest_rows:
+        video_id = row.get("fb_video_id")
+        status = row.get("fb_upload_status")
+
+        if video_id and status in target_statuses:
+            print(f"🔄 Mensinkronisasi status Facebook untuk Video ID {video_id} (status saat ini: {status})...")
+            url = f"{config['base_url']}/{video_id}"
+            params = {"fields": "status"}
+
+            try:
+                resp = requests.get(url, headers=_auth_headers(config), params=params, timeout=15)
+                if resp.ok:
+                    data = resp.json()
+                    fb_status = data.get("status", {})
+
+                    video_status = fb_status.get("video_status", "")
+                    processing_status = fb_status.get("processing_phase", {}).get("status", "")
+                    publishing_status = fb_status.get("publishing_phase", {}).get("status", "")
+
+                    new_status = None
+                    if status == "pending":
+                        if publishing_status == "complete":
+                            new_status = "published"
+                    elif status == "scheduled_processing":
+                        if processing_status == "complete" or video_status == "ready":
+                            new_status = "scheduled"
+
+                    if new_status:
+                        row["fb_upload_status"] = new_status
+                        row["fb_publish_status_raw"] = fb_status
+                        row["fb_uploaded_at_utc"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                        print(f"   ✅ Status diperbarui: {status} ➔ {new_status}")
+                        modified = True
+                    else:
+                        print(f"   ℹ️ Status masih sama (video={video_status}, processing={processing_status}, publishing={publishing_status})")
+                else:
+                    print(f"   ⚠️ Request status gagal HTTP {resp.status_code}")
+            except Exception as e:
+                print(f"   ⚠️ Gagal mensinkronisasi status untuk {video_id}: {e}")
+
+    if modified:
+        save_json_file(updated_manifest_file, manifest_rows)
+        print("💾 Manifest terupdate disimpan setelah sinkronisasi status.")
+
+
 # ==============================================================================
 # MAIN PIPELINE
 # ==============================================================================
@@ -493,6 +550,9 @@ def upload_manifest_to_facebook(
         print(f"⚠️ {manifest_file} kosong / tidak ditemukan.")
         return []
 
+    # Sync existing pending / scheduled statuses before processing
+    refresh_existing_facebook_statuses(config, render_manifest, updated_manifest_file)
+
     candidates = get_upload_candidates(render_manifest)
     if not candidates:
         print("⚠️ Tidak ada item yang siap diupload.")
@@ -500,22 +560,14 @@ def upload_manifest_to_facebook(
 
     # Filter out already-uploaded items
     pending_items = []
-    completed_statuses = {
-        "uploaded",              # kompatibilitas manifest lama
-        "published",
-        "pending",
-        "scheduled",
-        "scheduled_processing",
-    }
-
     for item in candidates:
         fb_video_id = item.get("fb_video_id")
         fb_status = item.get("fb_upload_status")
 
-        if fb_video_id and fb_status in completed_statuses:
+        if fb_video_id:
             print(
                 f"⏭️ Skip Rank {item.get('rank')} karena sudah memiliki "
-                f"Facebook Video ID: {fb_video_id} (status={fb_status})"
+                f"Facebook Video ID: {fb_video_id} (status={fb_status or 'unknown'})"
             )
             continue
         pending_items.append(item)

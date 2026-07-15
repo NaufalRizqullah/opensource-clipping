@@ -14,7 +14,8 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Meta Reels API Timing / Sequence Timeout & Polling Logic**: Overhauled the Reels upload and status checking flow:
   - **Differentiated Polling**: Swapped sequence to call `finish_reel` before checking status. `PUBLISHED` reels now poll until `publishing_phase == "complete"`, while `SCHEDULED` reels only poll until `processing_phase == "complete"` (since scheduled reels remain pending-publication until their schedule time).
   - **Comprehensive 3-Phase Status Checks**: `poll_reel_status` now tracks and checks status for `uploading_phase`, `processing_phase`, and `publishing_phase`, raising a detailed exception on any error state.
-  - **Old Manifest Compatibility**: Manifest candidate selector now skips ranks that match `"uploaded"`, `"published"`, `"pending"`, `"scheduled"`, or `"scheduled_processing"` to prevent duplicate uploads.
+  - **Status Synchronization**: Added `refresh_existing_facebook_statuses()` to check the Graph API for pending/scheduled_processing Reels on startup and update them in the manifest.
+  - **Anti-Duplication Skip Check**: Changed candidate selection to skip any item that has an existing `fb_video_id` regardless of status.
   - **Explicit Page ID & Validation Match**: Exchanged implicit `/me/video_reels` endpoints with explicit `/{page_id}/video_reels` and verified that the validated access token matches the configured `META_PAGE_ID`.
   - **Exception Tracking**: Initialized `video_id = None` before the upload session to ensure partially-created Reel session IDs are persisted in the manifest on failure.
 
