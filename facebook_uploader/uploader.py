@@ -199,17 +199,13 @@ def poll_reel_status(
     video_id: str,
     timeout_seconds: int = 300,
     poll_interval: int = 10,
-    wait_for: str = "publishing",
 ) -> dict:
     """
-    wait_for:
-      - "publishing": untuk Reel PUBLISHED
-      - "processing": untuk Reel SCHEDULED
+    Poll status Reel sampai publishing_phase.status == complete.
+    Berlaku untuk PUBLISHED maupun SCHEDULED reels:
+      - PUBLISHED → publish_status == "published"
+      - SCHEDULED → publish_status == "scheduled"
     """
-    if wait_for not in {"processing", "publishing"}:
-        raise ValueError(
-            "wait_for harus bernilai 'processing' atau 'publishing'"
-        )
 
     url = f"{config['base_url']}/{video_id}"
     params = {"fields": "status"}
@@ -250,7 +246,7 @@ def poll_reel_status(
             if elapsed >= timeout_seconds:
                 return {
                     "complete": False,
-                    "published": False,
+                    "publish_status": None,
                     "processing_complete": processing_complete,
                     "publishing_complete": publishing_complete,
                     "status": {},
@@ -274,10 +270,10 @@ def poll_reel_status(
         publishing_status = publishing_phase.get("status", "")
 
         processing_complete = (
-            processing_status == "complete"
+            processing_status in {"complete", "completed"}
             or video_status == "ready"
         )
-        publishing_complete = publishing_status == "complete"
+        publishing_complete = publishing_status in {"complete", "completed"}
 
         print(
             "   ... "
@@ -285,6 +281,7 @@ def poll_reel_status(
             f"uploading={uploading_status}, "
             f"processing={processing_status}, "
             f"publishing={publishing_status}, "
+            f"publish_status={publishing_phase.get('publish_status', '-')}, "
             f"progress={progress}%"
         )
 
@@ -304,32 +301,27 @@ def poll_reel_status(
                 f"Facebook Reel video_status=error: {status}"
             )
 
-        target_complete = (
-            publishing_complete
-            if wait_for == "publishing"
-            else processing_complete
-        )
-
-        if target_complete:
+        if publishing_complete:
+            publish_status = publishing_phase.get("publish_status", "unknown")
             return {
                 "complete": True,
-                "published": publishing_complete,
+                "publish_status": publish_status,
                 "processing_complete": processing_complete,
-                "publishing_complete": publishing_complete,
+                "publishing_complete": True,
                 "status": status,
                 "raw": data,
             }
 
         if elapsed >= timeout_seconds:
             print(
-                f"   ℹ️ Fase {wait_for} belum selesai setelah {timeout_seconds} detik."
+                f"   ℹ️ Publishing belum selesai setelah {timeout_seconds} detik."
             )
 
             return {
                 "complete": False,
-                "published": publishing_complete,
+                "publish_status": publishing_phase.get("publish_status"),
                 "processing_complete": processing_complete,
-                "publishing_complete": publishing_complete,
+                "publishing_complete": False,
                 "status": status,
                 "raw": data,
             }
@@ -426,11 +418,16 @@ def refresh_existing_facebook_statuses(
     updated_manifest_file: str,
 ) -> None:
     """
-    Check Facebook Graph API for existing pending/scheduled_processing/scheduled Reels
+    Check Facebook Graph API for existing pending/uploaded/scheduled Reels
     and update their statuses in-place in the manifest.
+
+    Uses publishing_phase.publish_status to accurately determine:
+      - "published" → already live
+      - "scheduled" → scheduled for future
     """
     modified = False
-    target_statuses = {"pending", "scheduled_processing", "scheduled"}
+    # Statuses that still need synchronization with Meta
+    target_statuses = {"pending", "uploaded", "scheduled_processing", "scheduled"}
 
     for row in manifest_rows:
         video_id = row.get("fb_video_id")
@@ -449,15 +446,27 @@ def refresh_existing_facebook_statuses(
 
                     video_status = fb_status.get("video_status", "")
                     processing_status = fb_status.get("processing_phase", {}).get("status", "")
-                    publishing_status = fb_status.get("publishing_phase", {}).get("status", "")
+                    publishing_phase = fb_status.get("publishing_phase", {})
+                    publishing_status = publishing_phase.get("status", "")
+                    publish_status = publishing_phase.get("publish_status", "")
 
                     new_status = None
-                    # Jika phase publishing sudah complete, tandai sebagai published
-                    if publishing_status == "complete":
-                        new_status = "published"
-                    # Jika sebelumnya scheduled_processing dan processing sudah complete, tandai sebagai scheduled
-                    elif status == "scheduled_processing" and (processing_status == "complete" or video_status == "ready"):
-                        new_status = "scheduled"
+
+                    # Jika phase publishing sudah complete, gunakan publish_status untuk
+                    # menentukan status akhir secara akurat
+                    if publishing_status in {"complete", "completed"}:
+                        if publish_status == "published":
+                            new_status = "published"
+                        elif publish_status == "scheduled":
+                            new_status = "scheduled"
+                        else:
+                            # Fallback: publishing complete tapi publish_status tidak dikenali
+                            new_status = "published"
+
+                    # Jika processing sudah complete tapi publishing belum, tandai pending
+                    elif processing_status in {"complete", "completed"} or video_status == "ready":
+                        if status in {"uploaded", "scheduled_processing"}:
+                            new_status = "pending"
 
                     # Selalu catat kapan status terakhir kali dicheck
                     row["fb_status_checked_at_utc"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -468,8 +477,8 @@ def refresh_existing_facebook_statuses(
                         print(f"   ✅ Status diperbarui: {status} ➔ {new_status}")
                         modified = True
                     else:
-                        print(f"   ℹ️ Status masih sama (video={video_status}, processing={processing_status}, publishing={publishing_status})")
-                        # Jika check timestamp ditambahkan, tandai manifest sebagai modified untuk menyimpan timestamp check terbaru
+                        print(f"   ℹ️ Status masih sama (video={video_status}, processing={processing_status}, publishing={publishing_status}, publish_status={publish_status})")
+                        # Timestamp check ditambahkan, tandai manifest sebagai modified
                         modified = True
                 else:
                     print(f"   ⚠️ Request status gagal HTTP {resp.status_code}")
@@ -650,6 +659,7 @@ def upload_manifest_to_facebook(
         print(f"{'=' * 60}")
 
         video_id = None
+        post_id = None
         try:
             # Step 1: Create Reel session
             print("   📝 Membuat sesi upload Reel...")
@@ -673,43 +683,44 @@ def upload_manifest_to_facebook(
                 video_state=video_state,
                 scheduled_timestamp=scheduled_timestamp,
             )
+            post_id = finish_result.get("post_id")
             print(f"   ✅ Reel {video_state} berhasil didaftarkan!")
+            if post_id:
+                print(f"   📌 Post ID: {post_id}")
 
-            # Step 4: Poll status (Wait for publishing or processing to become complete)
-            if video_state == "PUBLISHED":
-                print("   ⏳ Menunggu status publishing...")
-                status_result = poll_reel_status(
-                    config=config,
-                    video_id=video_id,
-                    timeout_seconds=300,
-                    poll_interval=10,
-                    wait_for="publishing",
-                )
-                final_status = (
-                    "published"
-                    if status_result["publishing_complete"]
-                    else "pending"
-                )
+            # Step 4: Poll status — unified for PUBLISHED & SCHEDULED
+            #   Meta returns publishing_phase.status == "complete" for both.
+            #   publish_status differentiates: "published" vs "scheduled".
+            print("   ⏳ Menunggu publishing phase selesai...")
+            status_result = poll_reel_status(
+                config=config,
+                video_id=video_id,
+                timeout_seconds=300,
+                poll_interval=10,
+            )
+
+            if status_result["complete"]:
+                publish_status = status_result.get("publish_status", "unknown")
+                # Map publish_status to internal status
+                if publish_status == "published":
+                    final_status = "published"
+                elif publish_status == "scheduled":
+                    final_status = "scheduled"
+                else:
+                    final_status = publish_status  # e.g. "draft", "error"
             else:
-                print("   ⏳ Menunggu processing Reel terjadwal...")
-                status_result = poll_reel_status(
-                    config=config,
-                    video_id=video_id,
-                    timeout_seconds=180,
-                    poll_interval=10,
-                    wait_for="processing",
-                )
-                final_status = (
-                    "scheduled"
-                    if status_result["processing_complete"]
-                    else "scheduled_processing"
-                )
+                # Timeout — tentukan berdasarkan apa yang sudah tercapai
+                if status_result.get("processing_complete"):
+                    final_status = "pending"  # processing ok, publishing timeout
+                else:
+                    final_status = "uploaded"  # masih processing
 
             # --- Update manifest row ---
             if manifest_row is not None:
                 manifest_row["fb_upload_status"] = final_status
                 manifest_row["fb_publish_status_raw"] = status_result.get("status", {})
                 manifest_row["fb_video_id"] = video_id
+                manifest_row["fb_post_id"] = post_id
                 manifest_row["fb_video_state"] = video_state
                 manifest_row["fb_scheduled_at"] = (
                     scheduled_at.strftime("%Y-%m-%d %H:%M:%S %Z") if scheduled_at else None
@@ -724,6 +735,7 @@ def upload_manifest_to_facebook(
                 "status": final_status,
                 "filename": os.path.basename(video_path),
                 "video_id": video_id,
+                "post_id": post_id,
                 "mode": video_state,
                 "scheduled_at": (
                     scheduled_at.isoformat() if scheduled_at else None
@@ -736,12 +748,17 @@ def upload_manifest_to_facebook(
             if final_status == "published":
                 print(f"   ✅ Reel benar-benar published. Video ID: {video_id}")
             elif final_status == "scheduled":
+                sched_str = scheduled_at.strftime('%Y-%m-%d %H:%M:%S %Z') if scheduled_at else '-'
                 print(
-                    f"   ✅ Reel berhasil dijadwalkan untuk {scheduled_at.strftime('%Y-%m-%d %H:%M:%S %Z')}. Video ID: {video_id}"
+                    f"   ✅ Reel berhasil dijadwalkan untuk {sched_str}. Video ID: {video_id}"
+                )
+            elif final_status == "pending":
+                print(
+                    f"   ⏳ Reel diterima Meta, menunggu publishing selesai. Video ID: {video_id}"
                 )
             else:
                 print(
-                    f"   ⚠️ Reel diterima Meta dengan status {final_status}. Video ID: {video_id}"
+                    f"   ⚠️ Reel diterima Meta dengan status '{final_status}'. Video ID: {video_id}"
                 )
 
         except Exception as e:

@@ -8,6 +8,17 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.10.2] - 2026-07-16
+
+### Improved
+- **Unified Reel Status Polling**: Simplified `poll_reel_status` by removing the `wait_for` parameter. Both `PUBLISHED` and `SCHEDULED` reels now wait for `publishing_phase.status == "complete"` — Meta confirms this phase completes for both modes. The `publish_status` field (`"published"` or `"scheduled"`) from `publishing_phase` now determines the final manifest status, aligning with the official [Meta Video API Reels Publishing docs](https://developers.facebook.com/docs/video-api/guides/reels-publishing).
+- **Post ID Storage**: `post_id` returned by `finish_reel` is now stored in manifest (`fb_post_id`) and upload results for referencing the actual Facebook Page post.
+- **API Compatibility**: Status checks now accept both `"complete"` and `"completed"` phase statuses (Meta docs say `"completed"`, actual API returns `"complete"`).
+- **Enhanced Status Sync**: `refresh_existing_facebook_statuses` now uses `publishing_phase.publish_status` for accurate status determination, and adds `"uploaded"` to the set of syncable statuses for timeout recovery.
+- **Richer Polling Logs**: Status polling now logs `publish_status` alongside phase statuses for better debugging.
+
+---
+
 ## [v1.10.1] - 2026-07-15
 
 ### Fixed
