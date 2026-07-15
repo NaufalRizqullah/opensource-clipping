@@ -17,6 +17,12 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Enhanced Status Sync**: `refresh_existing_facebook_statuses` now uses `publishing_phase.publish_status` for accurate status determination, and adds `"uploaded"` to the set of syncable statuses for timeout recovery.
 - **Richer Polling Logs**: Status polling now logs `publish_status` alongside phase statuses for better debugging.
 
+### Added
+- **Rate Limit Enforcement (30 Reels / 24h)**: Counts recent uploads from the manifest (`fb_uploaded_at_utc` within the last 24 hours) before starting a batch. If the 30-Reel rolling window limit is reached, the batch is blocked. If only partial quota remains, the batch is automatically trimmed to the remaining slots.
+- **Schedule Time Validation**: Validates `scheduled_publish_time` against Meta's platform limits before calling the API:
+  - **Minimum 10 minutes**: If the calculated schedule is less than 10 minutes from now, it is automatically bumped to `now + 10 minutes` with a warning.
+  - **Maximum 29 days**: If the calculated schedule exceeds 29 days from now, the batch is stopped (no further clips are uploaded).
+
 ---
 
 ## [v1.10.1] - 2026-07-15

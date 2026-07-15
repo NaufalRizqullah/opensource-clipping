@@ -22,6 +22,20 @@ import requests
 
 
 # ==============================================================================
+# META PLATFORM LIMITS
+# ==============================================================================
+
+# Maximum Reels via API in a rolling 24-hour window
+META_REEL_RATE_LIMIT_24H = 30
+
+# scheduled_publish_time must be at least this many minutes from now
+META_SCHEDULE_MIN_MINUTES = 10
+
+# scheduled_publish_time must be at most this many days from now
+META_SCHEDULE_MAX_DAYS = 29
+
+
+# ==============================================================================
 # CONFIG & AUTH
 # ==============================================================================
 
@@ -393,6 +407,29 @@ def normalize_text(text):
     return " ".join(str(text or "").split()).strip()
 
 
+def count_recent_uploads(manifest_rows: list, hours: int = 24) -> int:
+    """
+    Count how many items in the manifest were uploaded to Facebook
+    within the last `hours` hours (based on fb_uploaded_at_utc).
+    Used to enforce Meta's rolling 24-hour rate limit.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    count = 0
+    for row in manifest_rows:
+        uploaded_at_str = row.get("fb_uploaded_at_utc")
+        if not uploaded_at_str:
+            continue
+        try:
+            uploaded_at = datetime.fromisoformat(
+                uploaded_at_str.replace("Z", "+00:00")
+            )
+            if uploaded_at >= cutoff:
+                count += 1
+        except (ValueError, TypeError):
+            continue
+    return count
+
+
 def get_upload_candidates(render_manifest):
     """Return items that are status=success and have a valid video file."""
     candidates = []
@@ -596,6 +633,22 @@ def upload_manifest_to_facebook(
             continue
         pending_items.append(item)
 
+    # --- Rate Limit Check (30 Reels / 24 jam rolling window) ---
+    recent_count = count_recent_uploads(render_manifest, hours=24)
+    remaining_quota = max(0, META_REEL_RATE_LIMIT_24H - recent_count)
+    print(f"\n📊 Rate Limit: {recent_count}/{META_REEL_RATE_LIMIT_24H} Reels sudah diupload dalam 24 jam terakhir.")
+
+    if remaining_quota == 0:
+        print("🛑 Rate limit tercapai! Tidak bisa upload Reel lagi dalam 24 jam ini.")
+        return []
+
+    if len(pending_items) > remaining_quota:
+        print(
+            f"⚠️ Hanya {remaining_quota} dari {len(pending_items)} clip yang akan diupload "
+            f"(sisa kuota 24 jam)."
+        )
+        pending_items = pending_items[:remaining_quota]
+
     if test_mode and pending_items:
         pending_items = pending_items[:1]
         print("🧪 Mode test aktif: hanya upload 1 item pertama.")
@@ -646,6 +699,28 @@ def upload_manifest_to_facebook(
         else:
             # Schedule at last_assigned_time + interval
             scheduled_at = last_assigned_time + interval
+
+            # --- Validasi batas jadwal Meta ---
+            now_check = datetime.now(tz)
+            min_schedule = now_check + timedelta(minutes=META_SCHEDULE_MIN_MINUTES)
+            max_schedule = now_check + timedelta(days=META_SCHEDULE_MAX_DAYS)
+
+            # Jika terlalu dekat (< 10 menit), bump ke minimum
+            if scheduled_at < min_schedule:
+                print(
+                    f"   ⚠️ Jadwal {scheduled_at.strftime('%H:%M:%S')} terlalu dekat "
+                    f"(min {META_SCHEDULE_MIN_MINUTES} menit). Di-bump ke {min_schedule.strftime('%H:%M:%S')}."
+                )
+                scheduled_at = min_schedule
+
+            # Jika melebihi 29 hari, stop batch
+            if scheduled_at > max_schedule:
+                print(
+                    f"   🛑 Jadwal {scheduled_at.strftime('%Y-%m-%d %H:%M')} melebihi batas "
+                    f"maksimal Meta ({META_SCHEDULE_MAX_DAYS} hari). Batch dihentikan."
+                )
+                break
+
             scheduled_timestamp = int(scheduled_at.timestamp())
             video_state = "SCHEDULED"
             last_assigned_time = scheduled_at
