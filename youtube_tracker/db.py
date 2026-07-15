@@ -536,13 +536,28 @@ def update_video_status(youtube_video_id, payload):
         vid_id = row["id"]
         ensure_video_status(vid_id)
 
+        # Retrieve current status & used_at
+        current = conn.execute(
+            "SELECT status, used_at FROM video_status WHERE video_db_id = ?", (vid_id,)
+        ).fetchone()
+
+        payload_copy = dict(payload)
+        if "status" in payload_copy:
+            new_status = payload_copy["status"]
+            if new_status == "used":
+                if "used_at" not in payload_copy and (not current or not current["used_at"]):
+                    payload_copy["used_at"] = _now()
+            else:
+                if "used_at" not in payload_copy:
+                    payload_copy["used_at"] = None
+
         fields = []
         params = []
         for key in ("status", "used_at", "clip_title", "local_output_path",
                      "published_url", "notes"):
-            if key in payload:
+            if key in payload_copy:
                 fields.append(f"{key} = ?")
-                params.append(payload[key])
+                params.append(payload_copy[key])
 
         if not fields:
             return {"ok": True}
@@ -589,10 +604,16 @@ def update_bulk_video_status(youtube_video_ids, status):
 
         # Bulk update
         vid_placeholders = ','.join(['?'] * len(vid_ids))
-        conn.execute(
-            f"UPDATE video_status SET status = ?, updated_at = ? WHERE video_db_id IN ({vid_placeholders})",
-            [status, now] + vid_ids
-        )
+        if status == 'used':
+            conn.execute(
+                f"UPDATE video_status SET status = ?, used_at = COALESCE(used_at, ?), updated_at = ? WHERE video_db_id IN ({vid_placeholders})",
+                [status, now, now] + vid_ids
+            )
+        else:
+            conn.execute(
+                f"UPDATE video_status SET status = ?, used_at = NULL, updated_at = ? WHERE video_db_id IN ({vid_placeholders})",
+                [status, now] + vid_ids
+            )
         conn.commit()
         return {"ok": True, "updated": len(vid_ids)}
     finally:
@@ -1140,6 +1161,44 @@ def get_duplicates(status=None):
             },
             "videos": videos,
         }
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Recently Used
+# ---------------------------------------------------------------------------
+
+def get_recently_used_videos(limit=100):
+    """Get videos that have status = 'used' ordered by used_at DESC, updated_at DESC."""
+    conn = get_connection()
+    try:
+        rows = conn.execute("""
+            SELECT
+                v.id, v.youtube_video_id, v.title, v.url, v.thumbnail_url,
+                v.duration_seconds, v.upload_date, v.channel_name, v.channel_db_id,
+                COALESCE(vs.status, 'unused') AS status,
+                vs.used_at, vs.clip_title, vs.notes
+            FROM videos v
+            JOIN video_status vs ON vs.video_db_id = v.id
+            WHERE vs.status = 'used'
+            ORDER BY COALESCE(vs.used_at, vs.updated_at) DESC, vs.updated_at DESC
+            LIMIT ?
+        """, (limit,)).fetchall()
+        
+        videos = []
+        for r in rows:
+            v = dict(r)
+            # Fetch sources for each video
+            sources = conn.execute("""
+                SELECT s.id, s.title, s.source_type
+                FROM source_videos sv
+                JOIN sources s ON s.id = sv.source_id
+                WHERE sv.video_db_id = ?
+            """, (v["id"],)).fetchall()
+            v["sources"] = [dict(s) for s in sources]
+            videos.append(v)
+        return videos
     finally:
         conn.close()
 

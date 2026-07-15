@@ -237,6 +237,10 @@ class TrackerHandler(BaseHTTPRequestHandler):
             videos = db.get_source_videos(int(m.group(1)), filters)
             return self._send_json({"videos": videos})
 
+        if path == "/api/videos/recently_used":
+            videos = db.get_recently_used_videos()
+            return self._send_json({"videos": videos})
+
         # GET /api/videos/:youtube_video_id
         m = re.match(r'^/api/videos/([A-Za-z0-9_-]+)$', path)
         if m:

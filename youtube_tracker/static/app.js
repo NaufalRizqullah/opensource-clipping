@@ -49,6 +49,14 @@
     return d.substring(0, 10);
   }
 
+  function fmtDateTime(d) {
+    if (!d) return '';
+    if (d.includes('T')) {
+      return d.substring(0, 10) + ' ' + d.substring(11, 16);
+    }
+    return d;
+  }
+
   function escHtml(str) {
     if (!str) return '';
     const div = document.createElement('div');
@@ -165,7 +173,12 @@
     try {
       await api(`/api/videos/${ytVideoId}/status`, { method: 'PATCH', body: { status: 'used' } });
       toast('Marked as Used', 'success');
-      handleRoute();
+      if (window.location.hash === '#/checker') {
+        const btn = document.getElementById('btn-checker');
+        if (btn) btn.click();
+      } else {
+        handleRoute();
+      }
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -845,6 +858,82 @@
   });
 
   // -----------------------------------------------------------------------
+  // Recently Used
+  // -----------------------------------------------------------------------
+
+  registerRoute('/recently-used', async () => {
+    $app.innerHTML = loading('Loading recently used videos...');
+
+    async function render() {
+      const data = await api('/api/videos/recently_used');
+      const videos = data.videos || [];
+
+      let html = `
+        <div class="page-header">
+          <h2>Recently Used Videos</h2>
+          <p class="page-subtitle">Videos marked as "used" in the tracker, sorted by most recently used</p>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card stat-used">
+            <div class="stat-value">${videos.length}</div>
+            <div class="stat-label">Used Videos</div>
+          </div>
+        </div>
+
+        <div class="video-list" id="recently-used-list">`;
+
+      if (videos.length === 0) {
+        html += emptyState('⏰', 'No used videos yet', 'Mark videos as "Used" from playlist views to see them here.');
+      } else {
+        window._selectedVideos.clear();
+        html += bulkBarHtml();
+        html += `
+        <div style="display:flex;align-items:center;padding:0 16px 8px;font-size:0.8rem;color:var(--text-secondary)">
+          <input type="checkbox" onchange="window._toggleAll(this.checked, 'chk-recent')" style="margin-right:8px;accent-color:var(--accent)"> Select All
+        </div>
+        <div class="video-list">`;
+
+        for (const v of videos) {
+          const isChecked = window._selectedVideos.has(v.youtube_video_id) ? 'checked' : '';
+          const srcTags = (v.sources || []).map(s =>
+            `<a class="dup-source-tag" href="#/source/${s.id}">${escHtml(s.title)} <span style="opacity:0.5">(${s.source_type})</span></a>`
+          ).join('');
+          
+          html += `
+            <div class="video-row">
+              <div class="checkbox-wrap">
+                <input type="checkbox" class="row-checkbox chk-recent" value="${escHtml(v.youtube_video_id)}" ${isChecked} onchange="window._toggleRow(this.value, this.checked)">
+              </div>
+              ${thumbImg(v.thumbnail_url, v.title)}
+              <div class="video-info">
+                <div class="video-title">${escHtml(v.title)}</div>
+                <div class="video-channel">${escHtml(v.channel_name || '')}</div>
+                <div class="dup-sources">${srcTags}</div>
+              </div>
+              <div class="video-channel text-sm" style="color:var(--color-used); font-weight:600">
+                Used: ${escHtml(fmtDateTime(v.used_at))}
+              </div>
+              <div class="video-duration">${fmtDuration(v.duration_seconds)}</div>
+              <div>${statusPill(v.status)}</div>
+              <div class="video-actions">
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();window._editStatus('${escHtml(v.youtube_video_id)}','${escHtml(v.status)}')">✏️</button>
+                <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();window._copyCmd('${escHtml(v.youtube_video_id)}')">📋</button>
+                <a class="btn btn-ghost btn-sm" href="${escHtml(v.url)}" target="_blank" onclick="event.stopPropagation()">▶️</a>
+              </div>
+            </div>`;
+        }
+        html += '</div>';
+      }
+
+      $app.innerHTML = html;
+      window._updateBulkBar();
+    }
+
+    await render();
+  });
+
+  // -----------------------------------------------------------------------
   // Duplicates
   // -----------------------------------------------------------------------
 
@@ -1086,6 +1175,10 @@
 
         if (!sourcesHtml) sourcesHtml = '<div class="text-secondary text-sm">Not linked to any sources.</div>';
 
+        const usedBtn = video.status !== 'used' 
+          ? `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();window._markUsed('${escHtml(vidId)}')">✓ Used</button>`
+          : '';
+
         $result.innerHTML = `
           <div style="display: flex; gap: 16px; align-items: center; padding: 16px; background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-md);">
             ${thumbImg(video.thumbnail_url, video.title)}
@@ -1094,7 +1187,8 @@
               <div class="video-channel text-sm" style="margin-bottom: 8px;">${video.ch_name ? escHtml(video.ch_name) : ''}</div>
               <div class="text-sm">Status: ${statusPill(video.status)}</div>
             </div>
-            <div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              ${usedBtn}
               <button class="btn btn-ghost btn-sm" onclick="window._editStatus('${escHtml(vidId)}','${escHtml(video.status)}')">✏️ Edit Status</button>
             </div>
           </div>
@@ -1262,7 +1356,12 @@
         await api(`/api/videos/${ytVideoId}/status`, { method: 'PATCH', body: payload });
         toast('Status updated!', 'success');
         hideModal();
-        handleRoute(); // Refresh current page
+        if (window.location.hash === '#/checker') {
+          const btn = document.getElementById('btn-checker');
+          if (btn) btn.click();
+        } else {
+          handleRoute(); // Refresh current page
+        }
       } catch (err) {
         toast(err.message, 'error');
       }
