@@ -197,12 +197,12 @@ def upload_reel_binary(upload_url: str, file_path: str, token: str) -> bool:
 def poll_reel_status(
     config: dict,
     video_id: str,
-    timeout_seconds: int = 300,
+    timeout_seconds: int = 60,
     poll_interval: int = 10,
 ) -> bool:
     """
-    GET /{VIDEO_ID}?fields=status — poll until processing is complete or timeout.
-    Returns True if processing completed successfully.
+    GET /{VIDEO_ID}?fields=status — poll until processing is complete, or progress to next if still processing.
+    Returns True if completed/ready, False if still processing when timeout reached.
     """
     url = f"{config['base_url']}/{video_id}"
     params = {"fields": "status"}
@@ -211,19 +211,20 @@ def poll_reel_status(
 
     while True:
         elapsed = time.time() - start_time
-        if elapsed > timeout_seconds:
-            raise RuntimeError(
-                f"Timeout ({timeout_seconds}s) menunggu processing video {video_id}."
-            )
-
-        resp = requests.get(url, headers=_auth_headers(config), params=params, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
+        try:
+            resp = requests.get(url, headers=_auth_headers(config), params=params, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            print(f"   ⚠️ Gagal mengecek status video: {e}")
+            if elapsed > timeout_seconds:
+                return False
+            time.sleep(poll_interval)
+            continue
 
         status = data.get("status", {})
         video_status = status.get("video_status", "")
         processing_phase = status.get("processing_phase", {}).get("status", "")
-        publishing_phase = status.get("publishing_phase", {}).get("status", "")
 
         progress = status.get("processing_progress", 0)
         print(f"   ... processing: {progress}% (status={video_status})")
@@ -236,6 +237,10 @@ def poll_reel_status(
         if video_status == "error":
             error_info = status.get("processing_phase", {}).get("error", {})
             raise RuntimeError(f"Video processing error: {error_info}")
+
+        if elapsed > timeout_seconds:
+            print(f"   ℹ️ Video masih diproses di background oleh Meta (status={video_status}). Melanjutkan batch...")
+            return False
 
         time.sleep(poll_interval)
 
@@ -477,12 +482,7 @@ def upload_manifest_to_facebook(
             upload_reel_binary(upload_url, video_path, config["access_token"])
             print("   ✅ Upload binary berhasil.")
 
-            # Step 3: Poll processing status
-            print("   ⏳ Menunggu processing video...")
-            poll_reel_status(config, video_id)
-            print("   ✅ Processing selesai.")
-
-            # Step 4: Finish — publish or schedule
+            # Step 3: Finish — publish or schedule (Meta needs finish_reel before starting video processing)
             print(f"   🎬 Finishing reel ({video_state})...")
             finish_result = finish_reel(
                 config=config,
@@ -492,7 +492,11 @@ def upload_manifest_to_facebook(
                 video_state=video_state,
                 scheduled_timestamp=scheduled_timestamp,
             )
-            print(f"   ✅ Reel {video_state} berhasil!")
+            print(f"   ✅ Reel {video_state} berhasil didaftarkan!")
+
+            # Step 4: Poll processing status (Non-blocking: max 60s, for logging status only)
+            print("   ⏳ Mengecek status processing awal...")
+            poll_reel_status(config, video_id, timeout_seconds=60, poll_interval=10)
 
             # --- Update manifest row ---
             if manifest_row is not None:
