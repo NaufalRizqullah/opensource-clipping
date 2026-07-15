@@ -426,11 +426,11 @@ def refresh_existing_facebook_statuses(
     updated_manifest_file: str,
 ) -> None:
     """
-    Check Facebook Graph API for existing pending/scheduled_processing Reels
+    Check Facebook Graph API for existing pending/scheduled_processing/scheduled Reels
     and update their statuses in-place in the manifest.
     """
     modified = False
-    target_statuses = {"pending", "scheduled_processing"}
+    target_statuses = {"pending", "scheduled_processing", "scheduled"}
 
     for row in manifest_rows:
         video_id = row.get("fb_video_id")
@@ -452,21 +452,25 @@ def refresh_existing_facebook_statuses(
                     publishing_status = fb_status.get("publishing_phase", {}).get("status", "")
 
                     new_status = None
-                    if status == "pending":
-                        if publishing_status == "complete":
-                            new_status = "published"
-                    elif status == "scheduled_processing":
-                        if processing_status == "complete" or video_status == "ready":
-                            new_status = "scheduled"
+                    # Jika phase publishing sudah complete, tandai sebagai published
+                    if publishing_status == "complete":
+                        new_status = "published"
+                    # Jika sebelumnya scheduled_processing dan processing sudah complete, tandai sebagai scheduled
+                    elif status == "scheduled_processing" and (processing_status == "complete" or video_status == "ready"):
+                        new_status = "scheduled"
 
-                    if new_status:
+                    # Selalu catat kapan status terakhir kali dicheck
+                    row["fb_status_checked_at_utc"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+                    if new_status and new_status != status:
                         row["fb_upload_status"] = new_status
                         row["fb_publish_status_raw"] = fb_status
-                        row["fb_uploaded_at_utc"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                         print(f"   ✅ Status diperbarui: {status} ➔ {new_status}")
                         modified = True
                     else:
                         print(f"   ℹ️ Status masih sama (video={video_status}, processing={processing_status}, publishing={publishing_status})")
+                        # Jika check timestamp ditambahkan, tandai manifest sebagai modified untuk menyimpan timestamp check terbaru
+                        modified = True
                 else:
                     print(f"   ⚠️ Request status gagal HTTP {resp.status_code}")
             except Exception as e:
@@ -545,9 +549,20 @@ def upload_manifest_to_facebook(
     print(f"✅ Token valid untuk Page: {page_info.get('name')} (ID: {page_info.get('id')})")
 
     # --- Load Manifest ---
-    render_manifest = load_json_file(manifest_file, default=[])
+    source_manifest_file = manifest_file
+    if (
+        updated_manifest_file
+        and os.path.exists(updated_manifest_file)
+        and os.path.getsize(updated_manifest_file) > 0
+    ):
+        source_manifest_file = updated_manifest_file
+        print(f"📂 Menggunakan manifest Facebook sebelumnya: {source_manifest_file}")
+    else:
+        print(f"📂 Menggunakan manifest awal: {source_manifest_file}")
+
+    render_manifest = load_json_file(source_manifest_file, default=[])
     if not render_manifest:
-        print(f"⚠️ {manifest_file} kosong / tidak ditemukan.")
+        print(f"⚠️ {source_manifest_file} kosong / tidak ditemukan.")
         return []
 
     # Sync existing pending / scheduled statuses before processing

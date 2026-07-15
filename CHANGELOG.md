@@ -14,7 +14,9 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Meta Reels API Timing / Sequence Timeout & Polling Logic**: Overhauled the Reels upload and status checking flow:
   - **Differentiated Polling**: Swapped sequence to call `finish_reel` before checking status. `PUBLISHED` reels now poll until `publishing_phase == "complete"`, while `SCHEDULED` reels only poll until `processing_phase == "complete"` (since scheduled reels remain pending-publication until their schedule time).
   - **Comprehensive 3-Phase Status Checks**: `poll_reel_status` now tracks and checks status for `uploading_phase`, `processing_phase`, and `publishing_phase`, raising a detailed exception on any error state.
-  - **Status Synchronization**: Added `refresh_existing_facebook_statuses()` to check the Graph API for pending/scheduled_processing Reels on startup and update them in the manifest.
+  - **Status Synchronization**: Added `refresh_existing_facebook_statuses()` to check the Graph API for `pending`, `scheduled_processing`, and `scheduled` Reels on startup and update them. Includes transitioning `scheduled` to `published` once live.
+  - **Status Check Timestamp**: Added `fb_status_checked_at_utc` field to preserve the original upload timestamp `fb_uploaded_at_utc` when running status synchronization checks.
+  - **Manifest Persistence**: Added automatic fallback to load `updated_manifest_file` (e.g. `render_manifest_fb_uploaded.json`) if it exists, preserving upload states across multiple uploader executions.
   - **Anti-Duplication Skip Check**: Changed candidate selection to skip any item that has an existing `fb_video_id` regardless of status.
   - **Explicit Page ID & Validation Match**: Exchanged implicit `/me/video_reels` endpoints with explicit `/{page_id}/video_reels` and verified that the validated access token matches the configured `META_PAGE_ID`.
   - **Exception Tracking**: Initialized `video_id = None` before the upload session to ensure partially-created Reel session IDs are persisted in the manifest on failure.
