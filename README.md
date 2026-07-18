@@ -216,6 +216,7 @@ python main.py --help
 | `--no-bgm` | — | Disable background music |
 | `--bgm-mode` | `ducking` | BGM mixing mode: `ducking` (sidechain compress — BGM auto-lowers during speech) or `background` (constant low volume mix) |
 | `--edge-glow` | `False` | Apply ambient edge glow to the entire output video (hook, clip, broll, voiceover). By default, glow only appears on voice-over intros. |
+| `--edge-glow-mode` | `smooth` | Edge glow rendering strategy: `default` (original 10s loop, may stutter at loop points), `smooth` (10s loop with auto-adjusted speed for seamless loop), `full` (renders full duration, heavier but zero stutter). |
 | `--no-subs` | — | Disable all subtitle rendering |
 | `--no-karaoke` | — | Use clean text instead of karaoke highlight |
 | `--advanced-text` | `False` | Enable kinetic typography (word scaling & animation) |
@@ -375,6 +376,7 @@ python main.py --url "VIDEO_URL" --voiceover --voiceover-lang id --voiceover-voi
 - `--voiceover-volume`: Volume of narrator (default 1.0).
 - `--original-volume`: Volume of ducked video audio (default 0.15).
 - `--edge-glow`: Apply the ambient edge glow effect to the **entire** video, instead of just the voice-over intro.
+- `--edge-glow-mode`: Edge glow strategy (`default`, `smooth` [default], or `full`). `smooth` mathematically adjusts speed to remove stuttering in loops.
 
 ## 🎵 BGM (Background Music) Settings
 

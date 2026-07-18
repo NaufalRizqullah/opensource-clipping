@@ -216,6 +216,7 @@ python main.py --help
 | `--no-bgm` | — | Nonaktifkan musik latar |
 | `--bgm-mode` | `ducking` | Mode mixing BGM: `ducking` (sidechain compress — volume BGM otomatis turun saat bicara) atau `background` (volume konstan rendah) |
 | `--edge-glow` | `False` | Terapkan efek ambient edge glow ke seluruh output video (hook, klip, broll, voiceover). Secara default, glow hanya muncul pada intro voice-over. |
+| `--edge-glow-mode` | `smooth` | Strategi render edge glow: `default` (original 10s loop, bisa patah di titik loop), `smooth` (10s loop dengan auto-adjusted speed agar seamless), `full` (render full durasi tanpa loop, lebih berat tapi anti-patah). |
 | `--no-subs` | — | Nonaktifkan semua rendering subtitle |
 | `--no-karaoke` | — | Gunakan teks biasa tanpa highlight karaoke |
 | `--advanced-text` | `False` | Aktifkan typografi kinetik (skala kata & animasi pop) |
@@ -373,6 +374,7 @@ python main.py --url "URL_VIDEO" --voiceover --voiceover-lang id --voiceover-voi
 - `--voiceover-volume`: Volume suara narator (default 1.0).
 - `--original-volume`: Volume suara video asli saat narator bicara (default 0.15).
 - `--edge-glow`: Terapkan efek ambient edge glow ke **seluruh** video, tidak hanya di intro voice-over.
+- `--edge-glow-mode`: Strategi edge glow (`default`, `smooth` [default], atau `full`). Pilihan `smooth` secara matematis menyesuaikan kecepatan putaran warna agar loop tidak terlihat patah.
 
 ## 🎬 Penjelasan Hook V2 & Segment Trimming
 

@@ -29,6 +29,7 @@ def generate_edge_glow_video(
     edge_thickness: int = 0,
     glow_speed: float = 0.15,
     opacity: float = 0.45,
+    seamless_loop: bool = True,
 ):
     """
     Generate a looping edge-glow overlay video (black-based, to be blended).
@@ -49,7 +50,24 @@ def generate_edge_glow_video(
         Hue rotation speed (rotations per second).  Lower = calmer.
     opacity : float
         Peak brightness of the glow (0-1).
+    seamless_loop : bool
+        When True, auto-adjust glow_speed so that ``duration * speed``
+        equals an integer, guaranteeing the hue returns to its starting
+        position at the loop boundary (no visible stutter/flash).
     """
+    # ---- 0. Ensure seamless loop (adjust speed for integer rotations) ----
+    if seamless_loop and duration > 0:
+        raw_rotations = duration * glow_speed
+        n_rotations = max(1, round(raw_rotations))
+        adjusted_speed = n_rotations / duration
+        if abs(adjusted_speed - glow_speed) > 1e-6:
+            print(
+                f"   🔄 Edge glow: adjusted speed {glow_speed:.3f} → "
+                f"{adjusted_speed:.3f} for seamless loop "
+                f"({n_rotations} rotation(s) in {duration}s)"
+            )
+        glow_speed = adjusted_speed
+
     if edge_thickness <= 0:
         edge_thickness = max(40, int(min(width, height) * 0.10))
 

@@ -792,13 +792,31 @@ def proses_klip(
 
                 # Generate edge glow overlay video
                 glow_path = os.path.join(cfg.outputs_dir, f"vo_glow_{rank}.mp4")
-                print("   ✨ [VO] Generating ambient edge glow...")
+                glow_mode = getattr(cfg, "edge_glow_mode", "smooth")
+                print(f"   ✨ [VO] Generating ambient edge glow (mode={glow_mode})...")
+
+                if glow_mode == "full":
+                    # Render full duration — no loop needed, zero stutter
+                    glow_dur = vo_duration
+                    glow_seamless = False
+                    glow_needs_loop = False
+                elif glow_mode == "smooth":
+                    # 10s loop with seamless speed adjustment
+                    glow_dur = min(10.0, vo_duration)
+                    glow_seamless = True
+                    glow_needs_loop = glow_dur < vo_duration
+                else:  # "default" — original behavior
+                    glow_dur = min(10.0, vo_duration)
+                    glow_seamless = False
+                    glow_needs_loop = glow_dur < vo_duration
+
                 generate_edge_glow_video(
                     glow_path, vo_w, vo_h,
-                    duration=min(10.0, vo_duration),
+                    duration=glow_dur,
                     fps=30,
                     glow_speed=0.15,
                     opacity=0.45,
+                    seamless_loop=glow_seamless,
                 )
 
                 # Build filter: bg_frame → overlay glow → overlay spectrum → [subtitles]
@@ -892,8 +910,11 @@ def proses_klip(
                     "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
                     "-loop", "1", "-framerate", "30", "-i", frame_path,
                     "-i", vo_data["audio_path"],
-                    "-stream_loop", "-1", "-i", glow_path,
                 ]
+                if glow_needs_loop:
+                    cmd_vo_base.extend(["-stream_loop", "-1", "-i", glow_path])
+                else:
+                    cmd_vo_base.extend(["-i", glow_path])
                 
                 # Audio mixing with BGM for VO intro
                 # Input indices: 0=frame, 1=audio, 2=glow, 3=bgm (if present)
@@ -1005,12 +1026,28 @@ def proses_klip(
                     clip_dur = 60.0
 
                 glow_full_path = os.path.join(cfg.outputs_dir, f"glow_full_{rank}.mp4")
+                glow_mode_fc = getattr(cfg, "edge_glow_mode", "smooth")
+
+                if glow_mode_fc == "full":
+                    glow_fc_dur = clip_dur
+                    glow_fc_seamless = False
+                    glow_fc_needs_loop = False
+                elif glow_mode_fc == "smooth":
+                    glow_fc_dur = min(10.0, clip_dur)
+                    glow_fc_seamless = True
+                    glow_fc_needs_loop = glow_fc_dur < clip_dur
+                else:  # "default"
+                    glow_fc_dur = min(10.0, clip_dur)
+                    glow_fc_seamless = False
+                    glow_fc_needs_loop = glow_fc_dur < clip_dur
+
                 generate_edge_glow_video(
                     glow_full_path, gw, gh,
-                    duration=min(10.0, clip_dur),
+                    duration=glow_fc_dur,
                     fps=30,
                     glow_speed=0.15,
                     opacity=0.45,
+                    seamless_loop=glow_fc_seamless,
                 )
 
                 # Overlay via FFmpeg blend=screen
@@ -1018,7 +1055,8 @@ def proses_klip(
                 cmd_glow = [
                     "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
                     "-i", final_path,
-                    "-stream_loop", "-1", "-i", glow_full_path,
+                ] + (["-stream_loop", "-1"] if glow_fc_needs_loop else []) + [
+                    "-i", glow_full_path,
                     "-filter_complex",
                     f"[1:v]scale={gw}:{gh}[glow]; [0:v][glow]blend=all_mode=screen:shortest=1[v_out]",
                     "-map", "[v_out]", "-map", "0:a?",

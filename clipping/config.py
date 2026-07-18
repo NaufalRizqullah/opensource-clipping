@@ -666,6 +666,18 @@ def _build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Enable ambient edge glow effect on the entire clip (hook, clip, broll, voiceover). Without this flag, glow only appears on voice-over intro.",
     )
+    vo_group.add_argument(
+        "--edge-glow-mode",
+        choices=["default", "smooth", "full"],
+        default="smooth",
+        help=(
+            "Edge glow rendering strategy. "
+            "'default': 10s loop (original, may stutter at loop point). "
+            "'smooth': 10s loop with auto-adjusted speed for seamless looping. "
+            "'full': render glow for the full video duration (no loop needed, "
+            "heavier but zero stutter)."
+        ),
+    )
 
     return p
 
@@ -820,6 +832,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         voiceover_volume=args.voiceover_volume,
         original_volume=args.original_volume,
         edge_glow=args.edge_glow,
+        edge_glow_mode=args.edge_glow_mode,
     )
 
     return cfg

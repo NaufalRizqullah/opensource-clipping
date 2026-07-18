@@ -8,6 +8,16 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.10.3] - 2026-07-18
+
+### Fixed
+- **Edge Glow Loop Stutter**: Fixed visual stutter/flash at 10-second loop points. The generator now mathematically adjusts the rotation speed so that color rotation aligns perfectly at the boundary.
+
+### Added
+- **Edge Glow Mode (`--edge-glow-mode`)**: Added a new CLI option with choices `['default', 'smooth', 'full']`. Defaults to `smooth` for automatic seamless loop rendering. Set to `full` to render glow across the full duration of a video without looping, or `default` to keep the original behavior.
+
+---
+
 ## [v1.10.2] - 2026-07-16
 
 ### Improved
