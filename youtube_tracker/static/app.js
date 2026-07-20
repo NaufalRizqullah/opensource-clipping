@@ -646,7 +646,8 @@
           ${progressBar(source.used_count || 0, source.candidate_count || 0, source.skipped_count || 0, source.unused_count || 0, total)}
           <div id="pull-progress-${source.id}" style="display:none; margin-top: 10px;"></div>
           <div class="source-detail-actions">
-            ${source.source_type !== 'manual' ? `<button class="btn btn-primary btn-sm" id="pull-again-btn" onclick="window._refreshSource(${source.id})">🔄 Pull Again</button>` : ''}
+            ${source.source_type !== 'manual' ? `<button class="btn btn-primary btn-sm" id="pull-again-btn" onclick="window._refreshSource(${source.id})">🔄 Pull Again</button>
+             <button class="btn btn-primary btn-sm" style="background-color: var(--color-candidate);" id="pull-latest-btn" onclick="window._refreshSourceLatest(${source.id})">⚡ Pull Latest</button>` : ''}
             <button class="btn btn-secondary btn-sm" onclick="window.location.hash='#/'">← Back</button>
           </div>
         </div>
@@ -1471,6 +1472,29 @@
       if (btn) {
         btn.disabled = false;
         btn.textContent = '🔄 Pull Again';
+      }
+    }
+  };
+
+  window._refreshSourceLatest = async (sourceId) => {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '⏳ Pulling New...';
+    try {
+      const result = await api(`/api/sources/${sourceId}/refresh_latest`, { method: 'POST' });
+      if (result.status === 'running') {
+        toast('Fast refresh (new videos only) started.', 'success');
+        pollProgress();
+      } else {
+        toast('Pull complete', 'success');
+      }
+      handleRoute();
+    } catch (err) {
+      toast(`Fast pull failed: ${err.message}`, 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '⚡ Pull Latest';
       }
     }
   };

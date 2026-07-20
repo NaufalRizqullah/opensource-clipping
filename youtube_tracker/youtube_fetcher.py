@@ -264,7 +264,7 @@ class YouTubeFetcher:
 
         raise last_error
 
-    def fetch_playlist_generator(self, url_or_id):
+    def fetch_playlist_generator(self, url_or_id, should_fetch_callback=None):
         """
         Fetch playlist metadata and yield it, then fetch ALL video entries and yield them.
         Uses playlistend=-1 to disable the default 100-item limit.
@@ -330,6 +330,15 @@ class YouTubeFetcher:
 
             entry_id = entry.get("id") or entry.get("url")
             if not entry_id:
+                continue
+
+            # Skip full fetch if we already have it (fast mode)
+            if should_fetch_callback and not should_fetch_callback(entry_id):
+                yield {
+                    "type": "shallow_video",
+                    "video_id": entry_id,
+                    "position": i
+                }
                 continue
 
             # Progress log

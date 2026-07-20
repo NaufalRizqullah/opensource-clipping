@@ -509,6 +509,24 @@ def upsert_video(meta):
     finally:
         conn.close()
 
+def get_all_youtube_video_ids():
+    """Return a set of all known youtube_video_ids."""
+    conn = get_connection()
+    try:
+        rows = conn.execute("SELECT youtube_video_id FROM videos").fetchall()
+        return {r["youtube_video_id"] for r in rows}
+    finally:
+        conn.close()
+
+def get_video_db_id_by_yt_id(youtube_video_id):
+    """Return internal db id for a given youtube_video_id."""
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT id FROM videos WHERE youtube_video_id = ?", (youtube_video_id,)).fetchone()
+        return row["id"] if row else None
+    finally:
+        conn.close()
+
 
 def ensure_video_status(video_db_id):
     """Ensure a video_status row exists for the given video."""

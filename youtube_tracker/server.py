@@ -33,7 +33,7 @@ fetcher = YouTubeFetcher()
 
 import threading
 
-def _run_async_pull(url, source_id, pull_run_id):
+def _run_async_pull(url, source_id, pull_run_id, fast_mode=False):
     """Background worker thread for fetching a playlist."""
     stats = {
         "total_entries": 0,
@@ -47,7 +47,14 @@ def _run_async_pull(url, source_id, pull_run_id):
     errors = []
 
     try:
-        gen = fetcher.fetch_playlist_generator(url)
+        existing_yt_ids = set()
+        if fast_mode:
+            existing_yt_ids = db.get_all_youtube_video_ids()
+
+        def should_fetch(yt_id):
+            return not (fast_mode and yt_id in existing_yt_ids)
+
+        gen = fetcher.fetch_playlist_generator(url, should_fetch_callback=should_fetch)
         first = next(gen)
         
         pl_meta = first["playlist"]
@@ -111,6 +118,23 @@ def _run_async_pull(url, source_id, pull_run_id):
                     pull_run_id=pull_run_id,
                 )
 
+            elif item["type"] == "shallow_video":
+                i = item["position"]
+                vid_id = item["video_id"]
+                
+                stats["videos_found"] += 1
+                stats["videos_already_exists"] += 1
+                db.update_pull_run_progress(pull_run_id, stats["videos_found"], total_entries)
+                
+                video_db_id = db.get_video_db_id_by_yt_id(vid_id)
+                if video_db_id:
+                    db.record_pull_run_video(pull_run_id, video_db_id, position=i)
+                    db.link_source_video(
+                        source_id, video_db_id, position=i,
+                        metadata_source="playlist_pull_fast",
+                        pull_run_id=pull_run_id,
+                    )
+
         missing_count = db.mark_missing_videos_for_source(source_id, pull_run_id)
         stats["videos_missing_from_latest_pull"] = missing_count
 
@@ -123,7 +147,7 @@ def _run_async_pull(url, source_id, pull_run_id):
         traceback.print_exc()
         db.finish_pull_run(pull_run_id, status="failed", error_message=str(e))
 
-def _start_async_pull(url, source_id=None):
+def _start_async_pull(url, source_id=None, fast_mode=False):
     # If source doesn't exist yet, we create a dummy source or just start pull run on source 0
     # Wait, pull_runs requires a valid source_id. Let's create a placeholder source if it's new.
     if not source_id:
@@ -134,7 +158,7 @@ def _start_async_pull(url, source_id=None):
             "url": url,
         })
     pull_run_id = db.create_pull_run(source_id)
-    t = threading.Thread(target=_run_async_pull, args=(url, source_id, pull_run_id), daemon=True)
+    t = threading.Thread(target=_run_async_pull, args=(url, source_id, pull_run_id, fast_mode), daemon=True)
     t.start()
     return {"ok": True, "source_id": source_id, "pull_run_id": pull_run_id, "status": "running"}
 
@@ -373,6 +397,25 @@ class TrackerHandler(BaseHTTPRequestHandler):
 
             try:
                 result = _start_async_pull(url, source_id)
+                return self._send_json(result, 202)
+            except Exception as e:
+                traceback.print_exc()
+                return self._send_error_json(500, f"Pull failed: {str(e)}")
+
+        # Fast Refresh / Pull Latest
+        m = re.match(r'^/api/sources/(\d+)/refresh_latest$', path)
+        if m:
+            source_id = int(m.group(1))
+            source = db.get_source(source_id)
+            if not source:
+                return self._send_error_json(404, "Source not found")
+
+            url = source.get("url")
+            if not url:
+                return self._send_error_json(400, "Source has no URL to refresh")
+
+            try:
+                result = _start_async_pull(url, source_id, fast_mode=True)
                 return self._send_json(result, 202)
             except Exception as e:
                 traceback.print_exc()
