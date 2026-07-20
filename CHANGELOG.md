@@ -8,6 +8,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.10.4] - 2026-07-20
+
+### Added
+- **YouTube Tracker: Random Unused Video**: Added a "Random Picker" feature in the YouTube Tracker to randomly select 1 unused video (prioritizing newer ones) from all playlists or manually added videos. Includes a new `#/random` route, detail view with sources, and a quick "Mark as Used" button.
+
+---
+
 ## [v1.10.3] - 2026-07-18
 
 ### Fixed
