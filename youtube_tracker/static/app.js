@@ -494,6 +494,8 @@
       } else {
         $app.innerHTML = emptyState('🎬', 'No manual videos yet', 'Add manual videos from the Dashboard to get started.');
       }
+    } catch (e) {
+      $app.innerHTML = `<div class="error-state">Error: ${escHtml(e.message)}</div>`;
     }
   });
 
