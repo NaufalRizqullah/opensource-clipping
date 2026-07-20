@@ -494,8 +494,75 @@
       } else {
         $app.innerHTML = emptyState('🎬', 'No manual videos yet', 'Add manual videos from the Dashboard to get started.');
       }
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // Random Unused Video
+  // -----------------------------------------------------------------------
+
+  registerRoute('/random', async () => {
+    $app.innerHTML = loading('Picking a random unused video...');
+    try {
+      const data = await api('/api/videos/random_unused');
+      
+      const v = data;
+      const sourceList = (v.sources || []).map(s => {
+        const typeStr = s.source_type === 'manual' ? 'Manual' : 'Playlist';
+        return `<span class="badge badge-${s.source_type}">${typeStr}</span> ${escHtml(s.title)}`;
+      }).join('<br>');
+      
+      let html = `
+        <div class="page-header">
+          <h2>🎲 Random Unused Video</h2>
+          <p class="page-subtitle">Here is a random video that you haven't used yet (prioritizing newer ones).</p>
+        </div>
+        
+        <div class="video-detail-card" style="background:var(--bg-secondary); border:1px solid var(--border-medium); border-radius:12px; padding:24px; max-width:800px; margin: 0 auto; display:flex; gap:24px;">
+          <div style="flex:0 0 320px;">
+            <a href="${escHtml(v.url)}" target="_blank" style="display:block; position:relative;">
+              ${thumbImg(v.thumbnail_url, v.title, 'video-thumb')}
+              <div style="position:absolute; bottom:8px; right:8px; background:rgba(0,0,0,0.8); color:#fff; padding:2px 6px; border-radius:4px; font-size:0.8rem; font-weight:600;">
+                ${fmtDuration(v.duration_seconds)}
+              </div>
+            </a>
+          </div>
+          <div style="flex:1;">
+            <h3 style="margin:0 0 8px 0; font-size:1.4rem;">
+              <a href="${escHtml(v.url)}" target="_blank" style="color:var(--text-primary); text-decoration:none;">${escHtml(v.title)}</a>
+            </h3>
+            <div style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:16px;">
+              ${v.channel_db_id ? `<a href="#/channel/${v.channel_db_id}" style="color:var(--text-secondary); font-weight:600;">${escHtml(v.channel_name || 'Unknown')}</a>` : escHtml(v.channel_name || '')}
+              • Uploaded: ${fmtDate(v.upload_date) || 'Unknown'}
+            </div>
+            
+            <div style="margin-bottom:16px; font-size:0.9rem;">
+              <strong style="display:block; margin-bottom:4px; color:var(--text-secondary);">Source(s):</strong>
+              ${sourceList || '<em>Unknown source</em>'}
+            </div>
+            
+            <div style="margin-bottom:24px;">
+              ${statusPill(v.status)}
+            </div>
+            
+            <div style="display:flex; gap:12px;">
+              <button class="btn btn-primary" style="padding:10px 24px; font-size:1rem;" onclick="window._markUsed('${escHtml(v.youtube_video_id)}')">
+                ✓ Mark as Used
+              </button>
+              <button class="btn btn-secondary" style="padding:10px 24px; font-size:1rem;" onclick="handleRoute()">
+                🎲 Pick Another
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      $app.innerHTML = html;
     } catch (e) {
-      $app.innerHTML = `<div class="error-state">Error: ${escHtml(e.message)}</div>`;
+      if (e.message.includes('404')) {
+        $app.innerHTML = emptyState('🎉', 'All caught up!', 'You have no unused videos left.');
+      } else {
+        $app.innerHTML = `<div class="error-state">Error: ${escHtml(e.message)}</div>`;
+      }
     }
   });
 

@@ -1048,6 +1048,45 @@ def get_video_detail(youtube_video_id):
     finally:
         conn.close()
 
+def get_random_unused_video():
+    """Get 1 random unused video, prioritizing newest."""
+    conn = get_connection()
+    try:
+        # Get top 50 newest unused videos across all sources
+        sql = """
+            SELECT
+                v.id, v.youtube_video_id, v.title, v.url, v.thumbnail_url,
+                v.duration_seconds, v.upload_date, v.channel_name, v.channel_url,
+                COALESCE(vs.status, 'unused') AS status,
+                vs.used_at, vs.clip_title, vs.notes
+            FROM videos v
+            JOIN video_status vs ON vs.video_db_id = v.id
+            WHERE vs.status = 'unused'
+            ORDER BY COALESCE(v.published_at, v.upload_date, v.created_at) DESC
+            LIMIT 50
+        """
+        rows = conn.execute(sql).fetchall()
+        if not rows:
+            return None
+        
+        # Pick one randomly from the 50
+        import random
+        r = random.choice(rows)
+        v = dict(r)
+
+        # Get sources this video appears in
+        sources = conn.execute("""
+            SELECT s.id, s.title, s.source_type
+            FROM source_videos sv
+            JOIN sources s ON s.id = sv.source_id
+            WHERE sv.video_db_id = ?
+        """, (v["id"],)).fetchall()
+        v["sources"] = [dict(s) for s in sources]
+        
+        return v
+    finally:
+        conn.close()
+
 
 # ---------------------------------------------------------------------------
 # Search

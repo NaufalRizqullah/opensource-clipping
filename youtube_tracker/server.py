@@ -241,6 +241,12 @@ class TrackerHandler(BaseHTTPRequestHandler):
             videos = db.get_recently_used_videos()
             return self._send_json({"videos": videos})
 
+        if path == "/api/videos/random_unused":
+            video = db.get_random_unused_video()
+            if not video:
+                return self._send_error_json(404, "No unused videos found")
+            return self._send_json(video)
+
         # GET /api/videos/:youtube_video_id
         m = re.match(r'^/api/videos/([A-Za-z0-9_-]+)$', path)
         if m:
