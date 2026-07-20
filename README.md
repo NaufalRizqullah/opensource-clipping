@@ -8,8 +8,8 @@ These files are hosted publicly (typically via **GitHub Pages**) to serve as the
 
 When registering an app on Meta for Facebook Page automation, Meta requires several public URL endpoints:
 1. **Privacy Policy URL** (mapped to `privacy-policy.html`)
-2. **User Data Deletion Instructions URL** (mapped to `privacy-policy.html#data-deletion`)
-3. **Terms of Service URL** (mapped to `index.html#terms`)
+2. **User Data Deletion Instructions URL** (mapped to `privacy-policy.html#User-data-deletion`)
+3. **Terms of Service URL** (mapped to `terms-of-service.html`)
 
 This static portal provides a professional interface that:
 - Fulfills Meta's audit requirements for app verification.
@@ -26,8 +26,9 @@ This static portal provides a professional interface that:
 
 ## 📂 Project Structure
 
-- `index.html`: The main portal landing page, containing app details, terms of service, and the compliance copy board.
+- `index.html`: The main portal landing page containing the compliance copy board and integration console.
 - `privacy-policy.html`: The privacy policy containing information about data access, retention, and deletion instructions.
+- `terms-of-service.html`: The terms of service outlining usage guidelines and disclaimers.
 - `README.md`: Project description and guides.
 
 ## 🛠 Deployment to GitHub Pages
