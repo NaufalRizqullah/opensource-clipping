@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Privacy Policy — Opensource Clipping & Automation Clippers</title>
+    <meta name="description"
+        content="Privacy Policy and User Data Deletion Instructions for Automation Clippers app under Opensource Clipping framework.">
+
+    <!-- Tailwind CSS Play CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Glassmorphism custom styles */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .dark .glass-card {
+            background: rgba(15, 23, 42, 0.65);
+        }
+    </style>
+
+    <!-- Pre-check theme to avoid flash of light/dark mode -->
+    <script>
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+</head>
+
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-300">
+
+    <!-- Background Decoration -->
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] pointer-events-none overflow-hidden z-0 opacity-40 dark:opacity-20">
+        <div class="absolute -top-[30%] left-[10%] w-[350px] h-[350px] rounded-full bg-indigo-400 blur-[100px]"></div>
+        <div class="absolute -top-[20%] right-[10%] w-[300px] h-[300px] rounded-full bg-sky-400 blur-[100px]"></div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="sticky top-0 z-50 w-full border-b border-slate-200/80 bg-white/80 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/80 transition-colors duration-300">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+            <a href="index.html" class="flex items-center gap-2 group">
+                <div class="p-2 rounded-xl bg-brand-600 text-white group-hover:scale-105 transition-transform duration-200 shadow-md shadow-brand-500/20">
+                    <i data-lucide="scissors" class="w-5 h-5"></i>
+                </div>
+                <span class="font-display font-bold text-xl tracking-tight bg-gradient-to-r from-brand-600 to-indigo-500 dark:from-brand-500 dark:to-sky-400 bg-clip-text text-transparent">
+                    Opensource Clipping
+                </span>
+            </a>
+
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-sm font-medium text-slate-600 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400 transition-colors flex items-center gap-1.5">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home
+                </a>
+
+                <!-- Theme Toggle Button -->
+                <button onclick="toggleTheme()" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all duration-200 focus:outline-none" aria-label="Toggle dark mode">
+                    <span class="dark:hidden text-slate-600"><i data-lucide="moon" class="w-5 h-5"></i></span>
+                    <span class="hidden dark:block text-amber-400"><i data-lucide="sun" class="w-5 h-5"></i></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow z-10 max-w-4xl mx-auto px-4 py-12">
+
+        <!-- Title -->
+        <div class="mb-10 text-left border-b border-slate-200 dark:border-slate-900 pb-6">
+            <div class="text-sm font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-400 mb-2">Legal Compliance</div>
+            <h1 class="font-display font-extrabold text-3xl sm:text-4xl tracking-tight text-slate-950 dark:text-white mb-3">
+                Privacy Policy
+            </h1>
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-500 dark:text-slate-400">
+                <span class="flex items-center gap-1.5"><i data-lucide="smartphone" class="w-4 h-4 text-slate-400"></i> App: Automation Clippers (Automation_Clppers)</span>
+                <span class="flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4 text-slate-400"></i> Effective: July 20, 2026</span>
+            </div>
+        </div>
+
+        <!-- Privacy Policy Content Grid -->
+        <div class="space-y-10 text-slate-600 dark:text-slate-300 leading-relaxed">
+            
+            <!-- Section 1 -->
+            <section class="scroll-mt-24">
+                <h2 class="font-display font-bold text-xl sm:text-2xl text-slate-950 dark:text-white mb-3 flex items-center gap-2">
+                    <span class="text-brand-600 dark:text-brand-400">1.</span> Overview
+                </h2>
+                <p>
+                    <strong>Automation Clippers</strong> (referred to as the "Application") is an open-source, internal content administration tool operating under the <strong>Opensource Clipping</strong> initiative. The Application connects to the Meta Graph API to facilitate structured media uploads, scheduling, and publishing for Facebook Pages owned or operated by authorized system administrators.
+                </p>
+                <p class="mt-2">
+                    This Privacy Policy is designed to clearly specify how the Application interacts with Meta API tokens, what platform metrics or data points are processed, and the direct methodologies in place to request absolute data deletion.
+                </p>
+            </section>
+
+            <!-- Section 2 -->
+            <section class="scroll-mt-24">
+                <h2 class="font-display font-bold text-xl sm:text-2xl text-slate-950 dark:text-white mb-3 flex items-center gap-2">
+                    <span class="text-brand-600 dark:text-brand-400">2.</span> Information Accessed & Processed
+                </h2>
+                <p>
+                    To operate the content publishing flows securely, the Application requests and processes the following data attributes via Meta API interfaces, subject to permissions authorized by the system administrator:
+                </p>
+                <ul class="list-disc pl-6 mt-3 space-y-2">
+                    <li><strong>Page Metadata:</strong> Facebook Page titles, identifiers, and configuration profiles.</li>
+                    <li><strong>Access Tokens:</strong> Temporary or long-lived Facebook Page access tokens needed to perform write actions on behalf of the administrator.</li>
+                    <li><strong>Media Content:</strong> Asset links, video streams, image objects, and status text descriptions prepared for scheduling.</li>
+                    <li><strong>Publishing Statuses:</strong> API transaction receipts, post identifiers, and processing success flags.</li>
+                    <li><strong>Diagnostics:</strong> Error logs and runtime trace information to debug API rate limits and structural errors.</li>
+                </ul>
+            </section>
+
+            <!-- Section 3 -->
+            <section class="scroll-mt-24">
+                <h2 class="font-display font-bold text-xl sm:text-2xl text-slate-950 dark:text-white mb-3 flex items-center gap-2">
+                    <span class="text-brand-600 dark:text-brand-400">3.</span> Usage of Processed Information
+                </h2>
+                <p>
+                    All platform credentials, content metadata, and API responses are processed exclusively to execute the operations requested by the administrator:
+                </p>
+                <ul class="list-disc pl-6 mt-3 space-y-2">
+                    <li>Verifying the administrator's authorization boundaries across target Pages.</li>
+                    <li>Transmitting structured media objects directly to Meta Graph API media endpoints.</li>
+                    <li>Monitoring async media processing queues (such as Facebook Video processing) and returning receipts.</li>
+                    <li>Diagnosing application performance bottlenecks and API validation failures.</li>
+                </ul>
+            </section>
+
+            <!-- Section 4 -->
+            <section class="scroll-mt-24">
+                <h2 class="font-display font-bold text-xl sm:text-2xl text-slate-950 dark:text-white mb-3 flex items-center gap-2">
+                    <span class="text-brand-600 dark:text-brand-400">4.</span> Storage & Security
+                </h2>
+                <p>
+                    Page identifiers, access credentials, publishing logs, and runtime configurations are stored within private, secure storage environments configured by the deployment administrator. 
+                </p>
+                <p class="mt-2">
+                    Access tokens are stored using industry-standard security frameworks. Under no circumstances are active access tokens, private keys, or client secrets exposed in public source control systems, public logs, or to unauthorized client applications.
+                </p>
+            </section>
+
+            <!-- Section 5 -->
+            <section class="scroll-mt-24">
+                <h2 class="font-display font-bold text-xl sm:text-2xl text-slate-950 dark:text-white mb-3 flex items-center gap-2">
+                    <span class="text-brand-600 dark:text-brand-400">5.</span> Data Sharing & Commercial Disclosure
+                </h2>
+                <p>
+                    <strong>We do not monetize, sell, trade, or share user information, Page assets, token hashes, or publishing logs with third-party advertisers, data brokers, or external entities.</strong> 
+                </p>
+                <p class="mt-2">
+                    Information is shared only with Meta Platforms, Inc. (to perform the core posting tasks) or infrastructure providers hosting the Application (e.g. database, cloud hosting), and when required by legal processes.
+                </p>
+            </section>
+
+            <!-- Section 6 -->
+            <section class="scroll-mt-24">
+                <h2 class="font-display font-bold text-xl sm:text-2xl text-slate-950 dark:text-white mb-3 flex items-center gap-2">
+                    <span class="text-brand-600 dark:text-brand-400">6.</span> Data Retention Boundaries
+                </h2>
+                <p>
+                    We retain data records only as long as is necessary to satisfy operational logs, scheduling pipelines, and debugging histories. If an administrator detaches their Facebook account or deletes a Page connection, all corresponding local tokens and cached metadata will be permanently expunged from the application storage in a timely manner.
+                </p>
+            </section>
+
+            <!-- Section 7 -->
+            <section id="data-deletion" class="scroll-mt-24 border-t border-slate-200 dark:border-slate-900 pt-8">
+                <h2 class="font-display font-bold text-xl sm:text-2xl text-slate-950 dark:text-white mb-4 flex items-center gap-2">
+                    <span class="text-brand-600 dark:text-brand-400">7.</span> User Data Deletion Instructions
+                </h2>
+                
+                <p class="mb-4">
+                    In compliance with Meta Platform Terms, users and administrators have the right to request deletion of any cached information, logs, or credentials maintained by the Application.
+                </p>
+
+                <!-- Data Deletion Alert Box -->
+                <div class="glass-card p-6 rounded-2xl border border-rose-200 dark:border-rose-950/50 bg-rose-50/20 dark:bg-rose-950/10 mb-6">
+                    <h3 class="font-semibold text-rose-900 dark:text-rose-400 mb-2 flex items-center gap-2 text-sm uppercase tracking-wider">
+                        <i data-lucide="info" class="w-5 h-5"></i>
+                        Official Data Deletion Request Process
+                    </h3>
+                    
+                    <p class="text-sm text-slate-700 dark:text-slate-300 mb-4">
+                        To request the immediate and permanent deletion of access tokens, cached metadata, Page records, or transaction logs related to your account:
+                    </p>
+
+                    <div class="space-y-3 bg-white/70 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200/50 dark:border-slate-800/50 text-sm">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-1">
+                            <span class="font-semibold text-slate-900 dark:text-white">Contact Email:</span>
+                            <span class="sm:col-span-2"><a href="mailto:mereskaai@gmail.com" class="text-brand-600 dark:text-brand-400 font-medium underline">mereskaai@gmail.com</a></span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-1">
+                            <span class="font-semibold text-slate-900 dark:text-white">Subject Line:</span>
+                            <span class="sm:col-span-2 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-xs select-all inline-block w-fit">Automation_Clppers Data Deletion Request</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h4 class="font-semibold text-slate-900 dark:text-white mb-2 text-sm uppercase tracking-wide">Required Information:</h4>
+                <p class="mb-3 text-sm">When submitting a deletion request, please include the following details so we can locate your information:</p>
+                <ul class="list-disc pl-6 space-y-1.5 text-sm mb-4">
+                    <li>Your administrative username or profile identifier.</li>
+                    <li>The specific Page Names or Page IDs connected to the Application.</li>
+                    <li>A clear list of elements you want removed (e.g. "Delete all access tokens", "Clear scheduling history", or "Wipe all profile data").</li>
+                </ul>
+
+                <p class="text-sm">
+                    Upon receipt and verification of your email request, we will delete all associated API secrets, keys, identifiers, and activity records within <strong>five (5) business days</strong>. Confirmation will be sent back to your contact address once the deletion process completes.
+                </p>
+                <p class="text-sm mt-3">
+                    <strong>Note:</strong> You can revoke the Application's authority directly through your <a href="https://www.facebook.com/settings?tab=business_tools" target="_blank" rel="noopener noreferrer" class="text-brand-600 dark:text-brand-400 font-medium underline">Facebook Business Integration Settings</a> at any time. Revoking permissions stops any future data retrieval but will not automatically wipe data stored previously; to remove cached data completely, please proceed with the email request above.
+                </p>
+            </section>
+
+            <!-- Section 8 -->
+            <section class="scroll-mt-24 border-t border-slate-200 dark:border-slate-900 pt-8">
+                <h2 class="font-display font-bold text-xl sm:text-2xl text-slate-950 dark:text-white mb-3 flex items-center gap-2">
+                    <span class="text-brand-600 dark:text-brand-400">8.</span> Changes to This Policy
+                </h2>
+                <p>
+                    This Privacy Policy may be modified periodically to reflect updates in Facebook API guidelines, Meta compliance protocols, or operational refactoring. Changes take effect immediately upon their publication on this page.
+                </p>
+            </section>
+
+            <!-- Section 9 -->
+            <section class="scroll-mt-24 border-t border-slate-200 dark:border-slate-900 pt-8">
+                <h2 class="font-display font-bold text-xl sm:text-2xl text-slate-950 dark:text-white mb-3 flex items-center gap-2">
+                    <span class="text-brand-600 dark:text-brand-400">9.</span> Compliance Contact
+                </h2>
+                <p>
+                    For inquiries about this policy, access procedures, or developer compliance audits, please contact our coordinator at:
+                </p>
+                <p class="mt-3 font-medium">
+                    Email: <a href="mailto:mereskaai@gmail.com" class="text-brand-600 dark:text-brand-400 underline">mereskaai@gmail.com</a>
+                </p>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-200 dark:border-slate-900 bg-slate-100/50 dark:bg-slate-950/50 py-12 transition-colors duration-300 mt-16">
+        <div class="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="flex items-center gap-2">
+                <div class="p-1.5 rounded-lg bg-brand-600 text-white">
+                    <i data-lucide="scissors" class="w-4 h-4"></i>
+                </div>
+                <span class="font-display font-semibold text-slate-950 dark:text-white">Opensource Clipping</span>
+            </div>
+
+            <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-500 dark:text-slate-400">
+                <a href="index.html" class="hover:text-brand-600 dark:hover:text-brand-400">Home</a>
+                <a href="#data-deletion" class="hover:text-brand-600 dark:hover:text-brand-400">Data Deletion</a>
+                <a href="index.html#terms" class="hover:text-brand-600 dark:hover:text-brand-400">Terms of Service</a>
+                <a href="mailto:mereskaai@gmail.com" class="hover:text-brand-600 dark:hover:text-brand-400">Support</a>
+            </div>
+
+            <div class="text-xs text-slate-400 dark:text-slate-600">
+                &copy; 2026 Opensource Clipping & Automation Clippers. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Theme Toggle Functionality
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+    </script>
+</body>
+
+</html>
