@@ -157,6 +157,27 @@ python main.py --url "VIDEO_URL" --video-scale-algo lanczos
 
 ---
 
+## Ambient Edge Glow
+
+The engine can apply a dynamic ambient glow around the video edges (matching the video colors). By default, this is only active during the voice-over intro.
+
+```bash
+# Apply edge glow to the entire video
+python main.py --url "VIDEO_URL" --edge-glow
+```
+
+### Edge Glow Modes (`--edge-glow-mode`)
+
+The underlying animation engine loops the glow effect. You can choose the rendering strategy:
+
+| Mode | Description | Tradeoffs |
+|---|---|---|
+| `smooth` (default) | Mathematically adjusts rotation speed for a seamless 10-second loop. | Perfectly smooth, no stutter at loop boundaries. |
+| `full` | Renders the exact duration of the video (no looping needed). | Zero stutter, but computationally heavier for long clips. |
+| `default` | Strict 10-second loop using the original speed. | May exhibit a slight visible stutter at the 10s mark. |
+
+---
+
 ## Quality Presets (Recipes)
 
 ### Maximum Quality (Slow)

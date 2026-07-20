@@ -25,6 +25,8 @@ Welcome to the **OpenSource Clipping** wiki! This is the central hub for all doc
 | 13 | **[Troubleshooting & FAQ](Troubleshooting-and-FAQ)** | Common errors, fixes, and frequently asked questions |
 | 14 | **[Contributing](Contributing)** | How to contribute, report issues, and support the project |
 | 15 | **[YouTube API Setup Guide](YouTube-API-Setup-Guide)** | Step-by-step guide to create OAuth credentials for auto-upload |
+| 16 | **[Facebook Reels Uploader](Facebook-Reels-Uploader)** | Automated Reels uploader and scheduler for Facebook Pages |
+| 17 | **[YouTube Tracker](YouTube-Tracker)** | Local playlist snapshot tracker for clipping source material |
 
 ---
 

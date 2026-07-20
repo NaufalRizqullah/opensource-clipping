@@ -76,6 +76,15 @@ Complete reference for all command-line arguments. Run `python main.py --help` f
 
 ---
 
+## Video Effects (Ambient Glow)
+
+| Argument | Default | Description |
+|---|---|---|
+| `--edge-glow` | `False` | Apply ambient edge glow to the entire output video (hook, clip, broll, voiceover). By default, glow only appears on voice-over intros. |
+| `--edge-glow-mode` | `smooth` | Edge glow rendering strategy: `default` (original 10s loop, may stutter at loop points), `smooth` (10s loop with auto-adjusted speed for seamless loop), `full` (renders full duration, heavier but zero stutter). |
+
+---
+
 ## Podcast / Split-Screen
 
 | Argument | Default | Description |

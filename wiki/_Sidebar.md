@@ -21,6 +21,8 @@
 
 * [[Story Clip Mode|Story-Clip-Mode]]
 * [[YouTube Auto-Upload|YouTube-Auto-Upload]]
+* [[Facebook Reels Uploader|Facebook-Reels-Uploader]]
+* [[YouTube Tracker|YouTube-Tracker]]
 * [[YouTube API Setup Guide|YouTube-API-Setup-Guide]]
 * [[Google Colab Guide|Google-Colab-Guide]]
 
