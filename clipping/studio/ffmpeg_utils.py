@@ -123,6 +123,21 @@ def detect_video_encoder(cfg=None, target_h=1080):
         "-maxrate", f"{int(float(target_bitrate.replace('M', '')) * 1.5)}M",
         "-bufsize", f"{int(float(target_bitrate.replace('M', '')) * 2)}M",
     ]
+    amf_args = [
+        "-c:v", "h264_amf",
+        "-b:v", target_bitrate,
+        "-maxrate", f"{int(float(target_bitrate.replace('M', '')) * 1.5)}M",
+        "-bufsize", f"{int(float(target_bitrate.replace('M', '')) * 2)}M",
+    ]
+    vaapi_args = [
+        "-init_hw_device", "vaapi=va:/dev/dri/renderD128",
+        "-filter_hw_device", "va",
+        "-vf", "format=nv12,hwupload",
+        "-c:v", "h264_vaapi",
+        "-b:v", target_bitrate,
+        "-maxrate", f"{int(float(target_bitrate.replace('M', '')) * 1.5)}M",
+        "-bufsize", f"{int(float(target_bitrate.replace('M', '')) * 2)}M",
+    ]
     cpu_args = [
         "-c:v", "libx264",
         "-preset", cpu_preset,
@@ -131,6 +146,7 @@ def detect_video_encoder(cfg=None, target_h=1080):
         "-bufsize", f"{int(float(target_bitrate.replace('M', '')) * 2)}M",
     ]
 
+    # ponytail: NVENC -> AMD AMF -> AMD VAAPI -> CPU
     if _ffmpeg_has_encoder("h264_nvenc"):
         ok, _ = _test_encoder_runtime(nvenc_args_fastest)
         if ok:
@@ -141,6 +157,18 @@ def detect_video_encoder(cfg=None, target_h=1080):
         if ok:
             print(f"🚀 Pakai NVIDIA NVENC {nvenc_preset_legacy} (Bitrate {target_bitrate}, CQ {nvenc_cq})", flush=True)
             return {"name": "h264_nvenc", "args": nvenc_args_legacy}
+
+    if _ffmpeg_has_encoder("h264_amf"):
+        ok, _ = _test_encoder_runtime(amf_args)
+        if ok:
+            print(f"🚀 Pakai AMD AMF (Bitrate {target_bitrate})", flush=True)
+            return {"name": "h264_amf", "args": amf_args}
+
+    if _ffmpeg_has_encoder("h264_vaapi"):
+        ok, _ = _test_encoder_runtime(vaapi_args)
+        if ok:
+            print(f"🚀 Pakai AMD VAAPI (Bitrate {target_bitrate})", flush=True)
+            return {"name": "h264_vaapi", "args": vaapi_args}
 
     print(f"⚠️ Fallback ke CPU libx264 ({cpu_preset}, CRF {cpu_crf}, Max {target_bitrate})", flush=True)
     return {"name": "libx264", "args": cpu_args}
