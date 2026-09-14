@@ -21,6 +21,8 @@
 
 ---
 
+⚠️ **Mode Pemeliharaan Rendah (Low Maintenance)**: Proyek ini sedang dalam mode pemeliharaan rendah karena penulis sedang fokus pada prioritas lain.
+
 ## ✨ Fitur Utama
 
 | Fitur | Deskripsi |
@@ -104,7 +106,9 @@ WHISPER_COMPUTE_TYPE = "float32"
   --no-bgm
 ```
 
-*(Catatan: Kami juga telah menyertakan file `notebooks/Lib_OpenSource_Clipping.ipynb` di repositori ini sebagai template praktis).*
+> 💡 **Baru pertama kali?** Gunakan **[Quick Start Notebook](notebooks/Quick_Start.ipynb)** — notebook yang ramah pemula dengan konfigurasi minimal, instruksi langkah demi langkah dalam Bahasa Inggris, dan hanya 3 pengaturan yang perlu diubah (URL YouTube, jumlah klip, dan model Whisper).
+>
+> Kami juga menyertakan `notebooks/Lib_OpenSource_Clipping.ipynb` sebagai template lengkap.
 
 ---
 

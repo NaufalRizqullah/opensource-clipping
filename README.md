@@ -21,6 +21,8 @@
 
 ---
 
+⚠️ **Low Maintenance Mode**: This project is currently in low maintenance mode as the author is focusing on other priorities.
+
 ## ✨ Features
 
 | Feature | Description |
