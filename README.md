@@ -104,7 +104,9 @@ WHISPER_COMPUTE_TYPE = "float32"
   --no-bgm
 ```
 
-*(Note: We have also included `notebooks/Lib_OpenSource_Clipping.ipynb` in the repo as a ready-to-use template).*
+> 💡 **New to this project?** Use the **[Quick Start Notebook](notebooks/Quick_Start.ipynb)** — a beginner-friendly notebook with minimal configuration, step-by-step English instructions, and only 3 settings to change (YouTube URL, total clips, and Whisper model).
+>
+> We also include `notebooks/Lib_OpenSource_Clipping.ipynb` as a full-featured template.
 
 ---
 
