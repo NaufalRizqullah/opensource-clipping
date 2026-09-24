@@ -21,7 +21,7 @@
 
 ---
 
-⚠️ **Maintenance Status:** Stable / Maintenance Mode — bug fixes and community contributions are still reviewed.
+🟢 **Actively Maintained**: contributions, bug reports, and feature PRs are welcome.
 
 ---
 
