@@ -21,7 +21,9 @@
 
 ---
 
-⚠️ **Low Maintenance Mode**: This project is currently in low maintenance mode as the author is focusing on other priorities.
+⚠️ **Maintenance Status:** Stable / Maintenance Mode — bug fixes and community contributions are still reviewed.
+
+---
 
 ## ✨ Features
 
