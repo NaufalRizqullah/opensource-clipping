@@ -12,7 +12,7 @@ from . import diarization as diarization_mod
 from . import engine, metadata, studio, hook_manager, voiceover
 
 
-def run_pipeline(cfg) -> list[dict]:
+def run_pipeline(cfg, whisper_model_instance=None) -> list[dict]:
     """
     Run the full clipping pipeline:
       1. Download YouTube video
@@ -27,6 +27,8 @@ def run_pipeline(cfg) -> list[dict]:
     ----------
     cfg : SimpleNamespace
         Configuration object from ``config.build_config()``.
+    whisper_model_instance : WhisperModel or None
+        Optional pre-loaded WhisperModel to reuse across batch runs.
 
     Returns
     -------
@@ -76,6 +78,7 @@ def run_pipeline(cfg) -> list[dict]:
             model_size=cfg.whisper_model,
             device=cfg.whisper_device,
             compute_type=cfg.whisper_compute_type,
+            whisper_model_instance=whisper_model_instance,
         )
 
     # Step 3 — Gemini AI analysis
