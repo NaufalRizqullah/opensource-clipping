@@ -170,6 +170,10 @@ python main.py --url "https://youtube.com/watch?v=VIDEO_ID"
 # Standard run (Default options with 5 clips)
 python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --clips 5 --ratio 16:9
 
+# Batch Processing (Multi-URL) & Cleanup Source
+# Process multiple videos sequentially and auto-delete original videos after rendering
+python main.py --url "https://youtube.com/watch?v=ID1" "https://youtube.com/watch?v=ID2" --clips 3 --ratio 9:16 --cleanup-source
+
 # Prefer highest available source quality (default behavior)
 python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --source-height max
 

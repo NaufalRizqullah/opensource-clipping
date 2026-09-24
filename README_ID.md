@@ -168,6 +168,10 @@ python main.py --url "https://youtube.com/watch?v=VIDEO_ID"
 # Mode Standar (Default untuk 5 klip)
 python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --clips 5 --ratio 16:9
 
+# Batch Processing (Multi-URL) & Cleanup Source
+# Memproses banyak video sekaligus dan otomatis menghapus video asli setelah dirender
+python main.py --url "https://youtube.com/watch?v=ID1" "https://youtube.com/watch?v=ID2" --clips 3 --ratio 9:16 --cleanup-source
+
 # Prioritaskan kualitas source tertinggi yang tersedia (default)
 python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --source-height max
 

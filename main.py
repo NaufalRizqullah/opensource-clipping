@@ -109,7 +109,7 @@ def _run_single_url(cfg, url, version, idx=None, total=None):
 def main():
     cfg = build_config(sys.argv[1:])
 
-    version = "1.12.0"
+    version = "1.14.0"
 
     # ── Story Clip Mode ──────────────────────────────────────────────
     if getattr(cfg, "story_mode", False):

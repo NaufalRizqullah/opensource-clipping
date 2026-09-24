@@ -8,6 +8,19 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.14.0] - 2026-09-25
+
+### Added
+- **Batch Multi-URL Processing**: You can now pass multiple URLs to the `--url` argument (e.g. `--url "link1" "link2" "link3"`). 
+  - Each video is processed sequentially.
+  - Generates a combined `batch_manifest.json` report at the end.
+  - Automatically isolates outputs per URL into separate subdirectories (e.g., `outputs/video_1_ID/`) to prevent file collisions.
+  - If a video fails, the pipeline automatically skips it and proceeds to the next video instead of crashing completely.
+- **Whisper Pre-loading**: In batch mode, the heavy `faster-whisper` model is loaded only once and reused across all videos to drastically reduce subsequent initialization times.
+- **Auto-Cleanup**: Added `--cleanup-source` flag to automatically delete the downloaded source video and subtitles immediately after a render finishes, saving significant disk space during large batch runs.
+
+---
+
 ## [v1.13.4] - 2026-08-01
 
 ### Added
