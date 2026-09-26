@@ -170,6 +170,11 @@ python main.py --url "https://youtube.com/watch?v=VIDEO_ID"
 # Standard run (Default options with 5 clips)
 python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --clips 5 --ratio 16:9
 
+# Using YouTube Cookies (To avoid 403 Forbidden / bot detection errors)
+python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --yt-cookies chrome
+# or using an exported cookies.txt file
+python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --yt-cookies youtube_cookies.txt
+
 # Batch Processing (Multi-URL) & Cleanup Source
 # Process multiple videos sequentially and auto-delete original videos after rendering
 python main.py --url "https://youtube.com/watch?v=ID1" "https://youtube.com/watch?v=ID2" --clips 3 --ratio 9:16 --cleanup-source
@@ -253,6 +258,7 @@ python main.py --help
 | Argument | Default | Description |
 |---|---|---|
 | `--url`, `-u` | — | Video URL to process (Required) |
+| `--yt-cookies` | `None` | Cookies from browser (e.g. `chrome`) or path to `cookies.txt` to avoid yt-dlp blocks |
 | `--source` | `youtube` | Video source platform. Choices: `youtube`, `tiktok`, `instagram`, `gdrive`. |
 | `--clips`, `-n` | `7` | Number of highlight clips to generate |
 | `--ratio`, `-r` | `9:16` | Output aspect ratio (`9:16`, `16:9`, `1:1`, `3:4`, `4:5`) |
