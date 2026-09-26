@@ -121,12 +121,24 @@ def _ydl_progress_hook(d: dict) -> None:
         print(flush=True)  # tutup baris bar untuk stream ini
 
 
+def _apply_cookies(opts: dict, cookies: str | None) -> None:
+    """Apply cookies to yt-dlp options dictionary."""
+    if not cookies:
+        return
+    if cookies.endswith(".txt") or os.path.isfile(cookies):
+        opts["cookiefile"] = cookies
+    else:
+        # Browser format: (browser, profile, keyring, container)
+        opts["cookiesfrombrowser"] = (cookies, None, None, None)
+
+
 def download_video(
     url: str,
     output_path: str,
     use_dlp_subs: bool = False,
     download_source_height: str | int = "max",
     source_platform: str = "youtube",
+    yt_cookies: str | None = None,
 ) -> None:
     """
     Download a video to *output_path* with configurable source height.
@@ -179,6 +191,8 @@ def download_video(
             "merge_output_format": "mp4",
             "progress_hooks": [_ydl_progress_hook],
         }
+
+    _apply_cookies(ydl_opts, yt_cookies)
 
     # --- Subtitle download — only supported for YouTube ---
     if use_dlp_subs and uses_youtube_format:
@@ -350,9 +364,18 @@ def transcribe_video(
     model_size: str = "large-v3",
     device: str = "cuda",
     compute_type: str = "float16",
+    whisper_model_instance=None,
 ) -> tuple[str, list[dict]]:
     """
     Transcribe *video_path* using Faster-Whisper.
+
+    Parameters
+    ----------
+    whisper_model_instance : WhisperModel or None
+        Optional pre-loaded WhisperModel instance.  When provided the
+        *model_size*, *device* and *compute_type* arguments are ignored
+        and the given model is reused directly.  This avoids expensive
+        re-loading when processing multiple videos in batch mode.
 
     Returns
     -------
@@ -366,12 +389,19 @@ def transcribe_video(
     # Langkah-langkah ini berjalan tanpa output di dalam faster-whisper sebelum
     # segmen pertama dihasilkan, jadi kita umumkan tiap fase — kalau tidak, run
     # pertama di CPU (download model + decode seluruh audio) terlihat seperti hang.
-    print(
-        f"      ⏳ Memuat model Whisper '{model_size}' ({device})"
-        " — unduhan pertama kali bisa memakan waktu...",
-        flush=True,
-    )
-    model = WhisperModel(model_size, device=device, compute_type=compute_type)
+    if whisper_model_instance is not None:
+        model = whisper_model_instance
+        print(
+            f"      ♻️ Menggunakan model Whisper yang sudah di-load (batch mode)",
+            flush=True,
+        )
+    else:
+        print(
+            f"      ⏳ Memuat model Whisper '{model_size}' ({device})"
+            " — unduhan pertama kali bisa memakan waktu...",
+            flush=True,
+        )
+        model = WhisperModel(model_size, device=device, compute_type=compute_type)
 
     print("      ⏳ Mendekode audio & mengekstrak fitur (belum ada output)...", flush=True)
     segments, info = model.transcribe(video_path, beam_size=5, word_timestamps=True)

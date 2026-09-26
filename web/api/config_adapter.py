@@ -105,6 +105,10 @@ def build_config_from_payload(
             os.path.join(outputs_dir, "video_asli.mp4")
         )
 
+    # Auto-detect youtube_cookies.txt for yt-dlp
+    default_cookies_path = os.path.join(base_dir, "youtube_cookies.txt")
+    yt_cookies = default_cookies_path if os.path.exists(default_cookies_path) else None
+
     cfg = SimpleNamespace(
         # Paths
         base_dir=base_dir,
@@ -135,6 +139,7 @@ def build_config_from_payload(
         pilihan_rasio=payload.get("ratio", "9:16"),
         download_source_height=source_height,
         render_output_height=render_height,
+        yt_cookies=yt_cookies,
         # Konten & Hook
         max_kata_per_subtitle=payload.get("words_per_sub", 5),
         durasi_hook=payload.get("hook_duration", 3),

@@ -5,7 +5,9 @@ Menyimpan semua default value dan membangun config dari CLI args.
 """
 
 import argparse
+import hashlib
 import os
+import re
 from types import SimpleNamespace
 
 try:
@@ -158,6 +160,34 @@ GEMINI_FALLBACK_MODEL = "gemini-2.5-flash"
 
 
 # ==============================================================================
+# HELPERS
+# ==============================================================================
+
+
+def _make_url_slug(url: str, index: int) -> str:
+    """Generate a short, filesystem-safe slug from a URL for output isolation."""
+    video_id = ""
+    if "youtube.com" in url or "youtu.be" in url:
+        match = re.search(r'(?:v=|youtu\.be/)([a-zA-Z0-9_-]{11})', url)
+        if match:
+            video_id = match.group(1)
+    elif "tiktok.com" in url:
+        match = re.search(r'/video/(\d+)', url)
+        if match:
+            video_id = match.group(1)[:12]
+    elif "instagram.com" in url:
+        match = re.search(r'/(?:reel|p)/([a-zA-Z0-9_-]+)', url)
+        if match:
+            video_id = match.group(1)[:12]
+
+    if video_id:
+        return f"video_{index + 1}_{video_id}"
+    else:
+        short_hash = hashlib.md5(url.encode()).hexdigest()[:8]
+        return f"video_{index + 1}_{short_hash}"
+
+
+# ==============================================================================
 # CLI PARSER
 # ==============================================================================
 
@@ -199,8 +229,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
     # --- Pengaturan utama ---
     p.add_argument(
-        "--url", "-u", required=False, default=None,
-        help="Video URL to process (supports YouTube, TikTok, Instagram, Google Drive). Required unless --story-mode is used.",
+        "--url", "-u", required=False, default=None, nargs="+",
+        help="One or more video URLs to process (space-separated). Supports YouTube, TikTok, Instagram, Google Drive. Required unless --story-mode is used.",
+    )
+    p.add_argument(
+        "--yt-cookies", type=str, default=None,
+        help="Cookies from browser (e.g. 'chrome', 'firefox') or path to cookies.txt for yt-dlp",
     )
     p.add_argument(
         "--source",
@@ -266,6 +300,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--no-broll", action="store_true", help="Disable B-roll footage")
     p.add_argument("--no-hook", action="store_true", help="Disable hook glitch teaser")
+    p.add_argument(
+        "--cleanup-source",
+        action="store_true",
+        default=False,
+        help="Auto-delete the downloaded source video after rendering to save disk space (useful for batch runs).",
+    )
     p.add_argument("--no-bgm", action="store_true", help="Disable background music")
     p.add_argument(
         "--bgm-mode",
@@ -744,6 +784,9 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
     if not args.story_mode and not args.url:
         parser.error("--url is required unless --story-mode is used.")
 
+    # Normalize URL list for batch support
+    url_list = args.url if isinstance(args.url, list) else ([args.url] if args.url else [])
+
     # Validate watermark args
     if args.watermark:
         if not args.text and not args.image:
@@ -797,7 +840,10 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         pexels_api_key=os.environ.get("PEXELS_API_KEY", ""),
         # Pengaturan utama
         source_platform="tiktok" if args.tiktok else args.source,
-        url_youtube=args.url,
+        url_youtube=url_list[0] if len(url_list) == 1 else url_list,
+        url_list=url_list,
+        yt_cookies=args.yt_cookies,
+        cleanup_source=args.cleanup_source,
         jumlah_clip=args.clips,
         pilihan_rasio=args.ratio,
         download_source_height=args.source_height,

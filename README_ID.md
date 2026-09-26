@@ -168,6 +168,15 @@ python main.py --url "https://youtube.com/watch?v=VIDEO_ID"
 # Mode Standar (Default untuk 5 klip)
 python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --clips 5 --ratio 16:9
 
+# Menggunakan YouTube Cookies (Untuk menghindari 403 Forbidden / bot detection)
+python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --yt-cookies chrome
+# atau menggunakan file ekspor cookies.txt
+python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --yt-cookies youtube_cookies.txt
+
+# Batch Processing (Multi-URL) & Cleanup Source
+# Memproses banyak video sekaligus dan otomatis menghapus video asli setelah dirender
+python main.py --url "https://youtube.com/watch?v=ID1" "https://youtube.com/watch?v=ID2" --clips 3 --ratio 9:16 --cleanup-source
+
 # Prioritaskan kualitas source tertinggi yang tersedia (default)
 python main.py --url "https://youtube.com/watch?v=VIDEO_ID" --source-height max
 
@@ -247,6 +256,7 @@ python main.py --help
 | Argumen | Default | Deskripsi |
 |---|---|---|
 | `--url`, `-u` | — | URL video yang akan diproses (Wajib) |
+| `--yt-cookies` | `None` | Cookies dari browser (misal `chrome`) atau path ke `cookies.txt` untuk menghindari pemblokiran yt-dlp |
 | `--source` | `youtube` | Sumber video. Pilihan: `youtube`, `tiktok`, `instagram`, `gdrive`. |
 | `--clips`, `-n` | `7` | Jumlah klip highlight yang dihasilkan |
 | `--ratio`, `-r` | `9:16` | Rasio aspek output (`9:16`, `16:9`, `1:1`, `3:4`, `4:5`) |
