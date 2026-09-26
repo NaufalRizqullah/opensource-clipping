@@ -233,6 +233,10 @@ def _build_parser() -> argparse.ArgumentParser:
         help="One or more video URLs to process (space-separated). Supports YouTube, TikTok, Instagram, Google Drive. Required unless --story-mode is used.",
     )
     p.add_argument(
+        "--yt-cookies", type=str, default=None,
+        help="Cookies from browser (e.g. 'chrome', 'firefox') or path to cookies.txt for yt-dlp",
+    )
+    p.add_argument(
         "--source",
         choices=["youtube", "tiktok", "instagram", "gdrive"],
         default=SOURCE_PLATFORM,
@@ -838,6 +842,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         source_platform="tiktok" if args.tiktok else args.source,
         url_youtube=url_list[0] if len(url_list) == 1 else url_list,
         url_list=url_list,
+        yt_cookies=args.yt_cookies,
         cleanup_source=args.cleanup_source,
         jumlah_clip=args.clips,
         pilihan_rasio=args.ratio,

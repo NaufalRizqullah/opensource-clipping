@@ -121,12 +121,24 @@ def _ydl_progress_hook(d: dict) -> None:
         print(flush=True)  # tutup baris bar untuk stream ini
 
 
+def _apply_cookies(opts: dict, cookies: str | None) -> None:
+    """Apply cookies to yt-dlp options dictionary."""
+    if not cookies:
+        return
+    if cookies.endswith(".txt") or os.path.isfile(cookies):
+        opts["cookiefile"] = cookies
+    else:
+        # Browser format: (browser, profile, keyring, container)
+        opts["cookiesfrombrowser"] = (cookies, None, None, None)
+
+
 def download_video(
     url: str,
     output_path: str,
     use_dlp_subs: bool = False,
     download_source_height: str | int = "max",
     source_platform: str = "youtube",
+    yt_cookies: str | None = None,
 ) -> None:
     """
     Download a video to *output_path* with configurable source height.
@@ -179,6 +191,8 @@ def download_video(
             "merge_output_format": "mp4",
             "progress_hooks": [_ydl_progress_hook],
         }
+
+    _apply_cookies(ydl_opts, yt_cookies)
 
     # --- Subtitle download — only supported for YouTube ---
     if use_dlp_subs and uses_youtube_format:

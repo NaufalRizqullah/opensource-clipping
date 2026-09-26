@@ -44,6 +44,7 @@ def run_pipeline(cfg, whisper_model_instance=None) -> list[dict]:
         getattr(cfg, "use_dlp_subs", False),
         getattr(cfg, "download_source_height", "max"),
         source_platform=source_platform,
+        yt_cookies=getattr(cfg, "yt_cookies", None),
     )
 
     # Step 2 — Transcribe
