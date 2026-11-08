@@ -9,6 +9,8 @@ so the existing pipeline code works unchanged.
 from __future__ import annotations
 
 import os
+from pathlib import Path
+import re
 from types import SimpleNamespace
 
 # Import defaults from existing config module
@@ -39,6 +41,19 @@ from clipping.config import (
     WARNA_KATA_KHUSUS,
 )
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def resolve_upload_path(filename: str) -> str:
+    """Resolve an uploaded basename without permitting paths or symlink escapes."""
+    if not filename or filename in {".", ".."} or any(ch in filename for ch in '/\\:\x00'):
+        raise ValueError("Invalid upload filename")
+    upload_dir = (PROJECT_ROOT / "uploads").resolve()
+    candidate = (upload_dir / filename).resolve()
+    if candidate.parent != upload_dir:
+        raise ValueError("Upload path is outside the upload directory")
+    return str(candidate)
+
 
 def build_config_from_payload(
     payload: dict,
@@ -67,8 +82,12 @@ def build_config_from_payload(
     env = env_overrides or {}
 
     # Resolve absolute path to the project root (2 levels up from web/api)
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    if not re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", job_id):
+        raise ValueError("Invalid job ID")
+    base_dir = str(PROJECT_ROOT)
     outputs_dir = os.path.abspath(os.path.join(base_dir, "outputs", job_id))
+    if Path(outputs_dir).resolve().parent != (PROJECT_ROOT / "outputs").resolve():
+        raise ValueError("Job output path is outside the outputs directory")
     os.makedirs(outputs_dir, exist_ok=True)
     font_dir = os.path.abspath(os.path.join(base_dir, "custom_fonts"))
     os.makedirs(font_dir, exist_ok=True)
@@ -97,9 +116,7 @@ def build_config_from_payload(
     # Determine video input path
     upload_filename = payload.get("upload_filename")
     if upload_filename:
-        file_video_asli = os.path.abspath(
-            os.path.join(base_dir, "uploads", upload_filename)
-        )
+        file_video_asli = resolve_upload_path(upload_filename)
     else:
         file_video_asli = os.path.abspath(
             os.path.join(outputs_dir, "video_asli.mp4")

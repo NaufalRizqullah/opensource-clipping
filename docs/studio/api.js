@@ -7,6 +7,22 @@
 
 const StudioAPI = (() => {
   const STORAGE_KEY = 'osc_backend_url';
+  const TUNNEL_HEADERS = { 'ngrok-skip-browser-warning': 'true' };
+  let connection = { status: 'unknown', ready: null };
+  let connectionCheck = null;
+
+  function setConnection(status, details = {}) {
+    connection = { status, ready: null, ...details };
+    window.dispatchEvent(new CustomEvent('studio:connection', { detail: connection }));
+  }
+
+  function normalizeBackendUrl(value) {
+    const url = new URL(value.trim());
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+      throw new Error('Enter an HTTP(S) backend URL without credentials, query parameters, or fragments.');
+    }
+    return url.href.replace(/\/+$/, '');
+  }
 
   /** Get the saved backend URL */
   function getBackendUrl() {
@@ -15,45 +31,126 @@ const StudioAPI = (() => {
 
   /** Save backend URL */
   function setBackendUrl(url) {
-    localStorage.setItem(STORAGE_KEY, url.replace(/\/+$/, ''));
+    localStorage.setItem(STORAGE_KEY, normalizeBackendUrl(url));
+    setConnection('unknown');
   }
 
   /** Clear backend URL */
   function clearBackendUrl() {
     localStorage.removeItem(STORAGE_KEY);
+    setConnection('offline');
+    window.dispatchEvent(new CustomEvent('studio:disconnected'));
   }
 
-  /** Check if connected (URL is set) */
+  /** A saved URL does not imply the backend is reachable or ready. */
   function isConfigured() {
     return !!getBackendUrl();
   }
 
-  /** Generic fetch wrapper with error handling */
-  async function request(path, options = {}) {
-    const base = getBackendUrl();
+  /** Generic fetch wrapper; candidate connections do not change the saved URL. */
+  async function requestAt(base, path, options = {}) {
     if (!base) throw new Error('Backend URL not configured. Please connect first.');
-
-    const url = `${base}${path}`;
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
-        ...(options.headers || {}),
-      },
-    });
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(body.detail || `Request failed: ${res.status}`);
+    const { timeoutMs = 30000, ...fetchOptions } = options;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${base}${path}`, {
+        ...fetchOptions,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...TUNNEL_HEADERS,
+          ...(fetchOptions.headers || {}),
+        },
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        const detail = body?.detail;
+        const error = new Error(typeof detail === 'string' ? detail : `Request failed: ${res.status}`);
+        error.status = res.status;
+        error.body = body;
+        throw error;
+      }
+      if (body === null) throw new Error('Backend returned an unexpected page. Check the tunnel URL.');
+      return body;
+    } catch (error) {
+      if (!error.status && base === getBackendUrl()) setConnection('offline');
+      if (error.name === 'AbortError') throw new Error('Backend request timed out. Check the notebook and tunnel.');
+      throw error;
+    } finally {
+      clearTimeout(timeout);
     }
+  }
 
-    return res.json();
+  async function request(path, options = {}) {
+    return requestAt(getBackendUrl(), path, options);
   }
 
   // ---- Health ----
   async function checkHealth() {
     return request('/api/health');
+  }
+
+  async function probeConnection(base) {
+    const health = await requestAt(base, '/api/health');
+    if (health.status !== 'ok') throw new Error('Backend health check failed.');
+    let readiness;
+    try {
+      readiness = await requestAt(base, '/api/ready', { timeoutMs: 150000 });
+    } catch (error) {
+      // Older backends have liveness only. Keep compatibility, visibly unverified.
+      if (error.status === 404) return { health, ready: null, legacy: true };
+      if (error.status === 503) {
+        const failure = new Error('Backend is reachable, but the renderer is not ready. Check the notebook startup output.');
+        failure.notReady = true;
+        throw failure;
+      }
+      throw error;
+    }
+    if (readiness.ready !== true) {
+      const error = new Error('Backend is reachable, but the renderer is not ready. Check the notebook startup output.');
+      error.notReady = true;
+      throw error;
+    }
+    return { health, ready: true, legacy: false };
+  }
+
+  async function checkConnection() {
+    const base = getBackendUrl();
+    if (!base) { setConnection('offline'); return null; }
+    if (connectionCheck?.base === base) return connectionCheck.promise;
+    const pending = { base };
+    pending.promise = (async () => {
+      try {
+        const result = await probeConnection(base);
+        if (base === getBackendUrl()) setConnection('online', result);
+        return result;
+      } catch (error) {
+        if (base === getBackendUrl()) setConnection(error.notReady ? 'not_ready' : 'offline');
+        throw error;
+      }
+    })();
+    connectionCheck = pending;
+    try {
+      return await pending.promise;
+    } finally {
+      if (connectionCheck === pending) connectionCheck = null;
+    }
+  }
+
+  async function connect(url) {
+    const base = normalizeBackendUrl(url);
+    let result;
+    try {
+      result = await probeConnection(base);
+    } catch (error) {
+      if (base === getBackendUrl()) setConnection(error.notReady ? 'not_ready' : 'offline');
+      throw error;
+    }
+    setBackendUrl(base);
+    setConnection('online', result);
+    window.dispatchEvent(new CustomEvent('studio:connected', { detail: result }));
+    return result;
   }
 
   // ---- Jobs ----
@@ -62,7 +159,7 @@ const StudioAPI = (() => {
   }
 
   async function fetchJob(jobId) {
-    return request(`/api/jobs/${jobId}`);
+    return request(`/api/jobs/${encodeURIComponent(jobId)}`);
   }
 
   async function createJob(payload) {
@@ -73,7 +170,7 @@ const StudioAPI = (() => {
   }
 
   async function deleteJob(jobId) {
-    return request(`/api/jobs/${jobId}`, { method: 'DELETE' });
+    return request(`/api/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
   }
 
   // ---- Settings ----
@@ -89,26 +186,60 @@ const StudioAPI = (() => {
   }
 
   // ---- SSE for real-time job status ----
-  function createSSE(jobId, onMessage) {
+  function createSSE(jobId, onMessage, onError = () => {}) {
     const base = getBackendUrl();
     if (!base) return null;
+    let closed = false;
+    let retryTimer = null;
+    let controller;
+    const connection = {
+      close() {
+        closed = true;
+        clearTimeout(retryTimer);
+        if (controller) controller.abort();
+      },
+    };
 
-    const eventSource = new EventSource(`${base}/api/jobs/${jobId}/status`);
-
-    eventSource.onmessage = (event) => {
+    async function stream() {
+      controller = new AbortController();
+      let reader;
       try {
-        const data = JSON.parse(event.data);
-        onMessage(data);
-      } catch (e) {
-        console.error('SSE parse error:', e);
+        const response = await fetch(`${base}/api/jobs/${encodeURIComponent(jobId)}/status`, {
+          headers: { Accept: 'text/event-stream', ...TUNNEL_HEADERS },
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
+          throw new Error('Live updates unavailable; polling will continue.');
+        }
+        reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let pending = '';
+        while (!closed) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          pending += decoder.decode(value, { stream: true });
+          let separator;
+          while ((separator = /\r?\n\r?\n/.exec(pending))) {
+            const frame = pending.slice(0, separator.index);
+            pending = pending.slice(separator.index + separator[0].length);
+            const data = frame.split(/\r?\n/).filter(line => line.startsWith('data:'))
+              .map(line => line.slice(5).replace(/^ /, '')).join('\n');
+            if (!data) continue;
+            const event = JSON.parse(data);
+            onMessage(event);
+            if (['completed', 'failed', 'cancelled'].includes(event.type)) connection.close();
+            if (closed) break;
+          }
+        }
+      } catch (error) {
+        if (!closed) onError(error);
+      } finally {
+        if (reader) await reader.cancel().catch(() => {});
+        if (!closed) retryTimer = setTimeout(stream, 3000);
       }
-    };
-
-    eventSource.onerror = () => {
-      eventSource.close();
-    };
-
-    return eventSource;
+    }
+    stream();
+    return connection;
   }
 
   // ---- Server Shutdown ----
@@ -122,6 +253,9 @@ const StudioAPI = (() => {
     setBackendUrl,
     clearBackendUrl,
     isConfigured,
+    connect,
+    checkConnection,
+    getConnectionState: () => connection,
     checkHealth,
     fetchJobs,
     fetchJob,
@@ -158,6 +292,13 @@ function formatDate(dateStr) {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
+}
+
+/** Escape backend-provided text before inserting it into an HTML template. */
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[char]));
 }
 
 /** Status labels */
@@ -199,11 +340,12 @@ function updateConnectIndicator() {
   const stopBtn = document.getElementById('sidebar-stop-btn');
   if (!dot || !label) return;
 
-  if (StudioAPI.isConfigured()) {
+  const connection = StudioAPI.getConnectionState();
+  if (StudioAPI.isConfigured() && connection.status === 'online') {
     dot.className = 'connect-dot online';
     const url = StudioAPI.getBackendUrl();
     try {
-      label.textContent = new URL(url).hostname;
+      label.textContent = `${new URL(url).hostname}${connection.legacy ? ' (readiness unverified)' : ''}`;
     } catch {
       label.textContent = 'Connected';
     }
@@ -211,9 +353,11 @@ function updateConnectIndicator() {
     if (stopBtn) stopBtn.classList.remove('hidden');
   } else {
     dot.className = 'connect-dot offline';
-    label.textContent = 'Not connected';
-    if (btn) btn.textContent = 'Connect';
-    if (stopBtn) stopBtn.classList.add('hidden');
+    label.textContent = connection.status === 'not_ready' ? 'Backend not ready'
+      : StudioAPI.isConfigured() ? (connection.status === 'unknown' ? 'Checking connection…' : 'Backend unreachable')
+      : 'Not connected';
+    if (btn) btn.textContent = StudioAPI.isConfigured() ? 'Reconnect' : 'Connect';
+    if (stopBtn) stopBtn.classList.toggle('hidden', connection.status !== 'not_ready');
   }
 }
 
@@ -239,7 +383,7 @@ function showConnectModal() {
         Paste the tunnel URL from your Kaggle/Colab notebook. Run the notebook first to get the URL.
       </p>
       <div class="mb-4">
-        <input id="connect-url-input" type="url" value="${currentUrl}" 
+        <input id="connect-url-input" type="url"
           placeholder="https://xxxx-xx-xx.ngrok-free.app"
           class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 text-slate-900 dark:text-white placeholder-slate-400 font-mono"
         />
@@ -266,6 +410,7 @@ function showConnectModal() {
     if (e.target === backdrop) closeConnectModal();
   });
   lucide.createIcons();
+  document.getElementById('connect-url-input').value = currentUrl;
   document.getElementById('connect-url-input').focus();
 }
 
@@ -294,15 +439,13 @@ async function testAndConnect() {
   msg.classList.remove('hidden');
 
   try {
-    StudioAPI.setBackendUrl(url);
-    const health = await StudioAPI.checkHealth();
+    const { health, legacy } = await StudioAPI.connect(url);
     msg.className = 'text-sm mb-4 text-emerald-600 dark:text-emerald-400';
-    msg.textContent = `✅ Connected! GPU: ${health.gpu_available ? '✅' : '❌'} | FFmpeg: ${health.ffmpeg_available ? '✅' : '❌'}`;
+    msg.textContent = `✅ Connected! GPU: ${health.gpu_available ? '✅' : '❌'} | FFmpeg: ${health.ffmpeg_available ? '✅' : '❌'}${legacy ? ' | Older backend: renderer readiness unverified.' : ' | Renderer ready'}`;
     updateConnectIndicator();
 
     setTimeout(() => closeConnectModal(), 1200);
   } catch (err) {
-    StudioAPI.clearBackendUrl();
     msg.className = 'text-sm mb-4 text-red-500';
     msg.textContent = `❌ Connection failed: ${err.message}`;
     updateConnectIndicator();
@@ -344,18 +487,26 @@ async function stopBackendServer() {
       msg.textContent = '✅ Server stopped successfully.';
     }
   } catch (err) {
-    // A fetch error is expected if the server dies immediately
-    console.log('Server disconnected during shutdown:', err);
-  } finally {
+    if (msg) {
+      msg.className = 'text-sm mb-4 text-red-500';
+      msg.textContent = `Shutdown could not be confirmed: ${err.message}`;
+    } else {
+      alert(`Shutdown could not be confirmed: ${err.message}`);
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Stop Server'; }
+    return;
+  }
     setTimeout(() => {
       StudioAPI.clearBackendUrl();
       updateConnectIndicator();
       closeConnectModal();
     }, 1500);
-  }
 }
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   updateConnectIndicator();
+  StudioAPI.checkConnection().catch(() => {});
+  setInterval(() => StudioAPI.checkConnection().catch(() => {}), 15000);
 });
+window.addEventListener('studio:connection', updateConnectIndicator);

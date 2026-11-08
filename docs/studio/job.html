@@ -109,6 +109,7 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <span id="job-badge" class="badge"></span>
+                            <button id="cancel-job-btn" onclick="cancelJob()" class="hidden px-3 py-2 rounded-lg text-xs font-medium border border-red-300 text-red-500 disabled:opacity-50">Cancel Job</button>
                             <a href="index.html" class="px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1">
                                 <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back
                             </a>
@@ -176,6 +177,13 @@
         let currentJob = null;
         let sseConnection = null;
         let pollInterval = null;
+        let loadGeneration = 0;
+        let clipsSignature = '';
+
+        function stopJobUpdates() {
+            if (sseConnection) { sseConnection.close(); sseConnection = null; }
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+        }
 
         function renderJob(job) {
             currentJob = job;
@@ -183,6 +191,7 @@
             const loading = document.getElementById('page-loading');
 
             loading.classList.add('hidden');
+            document.getElementById('page-not-found').classList.add('hidden');
             content.classList.remove('hidden');
 
             // Header
@@ -192,20 +201,27 @@
 
             // Badge
             const badge = document.getElementById('job-badge');
-            const statusLabel = STATUS_LABELS[job.status] || job.status;
+            const statusLabel = job.cancel_requested && !['completed', 'failed', 'cancelled'].includes(job.status)
+                ? 'Cancellation requested' : STATUS_LABELS[job.status] || job.status;
             badge.className = `badge badge-${job.status}`;
             badge.textContent = statusLabel;
 
             const isTerminal = ['completed', 'failed', 'cancelled'].includes(job.status);
+            const cancelBtn = document.getElementById('cancel-job-btn');
+            cancelBtn.classList.toggle('hidden', isTerminal);
+            cancelBtn.disabled = !!job.cancel_requested;
+            cancelBtn.textContent = job.cancel_requested ? 'Stopping after current operation…' : 'Cancel Job';
 
             // Progress
             const progressSection = document.getElementById('progress-section');
-            if (!isTerminal) {
+            if (!isTerminal || job.status === 'cancelled') {
                 progressSection.classList.remove('hidden');
                 const percent = job.progress?.percent || 0;
                 document.getElementById('progress-percent').textContent = `${Math.round(percent)}%`;
                 document.getElementById('progress-bar').style.width = `${percent}%`;
-                document.getElementById('progress-message').textContent = job.progress?.message || '';
+                document.getElementById('progress-message').textContent = job.cancel_requested && !isTerminal
+                    ? 'Cancellation requested. The current download, AI request, or render may finish before stopping.'
+                    : job.progress?.message || '';
 
                 const currentStep = job.progress?.step || '';
                 document.getElementById('progress-steps').innerHTML = STEPS.map(s => {
@@ -236,30 +252,34 @@
                 document.getElementById('clips-count').textContent = job.clips.length;
 
                 const baseUrl = StudioAPI.getBackendUrl();
-
+                const signature = JSON.stringify([baseUrl, job.clips]);
+                if (signature !== clipsSignature) {
+                clipsSignature = signature;
                 document.getElementById('clips-grid').innerHTML = job.clips.map((clip, i) => {
-                    const downloadUrl = clip.download_url ? `${baseUrl}${clip.download_url}` : '';
-                    const title = clip.title || clip.title_en || `Clip ${clip.rank || i + 1}`;
+                    const downloadUrl = clip.download_url?.startsWith('/api/outputs/') ? escapeHtml(`${baseUrl}${clip.download_url}`) : '';
+                    const title = escapeHtml(clip.title || clip.title_en || `Clip ${clip.rank || i + 1}`);
                     return `
                         <div class="clip-card">
-                            ${downloadUrl ? `<video class="clip-video" controls preload="metadata" src="${downloadUrl}"></video>` : ''}
+                            ${downloadUrl ? `<video class="clip-video" controls preload="none" src="${downloadUrl}" onerror="this.nextElementSibling.classList.remove('hidden')"></video><p class="hidden p-3 text-xs text-amber-500">Preview unavailable. Use Open video below; if the tunnel shows a warning, continue there and retry playback.</p>` : ''}
                             <div class="p-4">
                                 <div class="font-semibold text-sm text-slate-900 dark:text-white mb-2 line-clamp-2">${title}</div>
                                 <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mb-3">
-                                    ${clip.viral_score ? `<span class="font-semibold text-amber-500">🔥 ${clip.viral_score}</span>` : ''}
+                                    ${clip.viral_score ? `<span class="font-semibold text-amber-500">🔥 ${escapeHtml(clip.viral_score)}</span>` : ''}
                                     ${clip.duration ? `<span>${Math.round(clip.duration)}s</span>` : ''}
-                                    ${clip.rank ? `<span>Rank #${clip.rank}</span>` : ''}
+                                    ${clip.rank ? `<span>Rank #${escapeHtml(clip.rank)}</span>` : ''}
                                 </div>
                                 ${downloadUrl ? `
-                                    <a href="${downloadUrl}" download class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                                        <i data-lucide="download" class="w-3.5 h-3.5"></i> Download
+                                    <a href="${downloadUrl}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Open video
                                     </a>
+                                    <a href="${downloadUrl}" download target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-500">Download</a>
                                 ` : ''}
                             </div>
                         </div>
                     `;
                 }).join('');
                 lucide.createIcons();
+                }
             } else {
                 clipsSection.classList.add('hidden');
             }
@@ -268,19 +288,36 @@
             const logSection = document.getElementById('log-section');
             if (job.log && job.log.length > 0) {
                 logSection.classList.remove('hidden');
-                document.getElementById('log-viewer').innerHTML = job.log.map(line => `<div>${line}</div>`).join('');
+                document.getElementById('log-viewer').innerHTML = job.log.map(line => `<div>${escapeHtml(line)}</div>`).join('');
             } else {
                 logSection.classList.add('hidden');
             }
 
             // Stop polling if terminal
             if (isTerminal) {
-                if (sseConnection) { sseConnection.close(); sseConnection = null; }
-                if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+                stopJobUpdates();
+                // Ignore older polling responses still in flight after the final snapshot.
+                loadGeneration++;
+            }
+        }
+
+        async function cancelJob() {
+            if (!currentJob || !confirm('Cancel this job after its current operation finishes?')) return;
+            const btn = document.getElementById('cancel-job-btn');
+            btn.disabled = true;
+            try {
+                await StudioAPI.deleteJob(jobId);
+                renderJob(await StudioAPI.fetchJob(jobId));
+            } catch (error) {
+                btn.disabled = false;
+                document.getElementById('error-section').classList.remove('hidden');
+                document.getElementById('error-message').textContent = error.message;
             }
         }
 
         async function loadJob() {
+            const generation = ++loadGeneration;
+            stopJobUpdates();
             if (!jobId) {
                 document.getElementById('page-loading').classList.add('hidden');
                 document.getElementById('page-not-found').classList.remove('hidden');
@@ -288,44 +325,54 @@
             }
 
             if (!StudioAPI.isConfigured()) {
+                document.getElementById('page-content').classList.add('hidden');
                 document.getElementById('page-loading').classList.add('hidden');
                 document.getElementById('page-not-found').classList.remove('hidden');
                 document.querySelector('#page-not-found h3').textContent = 'Backend not connected';
-                document.querySelector('#page-not-found p, #page-not-found a').outerHTML = `
-                    <button onclick="showConnectModal()" class="text-sm text-brand-600 dark:text-brand-400 hover:underline mt-2">Connect to backend</button>
-                `;
                 return;
             }
 
             try {
                 const job = await StudioAPI.fetchJob(jobId);
+                if (generation !== loadGeneration) return;
                 renderJob(job);
 
                 const isTerminal = ['completed', 'failed', 'cancelled'].includes(job.status);
                 if (!isTerminal) {
+                    const refresh = async () => {
+                        try {
+                            const data = await StudioAPI.fetchJob(jobId);
+                            if (generation === loadGeneration) renderJob(data);
+                        } catch (error) {
+                            if (generation === loadGeneration) {
+                                document.getElementById('progress-message').textContent = `Connection interrupted; retrying. ${error.message}`;
+                            }
+                        }
+                    };
                     // SSE
                     sseConnection = StudioAPI.createSSE(jobId, (event) => {
-                        if (event.type === 'completed') {
-                            StudioAPI.fetchJob(jobId).then(renderJob);
+                        if (generation !== loadGeneration) return;
+                        if (['completed', 'failed', 'cancelled'].includes(event.type)
+                            || ['completed', 'failed', 'cancelled'].includes(event.status)) {
+                            // A terminal progress event from older servers may precede its clips.
+                            // Only the canonical job response may stop polling and rendering.
+                            refresh();
                         } else if (event.type === 'progress') {
                             if (currentJob) {
                                 currentJob.status = event.status;
                                 currentJob.progress = event.progress;
                                 currentJob.error = event.error;
+                                currentJob.cancel_requested = event.cancel_requested;
                                 renderJob(currentJob);
                             }
                         }
                     });
 
                     // Fallback polling
-                    pollInterval = setInterval(async () => {
-                        try {
-                            const data = await StudioAPI.fetchJob(jobId);
-                            renderJob(data);
-                        } catch { }
-                    }, 3000);
+                    pollInterval = setInterval(refresh, 3000);
                 }
             } catch (err) {
+                if (generation !== loadGeneration) return;
                 document.getElementById('page-loading').classList.add('hidden');
                 document.getElementById('page-not-found').classList.remove('hidden');
                 document.querySelector('#page-not-found h3').textContent = err.message;
@@ -333,6 +380,9 @@
         }
 
         loadJob();
+        window.addEventListener('studio:connected', loadJob);
+        window.addEventListener('studio:disconnected', loadJob);
+        window.addEventListener('pagehide', stopJobUpdates);
     </script>
 </body>
 

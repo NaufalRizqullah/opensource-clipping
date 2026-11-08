@@ -309,6 +309,7 @@
             btn.innerHTML = '<span class="spinner"></span> Processing...';
 
             try {
+                await StudioAPI.checkConnection();
                 const payload = {
                     source: document.getElementById('input-source').value,
                     clips: parseInt(document.getElementById('input-clips').value) || 7,
@@ -341,6 +342,9 @@
                 lucide.createIcons();
             }
         }
+        window.addEventListener('studio:connected', () => {
+            document.getElementById('form-error').classList.add('hidden');
+        });
     </script>
 </body>
 

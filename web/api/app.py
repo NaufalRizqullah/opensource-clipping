@@ -10,20 +10,26 @@ Run with:
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import asyncio
+import os
+import signal
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from .routes import jobs, files, settings
+from . import worker
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup/shutdown lifecycle."""
     print("🚀 OpenSource Clipping Studio — Backend starting...")
-    yield
-    print("👋 Backend shutting down...")
+    try:
+        yield
+    finally:
+        await worker.cancel_all_jobs()
+        print("👋 Backend shutting down...")
 
 
 app = FastAPI(
@@ -63,11 +69,9 @@ async def root():
         "version": "1.13.0",
         "docs": "/docs",
         "health": "/api/health",
+        "ready": "/api/ready",
     }
 
-import os
-import signal
-import asyncio
 
 @app.post("/api/shutdown")
 async def shutdown_server():

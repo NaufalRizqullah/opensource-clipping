@@ -263,24 +263,30 @@
             }
         }
 
+        let loadGeneration = 0;
+
         async function loadSettings() {
+            const generation = ++loadGeneration;
             if (!StudioAPI.isConfigured()) {
                 document.getElementById('settings-loading').classList.add('hidden');
+                document.getElementById('settings-form').classList.add('hidden');
                 document.getElementById('no-connection-state').classList.remove('hidden');
                 return;
             }
 
             try {
                 const settings = await StudioAPI.fetchSettings();
+                if (generation !== loadGeneration) return;
 
                 document.getElementById('settings-loading').classList.add('hidden');
                 document.getElementById('settings-form').classList.remove('hidden');
+                document.getElementById('no-connection-state').classList.add('hidden');
 
                 // Key badges
-                if (settings.google_api_key_set) document.getElementById('google-badge').classList.remove('hidden');
-                if (settings.pexels_api_key_set) document.getElementById('pexels-badge').classList.remove('hidden');
-                if (settings.hf_token_set) document.getElementById('hf-badge').classList.remove('hidden');
-                if (settings.nvidia_api_key_set) document.getElementById('nvidia-badge').classList.remove('hidden');
+                document.getElementById('google-badge').classList.toggle('hidden', !settings.google_api_key_set);
+                document.getElementById('pexels-badge').classList.toggle('hidden', !settings.pexels_api_key_set);
+                document.getElementById('hf-badge').classList.toggle('hidden', !settings.hf_token_set);
+                document.getElementById('nvidia-badge').classList.toggle('hidden', !settings.nvidia_api_key_set);
 
                 // System info
                 document.getElementById('sys-gpu').innerHTML = settings.gpu_available
@@ -294,6 +300,7 @@
                 document.getElementById('sys-backend-url').textContent = StudioAPI.getBackendUrl() || '—';
                 document.getElementById('sys-status').innerHTML = '<span class="text-emerald-500">🟢 Connected</span>';
             } catch (err) {
+                if (generation !== loadGeneration) return;
                 document.getElementById('settings-loading').classList.add('hidden');
                 document.getElementById('settings-form').classList.remove('hidden');
                 document.getElementById('sys-status').innerHTML = `<span class="text-red-500">🔴 Error</span>`;
@@ -355,6 +362,8 @@
         }
 
         loadSettings();
+        window.addEventListener('studio:connected', loadSettings);
+        window.addEventListener('studio:disconnected', loadSettings);
     </script>
 </body>
 

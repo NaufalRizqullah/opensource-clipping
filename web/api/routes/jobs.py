@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
@@ -20,6 +21,8 @@ from ..models import (
 )
 from .. import store
 from .. import worker
+from .. import config_adapter
+from ..readiness import get_readiness
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -54,6 +57,7 @@ def _job_to_response(job: dict) -> JobResponse:
         progress=progress,
         clips=clip_list,
         error=job.get("error"),
+        cancel_requested=job.get("cancel_requested", False),
         log=job.get("log", []),
     )
 
@@ -67,25 +71,61 @@ async def create_job(req: JobCreateRequest) -> JobResponse:
             detail="Either 'url', 'upload_filename', or 'reuse_job_id' must be provided.",
         )
 
-    payload = req.model_dump()
-    # Convert enums to string values for JSON serialization
-    for key, value in payload.items():
-        if hasattr(value, "value"):
-            payload[key] = value.value
+    if req.url and req.upload_filename:
+        raise HTTPException(status_code=400, detail="Provide either a URL or an uploaded video, not both.")
+    if req.reuse_job_id and (req.url or req.upload_filename):
+        raise HTTPException(status_code=400, detail="Reuse uses the original source; do not also provide a new source.")
+
+    payload = req.model_dump(mode="json")
 
     reuse_job_id = payload.pop("reuse_job_id", None)
     
-    # If reusing, automatically flag to load existing Gemini JSON (if not explicitly set otherwise)
-    if reuse_job_id and "load_gemini_json" not in payload:
-        payload["load_gemini_json"] = True
-        
-    job_id = store.create_job(
-        url=req.url,
-        upload_filename=req.upload_filename,
-        source=req.source.value if hasattr(req.source, "value") else req.source,
-        config=payload,
-        job_id=reuse_job_id
-    )
+    stored_url = req.url
+    if reuse_job_id:
+        previous = store.get_job(reuse_job_id)
+        if previous is None:
+            raise HTTPException(status_code=404, detail="Job to reuse was not found.")
+        if previous.get("status") not in store.TERMINAL_STATES or worker.is_job_active(reuse_job_id):
+            raise HTTPException(status_code=409, detail="Wait for the existing job to stop before reusing it.")
+        payload["upload_filename"] = previous.get("upload_filename")
+        payload["source"] = previous.get("source", "youtube")
+        stored_url = previous.get("url")
+        if "load_gemini_json" not in req.model_fields_set:
+            payload["load_gemini_json"] = True
+        previous_dir = config_adapter.PROJECT_ROOT / "outputs" / reuse_job_id
+        if previous_dir.resolve().parent != (config_adapter.PROJECT_ROOT / "outputs").resolve():
+            raise HTTPException(status_code=400, detail="Invalid job output directory.")
+        if not payload["upload_filename"] and not (previous_dir / "video_asli.mp4").is_file():
+            raise HTTPException(status_code=400, detail="Original video is missing. Create a new job from its source URL.")
+        if payload["load_gemini_json"] and not (previous_dir / "gemini_response.json").is_file():
+            raise HTTPException(status_code=400, detail="Cached AI JSON is missing. Disable Bypass AI to analyze again.")
+    elif payload["load_gemini_json"]:
+        raise HTTPException(status_code=400, detail="Bypass AI requires an existing job to reuse.")
+
+    if payload.get("upload_filename"):
+        try:
+            upload_path = config_adapter.resolve_upload_path(payload["upload_filename"])
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if not Path(upload_path).is_file():
+            raise HTTPException(status_code=400, detail="Uploaded video was not found.")
+
+    readiness = await asyncio.to_thread(get_readiness)
+    if not readiness["ready"]:
+        raise HTTPException(status_code=503, detail="Renderer backend belum siap. Periksa /api/ready.")
+
+    try:
+        if reuse_job_id and worker.is_job_active(reuse_job_id):
+            raise ValueError("Job is still active")
+        job_id = store.create_job(
+            url=stored_url,
+            upload_filename=payload.get("upload_filename"),
+            source=payload["source"],
+            config=payload,
+            job_id=reuse_job_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     # Submit to background worker
     await worker.submit_job(job_id, payload)
@@ -120,16 +160,14 @@ async def delete_job(job_id: str) -> dict:
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # If running, mark as cancelled first
-    running_states = {
-        JobStatus.QUEUED.value,
-        JobStatus.DOWNLOADING.value,
-        JobStatus.TRANSCRIBING.value,
-        JobStatus.ANALYZING.value,
-        JobStatus.RENDERING.value,
-    }
-    if job.get("status") in running_states:
-        store.set_status(job_id, JobStatus.CANCELLED)
+    if job.get("status") not in store.TERMINAL_STATES:
+        worker.cancel_job(job_id)
+        return {
+            "message": "Cancellation requested; waiting for the current operation to finish.",
+            "id": job_id, "cancel_requested": True,
+        }
+    if worker.is_job_active(job_id):
+        raise HTTPException(status_code=409, detail="The worker is still stopping. Try again shortly.")
 
     store.delete_job(job_id)
     return {"message": "Job deleted", "id": job_id}
@@ -179,32 +217,25 @@ async def job_status_sse(job_id: str):
                 "status": status,
                 "progress": progress_data,
                 "error": current_job.get("error"),
+                "cancel_requested": current_job.get("cancel_requested", False),
             }
+
+            # One terminal event includes final results. A terminal progress
+            # event first can cause clients to close the stream before clips.
+            if status in terminal_states:
+                event["type"] = status
+                event["clips"] = [
+                    c.model_dump(mode="json") if isinstance(c, ClipDetail) else c
+                    for c in current_job.get("clips", [])
+                ]
+                yield f"data: {json.dumps(event, default=str)}\n\n"
+                break
 
             # Only send if something changed
             event_json = json.dumps(event, default=str)
             if event_json != last_progress:
                 yield f"data: {event_json}\n\n"
                 last_progress = event_json
-
-            # Stop streaming on terminal states
-            if status in terminal_states:
-                # Send final event with clips if completed
-                if status == JobStatus.COMPLETED.value:
-                    clips = current_job.get("clips", [])
-                    clip_data = []
-                    for c in clips:
-                        if hasattr(c, "model_dump"):
-                            clip_data.append(c.model_dump())
-                        elif isinstance(c, dict):
-                            clip_data.append(c)
-                    final_event = {
-                        "type": "completed",
-                        "status": status,
-                        "clips": clip_data,
-                    }
-                    yield f"data: {json.dumps(final_event, default=str)}\n\n"
-                break
 
             await asyncio.sleep(1.0)
 

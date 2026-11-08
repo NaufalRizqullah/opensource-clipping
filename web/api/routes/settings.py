@@ -5,24 +5,29 @@ web.api.routes.settings — Settings management endpoints.
 from __future__ import annotations
 
 import os
+import asyncio
+from functools import lru_cache
 import shutil
 import subprocess
 
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
 from ..models import SettingsRequest, SettingsResponse, SystemHealthResponse
 from .. import store as job_store
 from .. import worker
+from ..readiness import get_readiness
 
 router = APIRouter(tags=["settings"])
 
 
+@lru_cache(maxsize=1)
 def _check_gpu() -> bool:
     """Check if CUDA GPU is available."""
     try:
         import torch
         return torch.cuda.is_available()
-    except ImportError:
+    except Exception:
         return False
 
 
@@ -61,7 +66,7 @@ async def get_settings() -> SettingsResponse:
         default_whisper_model=env.get("DEFAULT_WHISPER_MODEL", "large-v3"),
         default_whisper_device=env.get("DEFAULT_WHISPER_DEVICE", "cuda"),
         default_ai_provider=env.get("DEFAULT_AI_PROVIDER", "gemini"),
-        gpu_available=_check_gpu(),
+        gpu_available=await asyncio.to_thread(_check_gpu),
     )
 
 
@@ -98,12 +103,22 @@ async def update_settings(req: SettingsRequest) -> SettingsResponse:
 
 @router.get("/api/health")
 async def health_check() -> SystemHealthResponse:
-    """System health check."""
+    """API liveness and system information; use /api/ready for pipeline readiness."""
+    gpu_available, ffmpeg_available = await asyncio.gather(
+        asyncio.to_thread(_check_gpu), asyncio.to_thread(_check_ffmpeg),
+    )
     return SystemHealthResponse(
         status="ok",
         version="1.12.0",
-        gpu_available=_check_gpu(),
-        ffmpeg_available=_check_ffmpeg(),
+        gpu_available=gpu_available,
+        ffmpeg_available=ffmpeg_available,
         jobs_running=job_store.get_running_count(),
         jobs_queued=job_store.get_queued_count(),
     )
+
+
+@router.get("/api/ready")
+async def readiness_check() -> JSONResponse:
+    """Fail before starting paid AI work when native renderer imports are broken."""
+    result = await asyncio.to_thread(get_readiness)
+    return JSONResponse(result, status_code=200 if result["ready"] else 503)

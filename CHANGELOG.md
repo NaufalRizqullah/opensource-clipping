@@ -8,6 +8,16 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.15.1]
+
+### Fixed
+- **Kaggle Studio dependencies and startup**: Run the backend in an isolated environment and a fresh Python process, with compatible NumPy/native-library constraints, checked installation, and renderer readiness checks before publishing the tunnel URL. Setup no longer deletes the notebook working directory or hides installer failures.
+- **Web API readiness**: Added `/api/ready` to verify actual native imports and FFmpeg. Job admission fails early when the runtime is broken; `/api/health` remains the liveness endpoint.
+- **Worker correctness**: Forward detected YouTube cookies, validate the selected AI provider, honor the Bypass AI toggle, validate job reuse and uploaded paths, and report failed renders accurately. Non-MP4 diarization no longer risks deleting the uploaded source.
+- **Job lifecycle**: Cancel requests are cooperative and retained until the worker stops. Job snapshots are written atomically, interrupted jobs become failed after restart, and terminal SSE events include the final job state. API jobs are serialized to avoid collisions in shared renderer temporary files.
+- **Web Studio connection and results**: Preserve the last working URL when a connection attempt fails, refresh pages after reconnect, send the ngrok bypass header on SSE requests, and fetch final clip results before stopping progress updates.
+- Corrected the current notebook path in both READMEs and added Kaggle setup/troubleshooting documentation and regression tests. Existing CLI arguments and general CLI dependency files are unchanged.
+
 ## [v1.15.0] - 2026-09-26
 
 ### Added

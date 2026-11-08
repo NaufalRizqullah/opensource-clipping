@@ -8,6 +8,7 @@ pada klip podcast.
 
 import os
 import subprocess
+from pathlib import Path
 
 # ==============================================================================
 # AUDIO EXTRACTION
@@ -30,8 +31,14 @@ def extract_audio(video_path: str, audio_output_path: str) -> str:
     str
         Path to the extracted audio file.
     """
-    if os.path.exists(audio_output_path):
-        os.remove(audio_output_path)
+    # FFmpeg's -y handles an existing output. Never unlink the input when a
+    # caller accidentally supplies the same path (including a link alias).
+    source = Path(video_path)
+    output = Path(audio_output_path)
+    if source.resolve() == output.resolve() or (
+        source.exists() and output.exists() and os.path.samefile(source, output)
+    ):
+        raise ValueError("Audio output must be different from the input video")
 
     cmd = [
         "ffmpeg",

@@ -198,12 +198,16 @@
         lucide.createIcons();
 
         let pollInterval = null;
+        let loadGeneration = 0;
 
         async function loadDashboard() {
+            const generation = ++loadGeneration;
             if (!StudioAPI.isConfigured()) {
                 document.getElementById('no-connection-alert').classList.remove('hidden');
                 document.getElementById('job-loading').classList.add('hidden');
                 document.getElementById('job-empty').classList.remove('hidden');
+                document.getElementById('job-grid').classList.add('hidden');
+                ['stat-total', 'stat-completed', 'stat-clips', 'stat-system'].forEach(id => document.getElementById(id).textContent = '—');
                 return;
             }
 
@@ -214,6 +218,7 @@
                     StudioAPI.fetchJobs(),
                     StudioAPI.checkHealth().catch(() => null),
                 ]);
+                if (generation !== loadGeneration) return;
 
                 const jobs = jobsData.jobs || [];
 
@@ -256,38 +261,40 @@
                             title = job.upload_filename;
                         }
 
-                        const statusLabel = STATUS_LABELS[job.status] || job.status;
+                        const statusLabel = job.cancel_requested && !['completed', 'failed', 'cancelled'].includes(job.status)
+                            ? 'Cancellation requested' : STATUS_LABELS[job.status] || job.status;
                         const clipsCount = job.clips?.length || 0;
                         const progressMsg = job.progress?.message || '';
                         const isTerminal = ['completed', 'failed', 'cancelled'].includes(job.status);
 
                         return `
-                            <a href="job.html?id=${job.id}" class="job-card">
+                            <a href="job.html?id=${encodeURIComponent(job.id)}" class="job-card">
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center gap-2 mb-1">
-                                        <h3 class="font-semibold text-sm text-slate-900 dark:text-white truncate">${title}</h3>
-                                        <span class="text-xs text-slate-400 font-mono">#${job.id}</span>
+                                        <h3 class="font-semibold text-sm text-slate-900 dark:text-white truncate">${escapeHtml(title)}</h3>
+                                        <span class="text-xs text-slate-400 font-mono">#${escapeHtml(job.id)}</span>
                                     </div>
                                     <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
                                         <span>${formatDate(job.created_at)}</span>
                                         ${clipsCount > 0 ? `<span>🎞️ ${clipsCount} clips</span>` : ''}
-                                        ${!isTerminal && progressMsg ? `<span class="text-brand-500 dark:text-brand-400">${progressMsg}</span>` : ''}
+                                        ${!isTerminal && progressMsg ? `<span class="text-brand-500 dark:text-brand-400">${escapeHtml(progressMsg)}</span>` : ''}
                                         ${job.error ? '<span class="text-red-500">⚠ Error</span>' : ''}
                                     </div>
                                 </div>
-                                <span class="badge badge-${job.status}">${statusLabel}</span>
+                                <span class="badge badge-${escapeHtml(job.status)}">${escapeHtml(statusLabel)}</span>
                             </a>
                         `;
                     }).join('');
                 }
             } catch (err) {
+                if (generation !== loadGeneration) return;
                 document.getElementById('job-loading').classList.add('hidden');
                 document.getElementById('job-grid').classList.remove('hidden');
                 document.getElementById('job-grid').innerHTML = `
                     <div class="text-center py-12">
                         <div class="text-3xl mb-3">⚠️</div>
                         <h3 class="font-semibold text-sm text-red-500 mb-1">Connection Error</h3>
-                        <p class="text-xs text-slate-500">${err.message}</p>
+                        <p class="text-xs text-slate-500">${escapeHtml(err.message)}</p>
                         <button onclick="showConnectModal()" class="mt-4 px-4 py-2 text-xs rounded-lg bg-brand-600 text-white font-medium hover:bg-brand-700 transition-colors">
                             Reconnect
                         </button>
@@ -298,6 +305,8 @@
 
         // Initial load
         loadDashboard();
+        window.addEventListener('studio:connected', loadDashboard);
+        window.addEventListener('studio:disconnected', loadDashboard);
 
         // Poll every 5 seconds
         pollInterval = setInterval(() => {

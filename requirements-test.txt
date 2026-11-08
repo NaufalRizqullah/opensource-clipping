@@ -1,0 +1,8 @@
+# Lightweight, offline regression tests. ML/GPU operations are mocked.
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+python-multipart
+pydantic>=2,<3
+httpx>=0.27,<1
+pytest>=8,<10
+python-dotenv>=1.2

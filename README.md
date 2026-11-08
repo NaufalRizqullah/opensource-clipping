@@ -136,7 +136,7 @@ The **Clipping Studio** is a browser-based dashboard hosted for free on **GitHub
 
 ### Quick Start
 
-1. **Start the backend** — Open `notebooks/Kaggle_Studio_Server.ipynb` in Kaggle (or Colab), add your API keys to Secrets, and run all cells. Copy the **Public URL** from the output.
+1. **Start the backend** — Open [`notebooks/kaggle-studio-server.ipynb`](notebooks/kaggle-studio-server.ipynb) in Kaggle (or Colab), enable Internet and a GPU, add your API keys to Secrets, and run all cells. Setup uses an isolated Python environment; the **Public URL** appears only after the backend passes its dependency and renderer readiness checks. See the [setup and troubleshooting guide](docs/KAGGLE_STUDIO.md).
 
 2. **Open the Studio** — Visit [the Studio page](https://naufalrizqullah.github.io/opensource-clipping/studio/) in your browser.
 

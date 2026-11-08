@@ -8,7 +8,7 @@ import enum
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +75,10 @@ class JobCreateRequest(BaseModel):
     url: Optional[str] = Field(None, description="Video URL to process")
     upload_filename: Optional[str] = Field(None, description="Filename of an uploaded video")
     source: SourcePlatform = Field(SourcePlatform.YOUTUBE, description="Source platform")
-    reuse_job_id: Optional[str] = Field(None, description="Existing Job ID to reuse its downloads and JSON")
+    reuse_job_id: Optional[str] = Field(
+        None, pattern=r"^[a-zA-Z0-9_-]{1,64}$",
+        description="Existing Job ID to reuse its downloads and JSON",
+    )
 
     # Main settings
     clips: int = Field(7, ge=1, le=30, description="Number of clips to generate")
@@ -113,6 +116,18 @@ class JobCreateRequest(BaseModel):
     ai_provider: AIProvider = AIProvider.GEMINI
     gemini_model: str = "gemini-3-flash-preview"
     face_detector: FaceDetector = FaceDetector.MEDIAPIPE
+    load_gemini_json: bool = False
+
+    @field_validator("upload_filename")
+    @classmethod
+    def validate_upload_filename(cls, value: Optional[str]) -> Optional[str]:
+        """Only accept the basename returned by the upload endpoint."""
+        if value is not None and (
+            not value or value in {".", ".."}
+            or any(ch in value for ch in '/\\:\x00')
+        ):
+            raise ValueError("upload_filename must be a filename, not a path")
+        return value
 
 
 # ---------------------------------------------------------------------------
@@ -165,6 +180,7 @@ class JobResponse(BaseModel):
     progress: Optional[JobProgressEvent] = None
     clips: list[ClipDetail] = Field(default_factory=list)
     error: Optional[str] = None
+    cancel_requested: bool = False
     log: list[str] = Field(default_factory=list)
 
 

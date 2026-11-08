@@ -9,20 +9,30 @@ from __future__ import annotations
 
 import asyncio
 import glob
+import json
+import logging
 import os
 import sys
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
+from pathlib import Path
+from urllib.parse import quote
 
 from .config_adapter import build_config_from_payload
 from .models import ClipDetail, JobStatus
 from . import store
 
-# Semaphore to control max concurrent jobs
-MAX_CONCURRENT_JOBS = int(os.environ.get("MAX_CONCURRENT_JOBS", "1"))
+# The shared renderer uses process-wide FFmpeg scratch names and settings.
+# Keep API jobs serial until the renderer itself supports concurrent execution.
+MAX_CONCURRENT_JOBS = 1
+if os.environ.get("MAX_CONCURRENT_JOBS", "1") != "1":
+    logging.getLogger(__name__).warning(
+        "API jobs run one at a time because the renderer shares temporary files."
+    )
 _semaphore = asyncio.Semaphore(MAX_CONCURRENT_JOBS)
 _executor = ThreadPoolExecutor(max_workers=MAX_CONCURRENT_JOBS)
+_tasks: dict[str, asyncio.Task] = {}
+_running_jobs: set[str] = set()
 
 # Store settings overrides (API keys etc.) in memory
 _settings_env: dict[str, str] = {}
@@ -39,6 +49,80 @@ def get_settings_env() -> dict[str, str]:
     return dict(_settings_env)
 
 
+class JobCancelled(Exception):
+    """Internal signal raised at safe pipeline boundaries."""
+
+
+def _check_cancelled(job_id: str) -> None:
+    if store.is_cancel_requested(job_id):
+        raise JobCancelled()
+
+
+def _validate_analysis_config(cfg) -> None:
+    """Validate only the provider that will actually be called."""
+    if cfg.load_gemini_json:
+        cached = Path(cfg.outputs_dir) / "gemini_response.json"
+        if not cached.is_file():
+            raise ValueError("Cached AI JSON tidak ditemukan. Nonaktifkan Bypass AI untuk analisis baru.")
+        return
+    if cfg.ai_provider == "nvidia" and cfg.api_key_nvidia:
+        return
+    if not cfg.api_key_gemini:
+        key_name = "NVIDIA_API_KEY atau GOOGLE_API_KEY" if cfg.ai_provider == "nvidia" else "GOOGLE_API_KEY"
+        raise ValueError(f"{key_name} tidak ditemukan. Set via Settings atau environment.")
+
+
+def is_job_active(job_id: str) -> bool:
+    """Include the small interval between terminal state and thread completion."""
+    task = _tasks.get(job_id)
+    return job_id in _running_jobs or (task is not None and not task.done())
+
+
+def cancel_job(job_id: str) -> bool:
+    """Cancel a queued task, or request cancellation of a running thread."""
+    if not store.request_cancel(job_id):
+        return False
+    if job_id not in _running_jobs:
+        task = _tasks.get(job_id)
+        if task is not None:
+            task.cancel()
+        store.finish_job(job_id)
+    return True
+
+
+async def cancel_all_jobs() -> None:
+    """Request shutdown without pretending active native operations stopped."""
+    for job_id in list(_tasks):
+        cancel_job(job_id)
+    # Let cancelled queued tasks release their semaphore waiters/callbacks.
+    await asyncio.sleep(0)
+
+
+def _clips_from_manifest(job_id: str, manifest: list[dict]) -> list[ClipDetail]:
+    """Expose only successful, existing renderer outputs to the Studio."""
+    clips = []
+    for entry in manifest:
+        if entry.get("status") != "success" or not entry.get("video_exists", False):
+            continue
+        try:
+            filename = os.path.basename(entry.get("output_file") or entry.get("video_path") or "")
+            if not filename:
+                continue
+            clips.append(ClipDetail(
+                rank=entry.get("rank", 0), viral_score=entry.get("viral_score"),
+                title=entry.get("title_indonesia", ""), title_en=entry.get("title_inggris", ""),
+                filename=filename, duration=entry.get("duration"),
+                start_time=entry.get("start_time"), end_time=entry.get("end_time"),
+                download_url=f"/api/outputs/{quote(job_id, safe='')}/{quote(filename, safe='')}",
+                metadata=entry,
+            ))
+        except (ValueError, TypeError) as exc:
+            # This helper also runs on the error path. Invalid metadata must
+            # never prevent the worker from publishing its final failed state.
+            logging.getLogger(__name__).warning("Invalid renderer metadata (%s)", type(exc).__name__)
+    return clips
+
+
 def _run_pipeline_sync(job_id: str, payload: dict) -> None:
     """
     Run the clipping pipeline synchronously (called from thread pool).
@@ -46,19 +130,15 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
     This function updates the job store at each pipeline step so the
     frontend can poll or receive SSE progress updates.
     """
+    render_manifest: list[dict] = []
     try:
+        _check_cancelled(job_id)
         # Build config from API payload
         cfg = build_config_from_payload(
             payload, job_id, env_overrides=_settings_env
         )
 
-        # Validate API key
-        if not cfg.api_key_gemini:
-            store.set_error(
-                job_id,
-                "GOOGLE_API_KEY tidak ditemukan. Set via Settings atau .env file.",
-            )
-            return
+        _validate_analysis_config(cfg)
 
         # --- Step 1: Download ---
         store.set_status(job_id, JobStatus.DOWNLOADING)
@@ -77,12 +157,9 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
 
         # If upload file, skip download
         if payload.get("upload_filename"):
-            # Resolve absolute path to the project root (2 levels up from web/api)
-            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-            upload_path = os.path.join(project_root, "uploads", payload["upload_filename"])
+            upload_path = cfg.file_video_asli
             if not os.path.exists(upload_path):
-                store.set_error(job_id, f"File upload tidak ditemukan: {payload['upload_filename']}")
-                return
+                raise ValueError("File upload tidak ditemukan.")
             cfg.file_video_asli = upload_path
             store.update_progress(
                 job_id,
@@ -104,8 +181,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                         percent=14.0,
                     )
                 else:
-                    store.set_error(job_id, "Video asli tidak ditemukan di Job ID tersebut. File mungkin sudah terhapus.")
-                    return
+                    raise ValueError("Video asli tidak ditemukan di Job ID tersebut. File mungkin sudah terhapus.")
             else:
                 engine.download_video(
                     cfg.url_youtube,
@@ -113,6 +189,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                     getattr(cfg, "use_dlp_subs", False),
                     getattr(cfg, "download_source_height", "max"),
                     source_platform=source_platform,
+                    yt_cookies=getattr(cfg, "yt_cookies", None),
                 )
                 store.update_progress(
                     job_id,
@@ -123,6 +200,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                     percent=14.0,
                 )
 
+        _check_cancelled(job_id)
         # --- Step 2: Transcribe ---
         store.set_status(job_id, JobStatus.TRANSCRIBING)
         store.update_progress(
@@ -138,7 +216,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
         data_segmen = []
 
         # Try YouTube JSON3 subs first
-        json3_files = glob.glob(cfg.file_video_asli.replace(".mp4", ".*.json3"))
+        json3_files = glob.glob(str(Path(cfg.file_video_asli).with_suffix("")) + ".*.json3")
         file_json3 = json3_files[0] if json3_files else None
 
         if source_platform == "youtube" and getattr(cfg, "use_dlp_subs", False) and file_json3 and os.path.exists(file_json3):
@@ -164,6 +242,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             percent=35.0,
         )
 
+        _check_cancelled(job_id)
         # --- Step 3: AI Analysis ---
         store.set_status(job_id, JobStatus.ANALYZING)
         store.update_progress(
@@ -171,11 +250,9 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             step="analyze",
             step_number=3,
             total_steps=7,
-            message="Menganalisis dengan AI...",
+            message="Menganalisis dengan AI... Provider dapat melakukan retry otomatis; tahap ini bisa memerlukan beberapa menit.",
             percent=36.0,
         )
-
-        import json
 
         gemini_output_path = os.path.join(cfg.outputs_dir, "gemini_response.json")
 
@@ -196,10 +273,13 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             percent=50.0,
         )
 
+        _check_cancelled(job_id)
         # --- Step 4: Metadata ---
         from clipping import metadata
 
         hasil_json = metadata.normalize_and_validate(hasil_json)
+        if not hasil_json:
+            raise ValueError("AI tidak menghasilkan klip yang valid untuk dirender.")
         metadata_path = os.path.join(cfg.outputs_dir, "metadata_preview.json")
         metadata.save_metadata_preview(hasil_json, path=metadata_path)
 
@@ -212,6 +292,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             percent=55.0,
         )
 
+        _check_cancelled(job_id)
         # --- Step 5: Diarization (optional) ---
         diarization_data = None
         from clipping import studio, diarization as diarization_mod
@@ -229,7 +310,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                     message="Menjalankan speaker diarization...",
                     percent=56.0,
                 )
-                audio_path = cfg.file_video_asli.replace(".mp4", "_audio.wav")
+                audio_path = str(Path(cfg.outputs_dir) / "diarization_audio.wav")
                 diarization_mod.extract_audio(cfg.file_video_asli, audio_path)
                 num_speakers_arg = getattr(cfg, "diarization_num_speakers", 2)
                 min_spk = None
@@ -261,6 +342,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                 )
                 diarization_data = None
 
+        _check_cancelled(job_id)
         # --- Step 6: Render Preparation ---
         store.set_status(job_id, JobStatus.RENDERING)
         store.update_progress(
@@ -295,7 +377,6 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
         # --- Step 7: Render Each Clip ---
         from clipping import hook_manager
 
-        render_manifest: list[dict] = []
         total_clips = len(hasil_json)
 
         custom_hook_path = None
@@ -303,6 +384,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             custom_hook_path = hook_manager.download_custom_hook(cfg)
 
         for idx, klip in enumerate(sorted(hasil_json, key=lambda x: x["rank"])):
+            _check_cancelled(job_id)
             clip_num = idx + 1
             store.update_progress(
                 job_id,
@@ -326,8 +408,14 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                 video_encoder,
                 diarization_data=diarization_data,
             )
-            if hasil_render:
-                render_manifest.append(hasil_render)
+            if not isinstance(hasil_render, dict):
+                hasil_render = {"rank": klip["rank"], "status": "failed", "error": "Renderer returned no result"}
+            render_manifest.append(hasil_render)
+            # Keep completed work visible even if cancellation happens next.
+            manifest_path = os.path.join(cfg.outputs_dir, "render_manifest.json")
+            with open(manifest_path, "w", encoding="utf-8") as f:
+                json.dump(render_manifest, f, ensure_ascii=False, indent=2)
+            _check_cancelled(job_id)
 
         # --- Save manifest ---
         manifest_path = os.path.join(cfg.outputs_dir, "render_manifest.json")
@@ -335,46 +423,20 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             json.dump(render_manifest, f, ensure_ascii=False, indent=2)
 
         # --- Build clip details for the job store ---
-        clips: list[ClipDetail] = []
-        for entry in render_manifest:
-            filename = os.path.basename(entry.get("output_file") or entry.get("video_path") or "")
-            clips.append(
-                ClipDetail(
-                    rank=entry.get("rank", 0),
-                    viral_score=entry.get("viral_score"),
-                    title=entry.get("title_indonesia", ""),
-                    title_en=entry.get("title_inggris", ""),
-                    filename=filename,
-                    duration=entry.get("duration"),
-                    start_time=entry.get("start_time"),
-                    end_time=entry.get("end_time"),
-                    download_url=f"/api/outputs/{job_id}/{filename}",
-                    metadata=entry,
-                )
-            )
+        clips = _clips_from_manifest(job_id, render_manifest)
 
-        store.set_clips(job_id, clips)
-        store.update_progress(
-            job_id,
-            step="done",
-            step_number=7,
-            total_steps=7,
-            message=f"Selesai! {len(clips)} klip berhasil dirender.",
-            percent=100.0,
-        )
+        failed_count = total_clips - len(clips)
+        error = None
+        if failed_count:
+            error = f"{failed_count}/{total_clips} klip gagal dirender. Lihat render_manifest.json untuk detail."
+        store.finish_job(job_id, clips=clips, error=error)
 
+    except JobCancelled:
+        store.finish_job(job_id, clips=_clips_from_manifest(job_id, render_manifest))
     except Exception as exc:
         tb = traceback.format_exc()
         error_msg = f"{type(exc).__name__}: {exc}"
-        store.set_error(job_id, error_msg)
-        store.update_progress(
-            job_id,
-            step="error",
-            step_number=0,
-            total_steps=7,
-            message=f"Pipeline gagal: {error_msg}",
-            percent=0.0,
-        )
+        store.finish_job(job_id, clips=_clips_from_manifest(job_id, render_manifest), error=error_msg)
         print(f"[Worker] Job {job_id} failed:\n{tb}", file=sys.stderr)
 
 
@@ -385,11 +447,25 @@ async def submit_job(job_id: str, payload: dict) -> None:
     Uses a semaphore to limit concurrency and runs the pipeline
     in a thread pool to avoid blocking the async event loop.
     """
-    async def _run():
-        async with _semaphore:
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                _executor, _run_pipeline_sync, job_id, payload
-            )
+    if is_job_active(job_id):
+        raise ValueError("Job is already running")
 
-    asyncio.create_task(_run())
+    async def _run():
+        try:
+            async with _semaphore:
+                _running_jobs.add(job_id)
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(
+                    _executor, _run_pipeline_sync, job_id, payload
+                )
+        finally:
+            _running_jobs.discard(job_id)
+
+    task = asyncio.create_task(_run())
+    _tasks[job_id] = task
+
+    def _forget(done_task):
+        if _tasks.get(job_id) is done_task:
+            _tasks.pop(job_id, None)
+
+    task.add_done_callback(_forget)

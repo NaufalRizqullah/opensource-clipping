@@ -134,7 +134,7 @@ WHISPER_COMPUTE_TYPE = "float32"
 
 ### Cara Pakai
 
-1. **Jalankan backend** — Buka `notebooks/Kaggle_Studio_Server.ipynb` di Kaggle (atau Colab), tambahkan API key ke Secrets, lalu run semua cell. Salin **Public URL** dari output.
+1. **Jalankan backend** — Buka [`notebooks/kaggle-studio-server.ipynb`](notebooks/kaggle-studio-server.ipynb) di Kaggle (atau Colab), aktifkan Internet dan GPU, tambahkan API key ke Secrets, lalu run semua cell. Setup menggunakan environment Python terpisah; **Public URL** baru muncul setelah pemeriksaan dependency dan kesiapan renderer berhasil. Lihat [panduan setup dan troubleshooting](docs/KAGGLE_STUDIO.md).
 
 2. **Buka Studio** — Kunjungi [halaman Studio](https://naufalrizqullah.github.io/opensource-clipping/studio/) di browser.
 
