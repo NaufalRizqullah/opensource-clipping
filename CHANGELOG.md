@@ -8,6 +8,12 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.15.3]
+
+### Fixed
+- **Kaggle startup hooks**: Include `wrapt` in the isolated Kaggle requirements and disable Kaggle's automatic Gemini proxy patch for the managed backend, preserving Studio's configured provider behavior.
+- **Notebook Secrets diagnostics**: Stop in Configure API Keys when the ngrok token is unavailable, explain exact-label/notebook-attachment requirements, and report only reader error classes without exposing secret values or provider response bodies.
+
 ## [v1.15.2]
 
 ### Fixed

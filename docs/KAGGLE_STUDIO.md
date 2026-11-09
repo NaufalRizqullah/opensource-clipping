@@ -36,6 +36,8 @@ The readiness probe checks NumPy, the MediaPipe/Studio renderer, Whisper/engine 
 
 | Symptom | Action |
 | --- | --- |
+| `Error in sitecustomize` / `No module named 'wrapt'` | Kaggle's Python startup hook imports `wrapt` from the base standard-library path, even in an isolated venv. Rerun setup with the updated `requirements-kaggle.txt`, which includes `wrapt`. Early bootstrap warnings can occur before it is installed. Keep system site packages disabled. Studio disables Kaggle's automatic Gemini proxy hook to preserve its configured API-key/provider behavior. |
+| `NGROK_AUTHTOKEN: not configured` / `NGROK_AUTHTOKEN is missing` | The server has not received the token. In Kaggle Add-ons → Secrets, use the exact label `NGROK_AUTHTOKEN` and attach/enable it for this notebook. Rerun Configure API Keys, confirm its status is `configured` (no value is printed), then rerun Start Backend Server. A Python variable alone is not exported to child processes. |
 | `ensurepip ... returned non-zero exit status 1` during venv creation | Update `scripts/kaggle_studio.py` to the repair revision and rerun the dependency setup cell. A valid partial venv is repaired in place; no clone, output deletion, or kernel package install is needed. The screenshot/error alone does not identify why that runtime's `ensurepip` failed. |
 | NumPy/MediaPipe ABI error or HTTP 503 from `/api/ready` | Stop the backend and rerun setup in a fresh isolated environment. To retain an existing environment for inspection, use a new `--venv` directory for **both** setup and start. Do not install into the running notebook kernel. |
 | Setup fails | Fix the first visible dependency/download error and rerun setup. No ready banner or tunnel should appear after a failed check. |

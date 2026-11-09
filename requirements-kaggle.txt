@@ -8,3 +8,6 @@ yt-dlp[default]
 gdown
 openai
 pyngrok>=7.2,<10
+
+# Kaggle's stdlib sitecustomize imports wrapt even inside an isolated venv.
+wrapt>=1.14,<3

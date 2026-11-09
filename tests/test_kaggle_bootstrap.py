@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 from types import SimpleNamespace
+from types import ModuleType
 from urllib.error import HTTPError
 
 import pytest
@@ -32,6 +33,7 @@ def test_runtime_removes_notebook_python_and_pip_overrides(monkeypatch, tmp_path
     assert "PYTHONPATH" not in env and "PYTHONHOME" not in env and "PIP_TARGET" not in env
     assert env["PYTHON_DOTENV_DISABLED"] == "1"
     assert env["PYTHONNOUSERSITE"] == "1"
+    assert env["KAGGLE_DISABLE_GOOGLE_GENERATIVE_AI_INTEGRATION"] == "1"
     assert env["NGROK_AUTHTOKEN"] == "dummy-test-value"
 
 
@@ -268,3 +270,46 @@ def test_target_interpreter_mismatch_is_rejected_before_any_install(monkeypatch,
     with pytest.raises(RuntimeError, match="not using the isolated environment"):
         bootstrap.ensure_pip(env_dir, tmp_path)
     assert len(calls) == 1
+
+
+def _secret_cell(monkeypatch, reader):
+    """Run only the repository template with fake Secrets and an empty environment."""
+    monkeypatch.setattr(bootstrap.os, "environ", {})
+    monkeypatch.setitem(sys.modules, "kaggle_secrets", SimpleNamespace(
+        UserSecretsClient=lambda: SimpleNamespace(get_secret=reader),
+    ))
+    google = ModuleType("google")
+    google.__path__ = []
+    monkeypatch.setitem(sys.modules, "google", google)
+    monkeypatch.setitem(sys.modules, "google.colab", SimpleNamespace(userdata=SimpleNamespace(get=lambda name: "")))
+    notebook = json.loads((bootstrap.PROJECT_ROOT / "notebooks/kaggle-studio-server.ipynb").read_text(encoding="utf-8"))
+    source = notebook["cells"][6]["source"]
+    exec(compile(source, "notebook-secret-cell", "exec"), {})
+
+
+def test_notebook_exports_attached_secret_without_printing_it(monkeypatch, capsys, tmp_path):
+    dummy = "dummy-not-a-real-token"
+    _secret_cell(monkeypatch, lambda name: f"  {dummy}\n" if name == "NGROK_AUTHTOKEN" else "")
+    assert bootstrap.runtime_environment(tmp_path)["NGROK_AUTHTOKEN"] == dummy
+    output = capsys.readouterr().out
+    assert "NGROK_AUTHTOKEN: configured" in output
+    assert dummy not in output
+
+
+def test_notebook_stops_with_safe_guidance_when_secret_reader_fails(monkeypatch, capsys):
+    def unavailable(name):
+        raise RuntimeError("private-provider-response-must-not-be-printed")
+    with pytest.raises(RuntimeError, match="Attach this exact secret label"):
+        _secret_cell(monkeypatch, unavailable)
+    output = capsys.readouterr().out
+    assert "NGROK_AUTHTOKEN could not be read (RuntimeError)" in output
+    assert "private-provider-response" not in output
+
+
+@pytest.mark.parametrize("value", ["", "   "])
+def test_missing_or_blank_ngrok_token_stops_before_launch(monkeypatch, tmp_path, value):
+    env_dir = make_environment(tmp_path)
+    monkeypatch.setenv("NGROK_AUTHTOKEN", value)
+    monkeypatch.setattr(bootstrap.subprocess, "Popen", lambda *a, **k: pytest.fail("Must not launch"))
+    with pytest.raises(RuntimeError, match="Attach the secret with this exact label"):
+        bootstrap.start_server(env_dir)

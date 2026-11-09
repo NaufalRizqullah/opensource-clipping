@@ -57,6 +57,9 @@ def runtime_environment(env_dir: Path) -> dict[str, str]:
         "PYTHONNOUSERSITE": "1",
         "PYTHONUNBUFFERED": "1",
         "PYTHON_DOTENV_DISABLED": "1",
+        # Once wrapt is present, Kaggle's sitecustomize can patch google.genai.
+        # Keep Studio's explicit API-key/provider routing instead of its proxy.
+        "KAGGLE_DISABLE_GOOGLE_GENERATIVE_AI_INTEGRATION": "1",
         "PIP_CONFIG_FILE": os.devnull,
         "PIP_REQUIRE_VIRTUALENV": "true",
     })
@@ -280,8 +283,11 @@ def start_server(env_dir: Path, root: Path = PROJECT_ROOT, port: int = 8000,
                  readiness_timeout: float = 300) -> None:
     """Launch FastAPI in a fresh interpreter, verify imports, then publish its URL."""
     validate_environment(env_dir)
-    if not os.environ.get("NGROK_AUTHTOKEN"):
-        raise RuntimeError("NGROK_AUTHTOKEN is missing. Run the API Keys cell first.")
+    if not os.environ.get("NGROK_AUTHTOKEN", "").strip():
+        raise RuntimeError(
+            "NGROK_AUTHTOKEN is missing from the server environment. "
+            "Attach the secret with this exact label to the notebook, then rerun the Configure API Keys cell."
+        )
     # On Linux the venv executable often symlinks to the system interpreter;
     # comparing resolved executable paths cannot prove the venv is active.
     if Path(sys.prefix).resolve() != env_dir.resolve():
