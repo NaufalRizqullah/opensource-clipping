@@ -8,6 +8,11 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.15.2]
+
+### Fixed
+- **Kaggle venv bootstrap**: Create isolated environments without invoking distro `ensurepip`. Validate the actual target interpreter, recover missing pip through host pip or the official PyPA bootstrap, and repair a valid partially created venv on rerun without deleting project outputs or installing into the notebook kernel.
+
 ## [v1.15.1]
 
 ### Fixed

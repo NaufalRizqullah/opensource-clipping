@@ -6,7 +6,7 @@ Use [`notebooks/kaggle-studio-server.ipynb`](../notebooks/kaggle-studio-server.i
 
 1. Select a Linux x86_64 runtime with Python 3.10–3.12 (prefer 3.12), enable Internet, and select a GPU for CUDA transcription/rendering.
 2. Run the clone/setup cells. The repository is cloned into a named directory without deleting the working directory. Existing checkouts and outputs are retained; an existing checkout is not automatically pulled or reset.
-3. Setup creates `.cache/kaggle-studio/venv` without access to the notebook's installed packages. It installs `requirements-kaggle.txt` with `constraints-kaggle.txt`, runs `pip check`, and installs a checksum-verified Deno runtime for yt-dlp's YouTube JavaScript challenges. Installer errors stop the cell and remain visible.
+3. Setup creates `.cache/kaggle-studio/venv` without access to the notebook's installed packages or reliance on distro `ensurepip`. It checks the target interpreter, bootstraps missing pip into that venv, then installs `requirements-kaggle.txt` with `constraints-kaggle.txt`, runs `pip check`, and installs a checksum-verified Deno runtime for yt-dlp's YouTube JavaScript challenges. Installer errors stop the cell and remain visible.
 4. Supply secrets through Kaggle Secrets, Colab userdata, or the environment. `NGROK_AUTHTOKEN` is needed for the tunnel; Google or NVIDIA credentials depend on the selected AI provider. The notebook passes them through the process environment, without writing a `.env` file or printing their values. Existing `.env` files are ignored by this managed server.
 5. Run the server cell and keep it running. It launches Uvicorn in a **fresh Python subprocess**, checks `/api/ready`, and only then opens the tunnel and prints **BACKEND SERVER READY** with its Public URL.
 6. In [Studio](https://naufalrizqullah.github.io/opensource-clipping/studio/), choose **Connect**, paste the URL, and select **Test & Connect**. Pages refresh after a successful connection. A failed attempt preserves the previously saved URL.
@@ -36,6 +36,7 @@ The readiness probe checks NumPy, the MediaPipe/Studio renderer, Whisper/engine 
 
 | Symptom | Action |
 | --- | --- |
+| `ensurepip ... returned non-zero exit status 1` during venv creation | Update `scripts/kaggle_studio.py` to the repair revision and rerun the dependency setup cell. A valid partial venv is repaired in place; no clone, output deletion, or kernel package install is needed. The screenshot/error alone does not identify why that runtime's `ensurepip` failed. |
 | NumPy/MediaPipe ABI error or HTTP 503 from `/api/ready` | Stop the backend and rerun setup in a fresh isolated environment. To retain an existing environment for inspection, use a new `--venv` directory for **both** setup and start. Do not install into the running notebook kernel. |
 | Setup fails | Fix the first visible dependency/download error and rerun setup. No ready banner or tunnel should appear after a failed check. |
 | Missing FFmpeg | Run the notebook's checked FFmpeg installation cell, then restart the server. |
@@ -46,6 +47,8 @@ The readiness probe checks NumPy, the MediaPipe/Studio renderer, Whisper/engine 
 | Python 3.13+ runtime | Use Python 3.12 for the constrained Kaggle environment; setup stops early on unsupported versions. |
 
 For a local diagnostic in the managed environment, run `python -m web.api.readiness --check` with that environment's Python. It exits nonzero if a required import or FFmpeg fails and does not start a tunnel.
+
+Pip recovery first uses the host pip's supported [`--python` option](https://pip.pypa.io/en/stable/topics/python-option/) to install into the target environment. If host pip is absent or incompatible, setup downloads the official [PyPA `get-pip.py` bootstrap](https://pip.pypa.io/en/stable/installation/#get-pip-py) over HTTPS and runs it with the target interpreter. It never installs packages into the notebook interpreter. A functioning existing target pip is reused.
 
 The tunnel exposes the existing Studio API, including settings and shutdown. No new authentication mechanism is introduced by this repair; treat the tunnel URL as private and stop it when finished.
 

@@ -28,6 +28,7 @@ import zipfile
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_VENV = PROJECT_ROOT / ".cache" / "kaggle-studio" / "venv"
+GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py"
 # Official release asset and its published SHA-256 (denoland/deno v2.9.8).
 DENO_VERSION = "2.9.8"
 DENO_SHA256 = "e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609"
@@ -126,13 +127,63 @@ def install_deno(env_dir: Path) -> None:
     subprocess.run([str(destination), "--version"], check=True)
 
 
+def ensure_pip(env_dir: Path, root: Path = PROJECT_ROOT) -> None:
+    """Repair pip inside a valid venv without depending on distro ensurepip."""
+    python = str(environment_python(env_dir))
+    environment = runtime_environment(env_dir)
+    # A pyvenv.cfg file alone does not prove this interpreter uses that venv.
+    try:
+        probe = subprocess.run(
+            [python, "-I", "-c", "import json, sys; print(json.dumps([sys.prefix, sys.base_prefix]))"],
+            cwd=root, env=environment, capture_output=True, text=True, timeout=30, check=True,
+        )
+        prefix, base_prefix = json.loads(probe.stdout)
+        if Path(prefix).resolve() != env_dir.resolve() or Path(prefix).resolve() == Path(base_prefix).resolve():
+            raise ValueError("Interpreter is not isolated")
+    except (OSError, ValueError, TypeError, subprocess.SubprocessError):
+        raise RuntimeError("Managed Python is not using the isolated environment; choose a new --venv directory.") from None
+
+    command = [python, "-I", "-m", "pip", "--version"]
+    if subprocess.run(
+        command, cwd=root, env=environment, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, timeout=30, check=False,
+    ).returncode == 0:
+        return
+
+    print("Bootstrapping pip inside the isolated environment...", flush=True)
+    # pip >=22.3 can manage a different Python even when it has no pip yet.
+    # This installs into the target, never into the notebook/kernel interpreter.
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "pip", "--python", python, "install", "--upgrade", "pip",
+             "--index-url", "https://pypi.org/simple"],
+            cwd=root, env=environment, check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        print("Host pip unavailable; using the official PyPA bootstrap in the target environment...", flush=True)
+        with tempfile.TemporaryDirectory(prefix="clipping-pip-") as temporary:
+            script = Path(temporary) / "get-pip.py"
+            try:
+                with urlopen(GET_PIP_URL, timeout=60) as response, script.open("wb") as output:
+                    shutil.copyfileobj(response, output)
+            except OSError:
+                raise RuntimeError("Could not download the PyPA pip bootstrap. Check notebook Internet access and rerun setup.") from None
+            subprocess.run(
+                [python, "-I", str(script), "--no-setuptools", "--no-wheel",
+                 "--index-url", "https://pypi.org/simple"],
+                cwd=root, env=environment, check=True,
+            )
+    subprocess.run(command, cwd=root, env=environment, timeout=30, check=True)
+
+
 def setup_environment(env_dir: Path, root: Path = PROJECT_ROOT) -> None:
     """Install only into an isolated venv; any failed command stops setup."""
     validate_platform()
     if not env_dir.exists():
         print("Creating isolated Kaggle Studio environment...", flush=True)
-        venv.EnvBuilder(with_pip=True, system_site_packages=False).create(env_dir)
+        venv.EnvBuilder(with_pip=False, system_site_packages=False).create(env_dir)
     validate_environment(env_dir)
+    ensure_pip(env_dir, root)
     python = str(environment_python(env_dir))
     environment = runtime_environment(env_dir)
     for command in (

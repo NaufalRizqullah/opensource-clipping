@@ -45,6 +45,7 @@ def test_refuses_environment_with_system_packages(tmp_path):
 def test_setup_stops_on_install_failure_before_deno_or_pip_check(monkeypatch, tmp_path):
     env_dir = make_environment(tmp_path)
     monkeypatch.setattr(bootstrap, "validate_platform", lambda: None)
+    monkeypatch.setattr(bootstrap, "ensure_pip", lambda *a: None)
     calls = []
 
     def run(command, **kwargs):
@@ -180,3 +181,90 @@ def test_start_rejects_system_python_even_if_executable_matches(monkeypatch, tmp
     monkeypatch.setattr(bootstrap.subprocess, "Popen", lambda *a, **k: pytest.fail("No launch outside venv"))
     with pytest.raises(RuntimeError, match="isolated environment's Python"):
         bootstrap.start_server(env_dir, tmp_path)
+
+
+def test_new_environment_does_not_call_ensurepip(monkeypatch, tmp_path):
+    env_dir = tmp_path / "venv"
+    calls = []
+    monkeypatch.setattr(bootstrap, "validate_platform", lambda: None)
+    def builder(**options):
+        assert options == {"with_pip": False, "system_site_packages": False}
+        return SimpleNamespace(create=lambda path: (calls.append("create"), make_environment(tmp_path)))
+    monkeypatch.setattr(bootstrap.venv, "EnvBuilder", builder)
+    monkeypatch.setattr(bootstrap, "ensure_pip", lambda *a: calls.append("pip"))
+    monkeypatch.setattr(bootstrap.subprocess, "run", lambda *a, **k: calls.append("install"))
+    monkeypatch.setattr(bootstrap, "install_deno", lambda *a: calls.append("deno"))
+    bootstrap.setup_environment(env_dir, tmp_path)
+    assert calls == ["create", "pip", "install", "install", "install", "deno"]
+
+
+def test_partial_environment_is_repaired_in_place_and_failure_stops_setup(monkeypatch, tmp_path):
+    env_dir = make_environment(tmp_path)
+    marker = env_dir / "preserved.txt"
+    marker.write_text("keep")
+    monkeypatch.setattr(bootstrap, "validate_platform", lambda: None)
+    monkeypatch.setattr(bootstrap.venv, "EnvBuilder", lambda **k: pytest.fail("Do not recreate existing venv"))
+    def fail(*a): raise RuntimeError("pip bootstrap failed")
+    monkeypatch.setattr(bootstrap, "ensure_pip", fail)
+    monkeypatch.setattr(bootstrap.subprocess, "run", lambda *a, **k: pytest.fail("No dependency install"))
+    monkeypatch.setattr(bootstrap, "install_deno", lambda *a: pytest.fail("No Deno install"))
+    with pytest.raises(RuntimeError, match="pip bootstrap failed"):
+        bootstrap.setup_environment(env_dir, tmp_path)
+    assert marker.read_text() == "keep"
+
+
+@pytest.mark.parametrize("host_available", [True, False])
+def test_missing_pip_uses_host_manager_or_official_target_bootstrap(monkeypatch, tmp_path, host_available):
+    env_dir = make_environment(tmp_path)
+    target = str(bootstrap.environment_python(env_dir))
+    calls = []
+    def run(command, **kwargs):
+        calls.append(command)
+        if "-c" in command:
+            return SimpleNamespace(stdout=json.dumps([str(env_dir), str(tmp_path / "base")]), returncode=0)
+        if command[-1] == "--version":
+            return SimpleNamespace(returncode=1 if len(calls) == 2 else 0)
+        if "--python" in command:
+            assert command[command.index("--python") + 1] == target
+            if not host_available:
+                raise subprocess.CalledProcessError(1, command)
+        else:
+            assert command[:2] == [target, "-I"]
+            assert Path(command[2]).name == "get-pip.py"
+            assert Path(command[2]).read_bytes() == b"# official bootstrap fixture"
+        assert kwargs["env"]["PIP_REQUIRE_VIRTUALENV"] == "true"
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(bootstrap.subprocess, "run", run)
+    def download(url, **kwargs):
+        assert not host_available
+        assert url == "https://bootstrap.pypa.io/get-pip.py"
+        return io.BytesIO(b"# official bootstrap fixture")
+    monkeypatch.setattr(bootstrap, "urlopen", download)
+    bootstrap.ensure_pip(env_dir, tmp_path)
+    assert len(calls) == (4 if host_available else 5)
+    assert calls[-1] == [target, "-I", "-m", "pip", "--version"]
+
+
+def test_existing_pip_skips_bootstrap(monkeypatch, tmp_path):
+    env_dir = make_environment(tmp_path)
+    calls = []
+    def run(command, **kwargs):
+        calls.append(command)
+        assert "install" not in command
+        return SimpleNamespace(stdout=json.dumps([str(env_dir), str(tmp_path / "base")]), returncode=0)
+    monkeypatch.setattr(bootstrap.subprocess, "run", run)
+    monkeypatch.setattr(bootstrap, "urlopen", lambda *a, **k: pytest.fail("No download"))
+    bootstrap.ensure_pip(env_dir, tmp_path)
+    assert len(calls) == 2
+
+
+def test_target_interpreter_mismatch_is_rejected_before_any_install(monkeypatch, tmp_path):
+    env_dir = make_environment(tmp_path)
+    calls = []
+    def run(command, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(stdout=json.dumps([str(tmp_path), str(tmp_path)]), returncode=0)
+    monkeypatch.setattr(bootstrap.subprocess, "run", run)
+    with pytest.raises(RuntimeError, match="not using the isolated environment"):
+        bootstrap.ensure_pip(env_dir, tmp_path)
+    assert len(calls) == 1
