@@ -33,6 +33,7 @@ youtube_token.json
 .pytest_cache/
 .ruff_cache/
 uploads/
+logs/
 
 # YouTube Tracker local database
 youtube_tracker/*.sqlite3

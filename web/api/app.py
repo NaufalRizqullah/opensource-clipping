@@ -17,19 +17,35 @@ import signal
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from scripts.studio_logging import configure_logging, log_event
+
 from .routes import jobs, files, settings
 from . import worker
+from .logging_middleware import RequestLoggingMiddleware
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup/shutdown lifecycle."""
+    log_path = configure_logging(role="api")
+    log_event("api.startup.started", component="api", stage="startup")
     print("🚀 OpenSource Clipping Studio — Backend starting...")
+    if log_path is not None:
+        print(f"Studio diagnostic log: {log_path}", flush=True)
+    log_event("api.startup.completed", component="api", stage="startup")
     try:
         yield
     finally:
-        await worker.cancel_all_jobs()
-        print("👋 Backend shutting down...")
+        log_event("api.shutdown.started", component="api", stage="shutdown")
+        try:
+            await worker.cancel_all_jobs()
+        except BaseException as exc:
+            log_event("api.shutdown.failed", component="api", stage="shutdown", level="ERROR", error=exc)
+            raise
+        else:
+            log_event("api.shutdown.completed", component="api", stage="shutdown")
+        finally:
+            print("👋 Backend shutting down...")
 
 
 app = FastAPI(
@@ -54,7 +70,9 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
+app.add_middleware(RequestLoggingMiddleware)
 
 # Routes
 app.include_router(jobs.router)
@@ -76,6 +94,7 @@ async def root():
 @app.post("/api/shutdown")
 async def shutdown_server():
     """Trigger graceful shutdown of the FastAPI server."""
+    log_event("api.shutdown.requested", component="api", stage="shutdown")
     # Send SIGINT to own process to trigger uvicorn graceful shutdown
     async def _shutdown():
         await asyncio.sleep(0.5)

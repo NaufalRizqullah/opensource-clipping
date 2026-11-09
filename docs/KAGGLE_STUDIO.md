@@ -21,10 +21,12 @@ The Kaggle constraints keep NumPy 1.26.4, MediaPipe 0.10.21, OpenCV 4.11, JAX 0.
 
 The readiness probe checks NumPy, the MediaPipe/Studio renderer, Whisper/engine imports, and FFmpeg in a separate process. It does not download models, call paid AI APIs, validate credentials, or prove that GPU inference, gated Hugging Face models, or a particular video will succeed.
 
+The managed process uses `MPLBACKEND=Agg`. MediaPipe imports Matplotlib, but this server does not display notebook figures. Inheriting `module://matplotlib_inline.backend_inline` from Jupyter can make Matplotlib 3.11.2 raise `ValueError` in an isolated environment without `matplotlib-inline`. This failure was reproduced with NumPy 1.26.4 and Matplotlib 3.11.2; selecting `Agg` allowed the same import to succeed. The override applies to child processes only, leaving the notebook's plotting backend and the CLI unchanged. See [Matplotlib's backend environment variable](https://matplotlib.org/stable/install/environment_variables_faq.html#mplbackend).
+
 ## Health, jobs, and cancellation
 
 - `GET /api/health` reports API liveness and system information. A healthy HTTP server alone does not mean its renderer works.
-- `GET /api/ready` returns HTTP 200 with `ready: true`, or HTTP 503 with safe per-check diagnostics. Results are cached for that server process. Restart after changing packages; modifying a running notebook's packages does not repair loaded native modules.
+- `GET /api/ready` returns HTTP 200 with `ready: true`, or HTTP 503 with safe per-check diagnostics. Import failures identify the attempted module, category, dependency versions, and traceback module/function/line locations, including nested causes. Raw exception messages, source lines, locals, and filesystem paths are excluded. Results are cached for that server process. Restart after changing packages; modifying a running notebook's packages does not repair loaded native modules.
 - `POST /api/jobs` checks readiness before queuing work. NVIDIA credentials can be used without a Google key. Cached AI reuse does not require an AI key.
 - **Reuse Job** accepts an existing terminal job with its original source still present. Active jobs cannot be reused. **Bypass AI** requires `gemini_response.json`; switching it off performs fresh analysis. Reuse replaces that job's state and can overwrite its rendered outputs, so download results you want to keep first.
 - Detected `youtube_cookies.txt` is forwarded to the downloader. Treat cookies as credentials and provide them through the notebook's optional cookie input, never commit them.
@@ -39,7 +41,8 @@ The readiness probe checks NumPy, the MediaPipe/Studio renderer, Whisper/engine 
 | `Error in sitecustomize` / `No module named 'wrapt'` | Kaggle's Python startup hook imports `wrapt` from the base standard-library path, even in an isolated venv. Rerun setup with the updated `requirements-kaggle.txt`, which includes `wrapt`. Early bootstrap warnings can occur before it is installed. Keep system site packages disabled. Studio disables Kaggle's automatic Gemini proxy hook to preserve its configured API-key/provider behavior. |
 | `NGROK_AUTHTOKEN: not configured` / `NGROK_AUTHTOKEN is missing` | The server has not received the token. In Kaggle Add-ons → Secrets, use the exact label `NGROK_AUTHTOKEN` and attach/enable it for this notebook. Rerun Configure API Keys, confirm its status is `configured` (no value is printed), then rerun Start Backend Server. A Python variable alone is not exported to child processes. |
 | `ensurepip ... returned non-zero exit status 1` during venv creation | Update `scripts/kaggle_studio.py` to the repair revision and rerun the dependency setup cell. A valid partial venv is repaired in place; no clone, output deletion, or kernel package install is needed. The screenshot/error alone does not identify why that runtime's `ensurepip` failed. |
-| NumPy/MediaPipe ABI error or HTTP 503 from `/api/ready` | Stop the backend and rerun setup in a fresh isolated environment. To retain an existing environment for inspection, use a new `--venv` directory for **both** setup and start. Do not install into the running notebook kernel. |
+| `Renderer readiness failed (renderer: ValueError)` | FastAPI started, but an import failed before opening the tunnel. The older message hides the exact cause; it does not prove a NumPy ABI problem. Update the checkout to include the managed `MPLBACKEND=Agg` fix and richer diagnostics, then restart the server. No reinstall is needed for the backend-setting fix. If it still fails, inspect the reported `import`, `category`, `trace`, and versions before changing dependencies. |
+| Confirmed NumPy/MediaPipe ABI error (`category=numpy_abi_mismatch`) | Stop the backend and rerun setup in a fresh isolated environment. To retain an existing environment for inspection, use a new `--venv` directory for **both** setup and start. Do not install into the running notebook kernel. |
 | Setup fails | Fix the first visible dependency/download error and rerun setup. No ready banner or tunnel should appear after a failed check. |
 | Missing FFmpeg | Run the notebook's checked FFmpeg installation cell, then restart the server. |
 | Backend Not Connected | Keep the notebook server cell running and use its latest Public URL. The URL can change after a restart. |
@@ -49,6 +52,49 @@ The readiness probe checks NumPy, the MediaPipe/Studio renderer, Whisper/engine 
 | Python 3.13+ runtime | Use Python 3.12 for the constrained Kaggle environment; setup stops early on unsupported versions. |
 
 For a local diagnostic in the managed environment, run `python -m web.api.readiness --check` with that environment's Python. It exits nonzero if a required import or FFmpeg fails and does not start a tunnel.
+
+In the notebook, use the same environment builder as startup so the diagnostic also uses the server's headless Matplotlib backend:
+
+```python
+from scripts.kaggle_studio import runtime_environment
+
+result = subprocess.run(
+    [str(STUDIO_PYTHON), "-m", "web.api.readiness", "--check"],
+    cwd=PROJECT_DIR,
+    env=runtime_environment(STUDIO_ENV),
+    check=False,
+)
+print("Readiness exit code:", result.returncode)
+```
+
+The preserved checkout is not updated by rerunning the clone cell. After updating its files, restart the notebook kernel (and rerun the configuration cells) or reload the imported bootstrap module before starting again. Otherwise Python can retain the older `runtime_environment` function.
+
+## Saved flow logs
+
+Structured diagnostic files are created automatically when setup or the backend starts. Each line is one JSON event (`.jsonl`), written immediately and retained after the process exits:
+
+| File under the project directory | Recorded flow |
+| --- | --- |
+| `logs/kaggle-studio.jsonl` | Platform/venv validation, pip bootstrap and fallback, dependency install/check, Deno setup, FastAPI launch, readiness results, tunnel startup and shutdown, process exit codes. |
+| `logs/studio-api.jsonl` | API module import before FastAPI starts, application startup/shutdown, HTTP requests, native import readiness, job queue/cancellation, pipeline stages, per-clip results and caught renderer errors/fallbacks. |
+
+In Kaggle the default directory is `/kaggle/working/opensource-clipping/logs/`. Open the notebook's **Files/Output** browser and download both `.jsonl` files. Download rotated files (`.jsonl.1`, `.jsonl.2`, `.jsonl.3`) too if the relevant event has moved there. The notebook includes a cell listing these files after stopping the server. The files are ordinary text and can be attached for diagnosis without conversion.
+
+Each file rotates at approximately **5 MiB**, with **three backups** (about 20 MiB per file family). Existing logs are appended, not cleared on restart. The `logs/` directory is ignored by Git. Set `OSC_LOG_DIR` before setup/start to use a different writable directory. Use a single managed server per checkout; supervisor and API have separate files to avoid competing rotations between those two processes.
+
+To follow an error:
+
+1. Find a `level: ERROR` event or a failed readiness check. HTTP 4xx responses and recoverable fallbacks appear as warnings.
+2. Match `run_id` between supervisor and API files. Match `job_id` to follow one job through download → transcribe → analyze → metadata → renderer import → optional diarization → render preparation → render → finalize. A reused job keeps its ID, so also check timestamps and `job_started` boundaries.
+3. Follow `request_id` from an HTTP request to its `job_queued` event, then use `job_id` for thread-worker events. Handled HTTP responses expose the generated ID as `X-Request-ID`; the default unhandled-500 response may not carry that header, but the failed request event still has the ID.
+4. Inspect `stage`, `error.type`, `error.code`, and the last entries in `error.traceback`. Each frame identifies a Python module, function and line number; `causes` retains nested exception locations. Readiness uses the corresponding fields under `diagnostics.checks`. Numeric subprocess exit codes and OS error numbers are retained when available.
+5. For rendering, `clip_index` is the clip's processing position and `clip_rank` is its metadata rank. `elapsed_ms` shows stage/clip duration. `renderer_fallback` means processing can continue; the final `job_completed`, `job_failed`, or `job_cancelled` event determines the outcome.
+
+For example, a failed AI stage produces `stage_failed` with `stage: analyze`, the job ID, exception class and traceback locations, followed by `job_failed`. If the process crashes abruptly, the last started stage and supervisor exit code help locate the interruption even when Python cannot produce a traceback.
+
+The saved files contain operational metadata only. They omit credential values, headers, request bodies, source URLs, transcripts, AI responses, raw exception messages, command arguments, source-code lines, local variables and absolute traceback paths. Third-party console output is not copied into these files. Keep the notebook console log too for pip/FFmpeg output or failures before the Python helper starts (for example clone/system-package setup). A full disk or unwritable log directory emits a fixed warning and does not replace the original application result.
+
+The managed launcher is `python -m scripts.studio_server`; it configures logging before importing the API so import-time errors are saved. Manual `uvicorn web.api.app:app` remains supported. Existing `main.py` CLI usage does not enable these file logs; renderer hooks activate only inside an API job context.
 
 Pip recovery first uses the host pip's supported [`--python` option](https://pip.pypa.io/en/stable/topics/python-option/) to install into the target environment. If host pip is absent or incompatible, setup downloads the official [PyPA `get-pip.py` bootstrap](https://pip.pypa.io/en/stable/installation/#get-pip-py) over HTTPS and runs it with the target interpreter. It never installs packages into the notebook interpreter. A functioning existing target pip is reused.
 

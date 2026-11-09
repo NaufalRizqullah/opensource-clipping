@@ -37,6 +37,17 @@ def test_runtime_removes_notebook_python_and_pip_overrides(monkeypatch, tmp_path
     assert env["NGROK_AUTHTOKEN"] == "dummy-test-value"
 
 
+@pytest.mark.parametrize("backend", [None, "module://matplotlib_inline.backend_inline", "QtAgg"])
+def test_managed_renderer_uses_headless_backend_without_changing_kernel(monkeypatch, tmp_path, backend):
+    if backend is None:
+        monkeypatch.delenv("MPLBACKEND", raising=False)
+    else:
+        monkeypatch.setenv("MPLBACKEND", backend)
+    environment = bootstrap.runtime_environment(tmp_path)
+    assert environment["MPLBACKEND"] == "Agg"
+    assert bootstrap.os.environ.get("MPLBACKEND") == backend
+
+
 def test_refuses_environment_with_system_packages(tmp_path):
     env_dir = make_environment(tmp_path)
     (env_dir / "pyvenv.cfg").write_text("include-system-site-packages = true\n")
@@ -68,7 +79,9 @@ def test_setup_stops_on_install_failure_before_deno_or_pip_check(monkeypatch, tm
 def test_readiness_reports_safe_failure_without_opening_tunnel(monkeypatch):
     body = json.dumps({"checks": {"renderer": {
         "ok": False, "error": "ValueError", "message": "private-value-must-not-appear",
-    }}}).encode()
+        "module": "mediapipe.tasks.python.vision", "code": "import_failed",
+        "traceback": [{"module": "matplotlib", "function": "__setitem__", "line": 799}],
+    }}, "versions": {"numpy": "1.26.4", "matplotlib": "3.11.2"}}).encode()
 
     def fail(*args, **kwargs):
         assert kwargs["timeout"] >= 120
@@ -78,6 +91,44 @@ def test_readiness_reports_safe_failure_without_opening_tunnel(monkeypatch):
     with pytest.raises(RuntimeError, match="renderer: ValueError") as error:
         bootstrap.wait_for_readiness(SimpleNamespace(poll=lambda: None), 8000)
     assert "private-value" not in str(error.value)
+    assert "import=mediapipe.tasks.python.vision" in str(error.value)
+    assert "matplotlib.__setitem__:799" in str(error.value)
+    assert "matplotlib=3.11.2" in str(error.value)
+    assert "Recreate" not in str(error.value)
+
+
+@pytest.mark.parametrize("report", [None, [], {"checks": None}, {"checks": {"renderer": []}}])
+def test_malformed_readiness_diagnostics_fail_closed(report):
+    message = bootstrap.readiness_failure_message(report)
+    assert "runtime unavailable" in message
+    assert "No public tunnel was opened" in message
+
+
+@pytest.mark.parametrize("value", [None, [], {}])
+def test_malformed_import_metadata_keeps_safe_failure(value):
+    message = bootstrap.readiness_failure_message({"checks": {"renderer": {
+        "ok": False, "error": value, "module": value, "code": value, "traceback": value,
+    }}})
+    assert "renderer: unavailable" in message
+    assert "No public tunnel was opened" in message
+
+
+def test_readiness_diagnostics_ignore_raw_text_and_invalid_metadata():
+    private = "private-context must not be printed"
+    message = bootstrap.readiness_failure_message({
+        "checks": {"renderer": {
+            "ok": False, "error": private, "message": private, "module": private, "code": private,
+            "traceback": [None, {"module": private, "function": private, "line": private}],
+            "causes": [{"message": private, "error": "ImportError", "code": "import_failed", "traceback": [
+                {"module": "matplotlib.rcsetup", "function": "validate_backend", "line": 287},
+            ]}],
+        }, private: {"ok": False}},
+        "versions": {"numpy": private, private: "1.0"},
+    })
+    assert private not in message
+    assert "renderer: unavailable" in message
+    assert "matplotlib.rcsetup.validate_backend:287" in message
+    assert "renderer cause: ImportError" in message
 
 
 def test_readiness_stops_when_child_exits(monkeypatch):
@@ -104,8 +155,9 @@ def server(monkeypatch, tmp_path):
 
     def launch(command, **kwargs):
         assert command[0] == str(bootstrap.environment_python(env_dir))
-        assert command[1:4] == ["-m", "uvicorn", "web.api.app:app"]
+        assert command[1:3] == ["-m", "scripts.studio_server"]
         assert kwargs["env"]["PYTHON_DOTENV_DISABLED"] == "1"
+        assert kwargs["env"]["MPLBACKEND"] == "Agg"
         events.append("launch")
         return child
 
@@ -124,6 +176,14 @@ def test_tunnel_and_banner_only_follow_readiness(server, capsys):
     bootstrap.start_server(env_dir, root)
     assert events == ["launch", "ready", "tunnel", "close", "stop"]
     assert "BACKEND SERVER READY" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("exit_code", [130, -bootstrap.signal.SIGINT])
+def test_managed_server_interrupt_is_a_normal_shutdown(server, monkeypatch, exit_code):
+    env_dir, root, events = server
+    monkeypatch.setattr(bootstrap.subprocess, "Popen", lambda *a, **k: SimpleNamespace(wait=lambda: exit_code))
+    bootstrap.start_server(env_dir, root)
+    assert events[-2:] == ["close", "stop"]
 
 
 def test_failed_startup_never_opens_tunnel_and_always_stops_child(server, monkeypatch, capsys):

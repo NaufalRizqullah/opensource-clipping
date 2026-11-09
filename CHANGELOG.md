@@ -8,6 +8,15 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.15.4]
+
+### Added
+- **Persistent Studio flow logs**: Rotating JSONL files record Kaggle setup/startup, API requests, readiness, job stages, cancellation, per-clip rendering and recoverable fallbacks. Run/request/job IDs, durations, exception locations and numeric exit codes enable tracing without storing credentials, payloads or raw library output. A managed ASGI launcher records API import failures before lifespan starts; notebook instructions explain downloading logs and backups.
+
+### Fixed
+- **Kaggle renderer startup**: Select Matplotlib's non-interactive `Agg` backend in the managed subprocess environment. Inherited notebook inline backends can raise `ValueError` when MediaPipe imports Matplotlib in a venv without Jupyter packages. The notebook kernel and CLI environment are unchanged.
+- **Readiness diagnostics**: Preserve the failed import module, safe exception categories/traceback locations, nested causes, and renderer dependency versions in startup failures. Raw exception text, source lines, local variables, and filesystem paths remain excluded; an unspecified import failure no longer automatically recommends recreating the environment.
+
 ## [v1.15.3]
 
 ### Fixed

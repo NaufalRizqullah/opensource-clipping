@@ -79,8 +79,82 @@ def test_child_probe_reports_observed_numpy_abi_failure_safely(monkeypatch, caps
     report = json.loads(output.removeprefix(readiness._RESULT_PREFIX))
     assert report["checks"]["renderer"]["ok"] is False
     assert report["checks"]["renderer"]["error"] == "ValueError"
+    assert report["checks"]["renderer"]["code"] == "numpy_abi_mismatch"
+    assert report["checks"]["renderer"]["module"] == "mediapipe.tasks.python.vision"
     assert "ABI mismatch" in report["checks"]["renderer"]["message"]
     assert "private-context" not in output
+
+
+@pytest.mark.parametrize("failed_module", ["cv2", "mediapipe.tasks.python.vision", "clipping.studio"])
+def test_child_probe_reports_import_location_without_messages_paths_or_locals(monkeypatch, capsys, failed_module):
+    import importlib
+    import importlib.metadata
+
+    namespace = {"__name__": "renderer_dependency.loader"}
+    # The synthetic filename, source, locals and exception messages all contain
+    # a secret marker. None belongs in the API's public readiness response.
+    exec(compile(
+        "def load_native():\n"
+        "    private_key = 'private-value-must-not-be-echoed'\n"
+        "    try:\n"
+        "        raise ImportError('library URL token=' + private_key)\n"
+        "    except ImportError as exc:\n"
+        "        raise ValueError('invalid config: ' + private_key) from exc\n",
+        "/private-value-must-not-be-echoed/native.py", "exec",
+    ), namespace)
+
+    def import_module(name):
+        if name == failed_module:
+            namespace["load_native"]()
+        return object()
+
+    monkeypatch.setattr(importlib, "import_module", import_module)
+    monkeypatch.setattr(importlib.metadata, "version", lambda name: "1.2.3")
+    exec(readiness._PROBE_CODE, {})
+    output = capsys.readouterr().out
+    report = json.loads(output.removeprefix(readiness._RESULT_PREFIX))
+    renderer = report["checks"]["renderer"]
+    assert renderer["module"] == failed_module
+    assert renderer["code"] == "import_failed"
+    assert renderer["error"] == "ValueError"
+    assert renderer["traceback"][-1] == {
+        "module": "renderer_dependency.loader", "function": "load_native", "line": 6,
+    }
+    cause = renderer["causes"][0]
+    assert cause["error"] == "ImportError"
+    assert cause["code"] == "import_error"
+    assert cause["traceback"][-1]["line"] == 4
+    assert report["checks"]["transcription"]["ok"] is True
+    assert {"jax", "jaxlib", "ml-dtypes", "matplotlib", "protobuf", "opencv-contrib-python"} <= report["versions"].keys()
+    assert "private-value" not in output
+    assert "private_key" not in output
+    assert "native.py" not in output
+    assert "invalid config" not in output
+    assert "library URL" not in output
+
+
+def test_child_probe_bounds_cause_chain_and_reports_missing_dependency(monkeypatch, capsys):
+    import importlib
+    import importlib.metadata
+
+    missing = ModuleNotFoundError("unavailable private module")
+    wrapped = ValueError("private wrapper")
+    missing.__cause__ = wrapped
+    wrapped.__cause__ = missing
+
+    def import_module(name):
+        if name == "cv2":
+            raise missing
+        return object()
+
+    monkeypatch.setattr(importlib, "import_module", import_module)
+    monkeypatch.setattr(importlib.metadata, "version", lambda name: "1.2.3")
+    exec(readiness._PROBE_CODE, {})
+    output = capsys.readouterr().out
+    renderer = json.loads(output.removeprefix(readiness._RESULT_PREFIX))["checks"]["renderer"]
+    assert renderer["code"] == "missing_dependency"
+    assert len(renderer["causes"]) == 1
+    assert "private" not in output
 
 
 def test_readiness_route_does_not_confuse_liveness(monkeypatch):

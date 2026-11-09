@@ -12,11 +12,12 @@ import glob
 import json
 import logging
 import os
-import sys
-import traceback
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import quote
+
+from scripts.studio_logging import job_context, log_event
 
 from .config_adapter import build_config_from_payload
 from .models import ClipDetail, JobStatus
@@ -53,6 +54,41 @@ class JobCancelled(Exception):
     """Internal signal raised at safe pipeline boundaries."""
 
 
+class _JobTrace:
+    """Record pipeline boundaries without logging source content or settings."""
+
+    def __init__(self, job_id: str):
+        self.job_id = job_id
+        self.started = time.monotonic()
+        self.stage = None
+        self.stage_started = self.started
+        self.active = False
+
+    def begin(self, stage: str) -> None:
+        self.finish()
+        self.stage = stage
+        self.stage_started = time.monotonic()
+        self.active = True
+        log_event("stage_started", component="worker", job_id=self.job_id, stage=stage)
+
+    def finish(self, status: str = "completed", error: Exception | None = None) -> None:
+        if self.active:
+            log_event(
+                "stage_" + status, component="worker", job_id=self.job_id, stage=self.stage,
+                elapsed_ms=round((time.monotonic() - self.stage_started) * 1000, 2),
+                level="ERROR" if status == "failed" else "WARNING" if status == "fallback" else "INFO",
+                error=error,
+            )
+            self.active = False
+
+    def terminal(self, status: str, error: Exception | None = None, count: int | None = None) -> None:
+        log_event(
+            "job_" + status, component="worker", job_id=self.job_id, stage=self.stage,
+            level="ERROR" if status == "failed" else "INFO", error=error, count=count,
+            elapsed_ms=round((time.monotonic() - self.started) * 1000, 2),
+        )
+
+
 def _check_cancelled(job_id: str) -> None:
     if store.is_cancel_requested(job_id):
         raise JobCancelled()
@@ -82,11 +118,13 @@ def cancel_job(job_id: str) -> bool:
     """Cancel a queued task, or request cancellation of a running thread."""
     if not store.request_cancel(job_id):
         return False
+    log_event("job_cancel_requested", component="worker", job_id=job_id, stage="queue" if job_id not in _running_jobs else "running")
     if job_id not in _running_jobs:
         task = _tasks.get(job_id)
         if task is not None:
             task.cancel()
         store.finish_job(job_id)
+        log_event("job_cancelled", component="worker", job_id=job_id, stage="queue")
     return True
 
 
@@ -120,6 +158,7 @@ def _clips_from_manifest(job_id: str, manifest: list[dict]) -> list[ClipDetail]:
             # This helper also runs on the error path. Invalid metadata must
             # never prevent the worker from publishing its final failed state.
             logging.getLogger(__name__).warning("Invalid renderer metadata (%s)", type(exc).__name__)
+            log_event("clip_metadata_invalid", component="worker", level="WARNING", job_id=job_id, stage="finalize", error=exc)
     return clips
 
 
@@ -131,7 +170,11 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
     frontend can poll or receive SSE progress updates.
     """
     render_manifest: list[dict] = []
+    trace = _JobTrace(job_id)
+    token = job_context.set(job_id)
+    log_event("job_started", component="worker", job_id=job_id)
     try:
+        trace.begin("configure")
         _check_cancelled(job_id)
         # Build config from API payload
         cfg = build_config_from_payload(
@@ -141,6 +184,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
         _validate_analysis_config(cfg)
 
         # --- Step 1: Download ---
+        trace.begin("download")
         store.set_status(job_id, JobStatus.DOWNLOADING)
         store.update_progress(
             job_id,
@@ -157,6 +201,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
 
         # If upload file, skip download
         if payload.get("upload_filename"):
+            log_event("download_skipped", component="worker", job_id=job_id, stage="download", status="uploaded_source")
             upload_path = cfg.file_video_asli
             if not os.path.exists(upload_path):
                 raise ValueError("File upload tidak ditemukan.")
@@ -172,6 +217,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
         else:
             if not cfg.url_youtube:
                 if os.path.exists(cfg.file_video_asli):
+                    log_event("download_skipped", component="worker", job_id=job_id, stage="download", status="cached_source")
                     store.update_progress(
                         job_id,
                         step="download",
@@ -202,6 +248,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
 
         _check_cancelled(job_id)
         # --- Step 2: Transcribe ---
+        trace.begin("transcribe")
         store.set_status(job_id, JobStatus.TRANSCRIBING)
         store.update_progress(
             job_id,
@@ -244,6 +291,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
 
         _check_cancelled(job_id)
         # --- Step 3: AI Analysis ---
+        trace.begin("analyze")
         store.set_status(job_id, JobStatus.ANALYZING)
         store.update_progress(
             job_id,
@@ -257,6 +305,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
         gemini_output_path = os.path.join(cfg.outputs_dir, "gemini_response.json")
 
         if getattr(cfg, "load_gemini_json", False) and os.path.exists(gemini_output_path):
+            log_event("analysis_reused", component="worker", job_id=job_id, stage="analyze")
             with open(gemini_output_path, "r", encoding="utf-8") as f:
                 hasil_json = json.load(f)
         else:
@@ -275,6 +324,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
 
         _check_cancelled(job_id)
         # --- Step 4: Metadata ---
+        trace.begin("metadata")
         from clipping import metadata
 
         hasil_json = metadata.normalize_and_validate(hasil_json)
@@ -294,13 +344,16 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
 
         _check_cancelled(job_id)
         # --- Step 5: Diarization (optional) ---
+        trace.begin("renderer_import")
         diarization_data = None
         from clipping import studio, diarization as diarization_mod
+        trace.finish()
 
         if (
             (getattr(cfg, "use_split_screen", False) and cfg.split_trigger == "diarization")
             or getattr(cfg, "use_camera_switch", False)
         ) and studio._is_vertical_ratio(cfg.pilihan_rasio):
+            trace.begin("diarization")
             try:
                 store.update_progress(
                     job_id,
@@ -332,6 +385,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                 if os.path.exists(audio_path):
                     os.remove(audio_path)
             except Exception as e:
+                trace.finish("fallback", error=e)
                 store.update_progress(
                     job_id,
                     step="diarization",
@@ -341,9 +395,14 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                     percent=58.0,
                 )
                 diarization_data = None
+            else:
+                trace.finish()
+        else:
+            log_event("stage_skipped", component="worker", job_id=job_id, stage="diarization")
 
         _check_cancelled(job_id)
         # --- Step 6: Render Preparation ---
+        trace.begin("render_prepare")
         store.set_status(job_id, JobStatus.RENDERING)
         store.update_progress(
             job_id,
@@ -383,9 +442,13 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
         if getattr(cfg, "hook_source", None):
             custom_hook_path = hook_manager.download_custom_hook(cfg)
 
+        trace.begin("render")
         for idx, klip in enumerate(sorted(hasil_json, key=lambda x: x["rank"])):
             _check_cancelled(job_id)
             clip_num = idx + 1
+            clip_started = time.monotonic()
+            log_event("clip_started", component="worker", job_id=job_id, stage="render",
+                      clip_index=clip_num, clip_rank=klip.get("rank"))
             store.update_progress(
                 job_id,
                 step="render",
@@ -410,6 +473,12 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             )
             if not isinstance(hasil_render, dict):
                 hasil_render = {"rank": klip["rank"], "status": "failed", "error": "Renderer returned no result"}
+            succeeded = hasil_render.get("status") == "success" and bool(hasil_render.get("video_exists"))
+            log_event(
+                "clip_completed" if succeeded else "clip_failed", component="worker", job_id=job_id,
+                stage="render", clip_index=clip_num, clip_rank=klip.get("rank"), level="INFO" if succeeded else "ERROR",
+                elapsed_ms=round((time.monotonic() - clip_started) * 1000, 2),
+            )
             render_manifest.append(hasil_render)
             # Keep completed work visible even if cancellation happens next.
             manifest_path = os.path.join(cfg.outputs_dir, "render_manifest.json")
@@ -418,6 +487,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             _check_cancelled(job_id)
 
         # --- Save manifest ---
+        trace.begin("finalize")
         manifest_path = os.path.join(cfg.outputs_dir, "render_manifest.json")
         with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(render_manifest, f, ensure_ascii=False, indent=2)
@@ -430,14 +500,21 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
         if failed_count:
             error = f"{failed_count}/{total_clips} klip gagal dirender. Lihat render_manifest.json untuk detail."
         store.finish_job(job_id, clips=clips, error=error)
+        trace.finish()
+        terminal_status = "cancelled" if store.is_cancel_requested(job_id) else "failed" if failed_count else "completed"
+        trace.terminal(terminal_status, count=len(clips))
 
     except JobCancelled:
+        trace.finish("cancelled")
         store.finish_job(job_id, clips=_clips_from_manifest(job_id, render_manifest))
+        trace.terminal("cancelled")
     except Exception as exc:
-        tb = traceback.format_exc()
+        trace.finish("failed", error=exc)
+        trace.terminal("failed", error=exc)
         error_msg = f"{type(exc).__name__}: {exc}"
         store.finish_job(job_id, clips=_clips_from_manifest(job_id, render_manifest), error=error_msg)
-        print(f"[Worker] Job {job_id} failed:\n{tb}", file=sys.stderr)
+    finally:
+        job_context.reset(token)
 
 
 async def submit_job(job_id: str, payload: dict) -> None:
@@ -450,6 +527,8 @@ async def submit_job(job_id: str, payload: dict) -> None:
     if is_job_active(job_id):
         raise ValueError("Job is already running")
 
+    log_event("job_queued", component="worker", job_id=job_id, stage="queue")
+
     async def _run():
         try:
             async with _semaphore:
@@ -458,6 +537,9 @@ async def submit_job(job_id: str, payload: dict) -> None:
                 await loop.run_in_executor(
                     _executor, _run_pipeline_sync, job_id, payload
                 )
+        except Exception as exc:
+            log_event("job_dispatch_failed", component="worker", level="ERROR", job_id=job_id, stage="queue", error=exc)
+            raise
         finally:
             _running_jobs.discard(job_id)
 

@@ -1,6 +1,7 @@
 """Exercise orchestration with deterministic adapters instead of GPU/network calls."""
 
 import asyncio
+import ast
 import json
 import sys
 import threading
@@ -11,6 +12,13 @@ import pytest
 
 import clipping
 from web.api import config_adapter, store, worker
+
+
+@pytest.fixture
+def worker_events(monkeypatch):
+    events = []
+    monkeypatch.setattr(worker, "log_event", lambda event, **fields: events.append({"event": event, **fields}))
+    return events
 
 
 @pytest.fixture
@@ -167,7 +175,7 @@ def test_cancel_after_first_render_retains_success_and_stops_next_clip(pipeline)
     assert pipeline.calls.render == [1]
 
 
-def test_queued_cancel_never_starts_and_running_cancel_waits_for_safe_boundary(pipeline, monkeypatch):
+def test_queued_cancel_never_starts_and_running_cancel_waits_for_safe_boundary(pipeline, monkeypatch, worker_events):
     started = threading.Event()
     release = threading.Event()
     calls = []
@@ -199,5 +207,134 @@ def test_queued_cancel_never_starts_and_running_cancel_waits_for_safe_boundary(p
             await asyncio.gather(*list(worker._tasks.values()), return_exceptions=True)
         assert calls == [first]
         assert store.get_job(first)["status"] == "cancelled"
+        assert [event["job_id"] for event in worker_events if event["event"] == "job_queued"] == [first, second]
+        assert [event["job_id"] for event in worker_events if event["event"] == "job_cancel_requested"] == [second, first]
+        assert any(event["event"] == "job_cancelled" and event["job_id"] == second and event["stage"] == "queue" for event in worker_events)
 
     asyncio.run(scenario())
+
+
+def test_pipeline_trace_records_ordered_stages_and_clip_result(pipeline, worker_events):
+    job = pipeline.run()
+    assert job["status"] == "completed"
+    started = [event["stage"] for event in worker_events if event["event"] == "stage_started"]
+    completed = [event["stage"] for event in worker_events if event["event"] == "stage_completed"]
+    assert started == completed == [
+        "configure", "download", "transcribe", "analyze", "metadata",
+        "renderer_import", "render_prepare", "render", "finalize",
+    ]
+    assert all(event["job_id"] == job["id"] for event in worker_events)
+    assert any(event["event"] == "stage_skipped" and event["stage"] == "diarization" for event in worker_events)
+    assert [event["event"] for event in worker_events if event["event"].startswith("clip_")] == ["clip_started", "clip_completed"]
+    assert worker_events[-1]["event"] == "job_completed"
+    assert worker_events[-1]["elapsed_ms"] >= 0
+    assert worker.job_context.get() is None
+    encoded = json.dumps(worker_events)
+    assert "https://example.test/video" not in encoded
+    assert "test-key" not in encoded
+    assert "transcript" not in encoded
+
+
+def test_pipeline_trace_marks_failed_stage_with_original_exception(pipeline, monkeypatch, worker_events):
+    failure = ValueError("private provider response must not become a log message")
+
+    def transcribe(*args, **kwargs):
+        raise failure
+
+    monkeypatch.setattr(clipping.engine, "transcribe_video", transcribe)
+    job = pipeline.run()
+    assert job["status"] == "failed"
+    failed = [event for event in worker_events if event["event"] == "stage_failed"]
+    assert len(failed) == 1
+    assert failed[0]["stage"] == "transcribe"
+    assert failed[0]["error"] is failure  # The logger extracts safe traceback fields.
+    assert worker_events[-1]["event"] == "job_failed"
+    assert not any(event.get("stage") == "analyze" for event in worker_events)
+    assert worker.job_context.get() is None
+    assert str(failure) not in json.dumps([{key: value for key, value in event.items() if key != "error"} for event in worker_events])
+
+
+def test_pipeline_trace_records_diarization_fallback_then_success(pipeline, monkeypatch, worker_events):
+    failure = RuntimeError("private HF response")
+
+    def diarize(*args, **kwargs):
+        raise failure
+
+    monkeypatch.setattr(clipping.diarization, "run_diarization", diarize)
+    job = pipeline.run(use_camera_switch=True, diarization_speakers=2)
+    assert job["status"] == "completed"
+    fallback = [event for event in worker_events if event["event"] == "stage_fallback"]
+    assert len(fallback) == 1
+    assert fallback[0]["stage"] == "diarization"
+    assert fallback[0]["error"] is failure
+    assert worker_events[-1]["event"] == "job_completed"
+
+
+def test_pipeline_trace_records_cancellation_boundary(pipeline, worker_events):
+    job_id = store.create_job()
+    pipeline.state.on_download = lambda: store.request_cancel(job_id)
+    worker._run_pipeline_sync(job_id, pipeline.payload)
+    assert store.get_job(job_id)["status"] == "cancelled"
+    assert worker_events[-2]["event"] == "stage_cancelled"
+    assert worker_events[-2]["stage"] == "download"
+    assert worker_events[-1]["event"] == "job_cancelled"
+    assert worker.job_context.get() is None
+
+
+def test_failed_manifest_is_logged_without_copying_renderer_message(pipeline, worker_events):
+    pipeline.state.results = [{"rank": 1, "status": "failed", "error": "private FFmpeg command", "video_exists": False}]
+    assert pipeline.run()["status"] == "failed"
+    assert any(event["event"] == "clip_failed" and event["clip_index"] == 1 for event in worker_events)
+    assert worker_events[-1]["event"] == "job_failed"
+    assert "private FFmpeg command" not in json.dumps(worker_events)
+
+
+def test_renderer_trace_hook_is_inactive_in_cli_and_retains_api_exception(monkeypatch):
+    # Load this dependency-free hook alone; no native renderer imports/models.
+    source = (Path(__file__).resolve().parents[1] / "clipping/studio/core.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    hook = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "_trace_render_failure")
+    namespace = {"sys": sys}
+    exec(compile(ast.Module(body=[hook], type_ignores=[]), "renderer_trace_hook", "exec"), namespace)
+    events = []
+    job = SimpleNamespace(get=lambda: None)
+    logger = SimpleNamespace(job_context=job, log_event=lambda event, **fields: events.append({"event": event, **fields}))
+    monkeypatch.setitem(sys.modules, "scripts.studio_logging", logger)
+    failure = RuntimeError("private renderer details")
+    namespace["_trace_render_failure"](failure, "concat", 2)
+    assert events == []
+    job.get = lambda: "job-123"
+    namespace["_trace_render_failure"](failure, "concat", 2)
+    namespace["_trace_render_failure"](failure, "edge_glow", 2, fallback=True)
+    assert [event["event"] for event in events] == ["renderer_failed", "renderer_fallback"]
+    assert events[0]["error"] is failure
+    assert events[1]["level"] == "WARNING"
+    assert events[0]["stage"] == "concat"
+
+
+def test_failed_worker_writes_traceable_jsonl_without_private_values(pipeline, monkeypatch, tmp_path):
+    from scripts import studio_logging
+
+    monkeypatch.setenv("OSC_LOG_DIR", str(tmp_path / "diagnostics"))
+    monkeypatch.setenv("OSC_LOG_RUN_ID", "a" * 32)
+    path = studio_logging.configure_logging("api")
+    private = "sensitive-provider-token-and-response"
+
+    def provider_failure(*args, **kwargs):
+        raise RuntimeError(private)
+
+    monkeypatch.setattr(clipping.engine, "analyze_with_ai", provider_failure)
+    try:
+        job = pipeline.run()
+        text = path.read_text(encoding="utf-8")
+    finally:
+        studio_logging.close_logging()
+    assert job["status"] == "failed"
+    events = [json.loads(line) for line in text.splitlines()]
+    failed = next(event for event in events if event["event"] == "stage_failed")
+    assert failed["stage"] == "analyze"
+    assert failed["job_id"] == job["id"]
+    assert failed["error"]["type"] == "RuntimeError"
+    assert any(frame["function"] == "provider_failure" and frame["line"] > 0 for frame in failed["error"]["traceback"])
+    assert all(event["run_id"] == "a" * 32 for event in events)
+    assert private not in text and "test-key" not in text and "https://example.test/video" not in text

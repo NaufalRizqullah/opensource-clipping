@@ -16,6 +16,7 @@ import re
 import shutil
 import string
 import subprocess
+import sys
 import textwrap
 import time
 import urllib.parse
@@ -90,6 +91,19 @@ run_ffmpeg_with_progress = _ffmpeg_utils.run_ffmpeg_with_progress
 v2_helpers = _load_studio_internal_module("v2_helpers.py", "clipping_studio_v2_helpers")
 edge_glow_mod = _load_studio_internal_module("edge_glow.py", "clipping_studio_edge_glow")
 generate_edge_glow_video = edge_glow_mod.generate_edge_glow_video
+
+
+def _trace_render_failure(error, stage, rank, fallback=False):
+    """Trace caught renderer errors only within an API worker's job context."""
+    diagnostics = sys.modules.get("scripts.studio_logging")
+    if diagnostics is None or diagnostics.job_context.get() is None:
+        return
+    diagnostics.log_event(
+        "renderer_fallback" if fallback else "renderer_failed",
+        component="renderer", stage=stage, clip_rank=rank,
+        level="WARNING" if fallback else "ERROR", error=error,
+    )
+
 
 def proses_klip(
     rank, clip, rasio, glitch_ts, data_segmen, cfg, video_encoder, diarization_data=None
@@ -251,6 +265,7 @@ def proses_klip(
 
     try:
         # HOOK
+        render_stage = "hook"
         hook_v2_data = clip.get("hook_v2", {})
         # Hook V2 is independent of --no-hook (which only disables v1 teaser)
         use_hook_v2 = getattr(cfg, "hook_v2", False)
@@ -454,6 +469,7 @@ def proses_klip(
                 raise RuntimeError("FFmpeg hook gagal:\n" + "\n".join(err_h))
 
         # MAIN
+        render_stage = "main"
         keep_segments = clip.get("keep_segments")
         use_segments = (
             keep_segments
@@ -726,6 +742,7 @@ def proses_klip(
                     raise RuntimeError(f"FFmpeg main{lbl_suffix} gagal:\n" + "\n".join(err_m))
 
         # VOICE-OVER INTRO GENERATION
+        render_stage = "voiceover"
         vo_ts = None
         vo_ts_dev = None
         vo_data = clip.get("voiceover")
@@ -752,7 +769,8 @@ def proses_klip(
                     "-of", "default=noprint_wrappers=1:nokey=1", vo_data["audio_path"]
                 ], stdout=subprocess.PIPE, text=True, check=True)
                 vo_duration = float(res.stdout.strip()) + 0.5
-            except Exception:
+            except Exception as e:
+                _trace_render_failure(e, "voiceover_duration", rank, fallback=True)
                 vo_duration = float(vo_data["segments"][-1]["end"]) + 0.5 if vo_data.get("segments") else 5.0
             
             # Generate for both normal and dev dual if needed
@@ -951,6 +969,7 @@ def proses_klip(
 
 
         # FINAL CONCAT
+        render_stage = "concat"
         print("   🔗 [Final] Menyelesaikan clip akhir...")
         
         # Calculate target dimensions for each run
@@ -1009,6 +1028,7 @@ def proses_klip(
                 stderr=subprocess.DEVNULL,
             )
         # EDGE GLOW POST-PROCESSING (full clip)
+        render_stage = "edge_glow"
         if getattr(cfg, "edge_glow", False):
             print("   ✨ [Edge Glow] Applying ambient edge glow to full clip...")
             for final_path, _, _, dims in concat_runs:
@@ -1022,7 +1042,8 @@ def proses_klip(
                         "-of", "default=noprint_wrappers=1:nokey=1", final_path
                     ], stdout=subprocess.PIPE, text=True, check=True)
                     clip_dur = float(dur_res.stdout.strip())
-                except Exception:
+                except Exception as e:
+                    _trace_render_failure(e, "edge_glow_duration", rank, fallback=True)
                     clip_dur = 60.0
 
                 glow_full_path = os.path.join(cfg.outputs_dir, f"glow_full_{rank}.mp4")
@@ -1071,6 +1092,7 @@ def proses_klip(
                     os.replace(tmp_glowed, final_path)
                     print(f"   ✅ [Edge Glow] Applied to {os.path.basename(final_path)}")
                 except subprocess.CalledProcessError as e:
+                    _trace_render_failure(e, "edge_glow", rank, fallback=True)
                     print(f"   ⚠️ [Edge Glow] Failed for {os.path.basename(final_path)}: {e.stderr[-300:]}")
                     if os.path.exists(tmp_glowed):
                         os.remove(tmp_glowed)
@@ -1078,6 +1100,7 @@ def proses_klip(
                     if os.path.exists(glow_full_path):
                         os.remove(glow_full_path)
 
+        render_stage = "thumbnail"
         judul_thumbnail = judul_en or judul or f"Highlight {rank}"
         buat_thumbnail(out_vid, out_thm, judul_thumbnail, cfg)
 
@@ -1089,6 +1112,7 @@ def proses_klip(
         return manifest_item
 
     except subprocess.CalledProcessError as e:
+        _trace_render_failure(e, render_stage, rank)
         print(f"\n❌ ERROR: FFmpeg gagal. Error: {e}")
         manifest_item["status"] = "failed"
         manifest_item["error"] = str(e)
@@ -1097,6 +1121,7 @@ def proses_klip(
         return manifest_item
 
     except Exception as e:
+        _trace_render_failure(e, render_stage, rank)
         print(f"\n❌ ERROR: Kegagalan tak terduga. Error: {e}")
         manifest_item["status"] = "failed"
         manifest_item["error"] = str(e)
