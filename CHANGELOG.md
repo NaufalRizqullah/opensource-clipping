@@ -8,6 +8,12 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.15.]
+
+### Fixed
+- **Kaggle ngrok startup**: Use a full HTTP upstream URL and select HTTPS options for pyngrok's v3 Endpoints or legacy v2 Tunnels API. This prevents pyngrok 9 from constructing `http://localhost:127.0.0.1:8000`, preserves older supported SDKs, and rejects non-HTTPS public URLs.
+- **Tunnel failure diagnostics**: Preserve safe HTTP status, ngrok/agent error codes, and SDK version in flow logs without response bodies or secrets. Cleanup failures no longer hide the original tunnel rejection. Added offline regression tests using the real SDK request builder.
+
 ## [v1.15.4]
 
 ### Added

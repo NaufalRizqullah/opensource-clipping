@@ -6,3 +6,5 @@ pydantic>=2,<3
 httpx>=0.27,<1
 pytest>=8,<10
 python-dotenv>=1.2
+# Test real SDK request construction offline; no ngrok binary or account needed.
+pyngrok>=7.2,<10

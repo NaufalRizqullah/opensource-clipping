@@ -241,3 +241,89 @@ def test_unmatched_route_keeps_fixed_sentinel_without_request_path():
     path = logs.configure_logging()
     logs.log_event("request.completed", method="GET", route="unmatched", status_code=404)
     assert read_events(path)[0]["route"] == "unmatched"
+
+
+class PyngrokNgrokHTTPError(Exception):
+    """Mirror pyngrok's public exception fields without a runtime dependency."""
+
+    __module__ = "pyngrok.exception"
+
+    def __init__(self, error, url, status_code, message, headers, body):
+        super().__init__(error)
+        self.url = url
+        self.status_code = status_code
+        self.message = message
+        self.headers = headers
+        self.body = body
+
+
+def test_ngrok_http_failure_records_codes_without_response_or_credentials():
+    private = "synthetic-private-response-token"
+    error = PyngrokNgrokHTTPError(
+        "tunnel creation failed " + private,
+        "http://private-host/api/endpoints?token=" + private,
+        400, private, {"Authorization": private},
+        json.dumps({"error_code": 103, "msg": private,
+                    "details": {"err": "ERR_NGROK_108 " + private}}),
+    )
+    path = logs.configure_logging("bootstrap")
+    logs.log_event("tunnel.failed", component="bootstrap", error=error,
+                   diagnostics={"versions": {"pyngrok": "9.1.3"}})
+    event = read_events(path)[0]
+    assert event["error"]["http_status"] == 400
+    assert event["error"]["ngrok_error_code"] == "ERR_NGROK_108"
+    assert event["error"]["agent_error_code"] == 103
+    assert event["diagnostics"]["versions"] == {"pyngrok": "9.1.3"}
+    text = path.read_text(encoding="utf-8")
+    assert private not in text and "private-host" not in text
+    assert "Authorization" not in text and "details" not in text
+
+
+@pytest.mark.parametrize("source", ["ngrok_error_code", "ngrok_error", "message"])
+def test_ngrok_codes_support_new_and_legacy_exception_fields(source):
+    error = PyngrokNgrokHTTPError("failed", "private URL", 502, None, {}, "")
+    if source == "message":
+        error.args = ("authentication failed ERR_NGROK_4018 private value",)
+    elif source == "ngrok_error_code":
+        error.ngrok_error_code = "ERR_NGROK_4018"
+    else:
+        error.ngrok_error = "authentication failed ERR_NGROK_4018 private value"
+    assert logs.external_error_metadata(error) == {
+        "http_status": 502, "ngrok_error_code": "ERR_NGROK_4018",
+    }
+
+
+@pytest.mark.parametrize("status,body,code", [
+    (True, [], []),
+    ("400", {"error_code": 103}, {}),
+    (600, '{"error_code": true}', "ERR_NGROK_123_PRIVATE"),
+    (99, '{"error_code": "103"}', "ERR_NGROK_12345678901"),
+    (None, '[' * 1000 + ']' * 1000, "private value"),
+])
+def test_ngrok_malformed_metadata_is_omitted(status, body, code):
+    error = PyngrokNgrokHTTPError("failure", "private URL", status, None, {}, body)
+    error.ngrok_error_code = code
+    assert logs.external_error_metadata(error) == {}
+
+
+def test_ngrok_oversized_response_is_not_parsed_or_searched():
+    body = '{"error_code":103,"msg":"' + "x" * logs._ERROR_TEXT_LIMIT + ' ERR_NGROK_108"}'
+    error = PyngrokNgrokHTTPError("failure", "private URL", 400, None, {}, body)
+    assert logs.external_error_metadata(error) == {"http_status": 400}
+
+
+def test_provider_metadata_ignores_ngrok_fields_on_unrelated_errors():
+    error = RuntimeError("ERR_NGROK_108 private value")
+    error.status_code = 429
+    error.ngrok_error_code = "ERR_NGROK_108"
+    error.body = '{"error_code":103}'
+    assert logs.external_error_metadata(error) == {"http_status": 429}
+
+
+def test_provider_property_failure_does_not_mask_original_exception():
+    class PropertyFailure(Exception):
+        @property
+        def status_code(self):
+            raise ValueError("private property value")
+
+    assert logs.external_error_metadata(PropertyFailure()) == {}

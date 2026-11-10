@@ -28,10 +28,10 @@ import venv
 import zipfile
 
 if __package__:
-    from .studio_logging import configure_logging, log_event
+    from .studio_logging import configure_logging, external_error_metadata, log_event
 else:
     # Also support `python scripts/kaggle_studio.py` before dependencies exist.
-    from studio_logging import configure_logging, log_event
+    from studio_logging import configure_logging, external_error_metadata, log_event
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -363,7 +363,7 @@ def stop_process(process) -> None:
 
 def open_tunnel(port: int, env_dir: Path):
     """Open ngrok only after readiness; auth stays in the inherited environment."""
-    from pyngrok import conf, ngrok
+    from pyngrok import __version__, conf, ngrok
 
     logging.getLogger("pyngrok").setLevel(logging.CRITICAL)
     config = conf.PyngrokConfig(
@@ -373,12 +373,40 @@ def open_tunnel(port: int, env_dir: Path):
     )
     # ngrok itself consumes NGROK_AUTHTOKEN; avoid --authtoken argv or config writes.
     config.auth_token = None
+    # pyngrok 9 defaults to the v3 Endpoints API; 7.x/8.x use v2 Tunnels.
+    # A full URL avoids v3 expanding host:port into http://localhost:host:port.
+    # HTTPS selection belongs to `url` in v3, and `bind_tls` in legacy mode.
+    modern_endpoints = getattr(config, "config_version", "2") == "3"
+    options = {"url": "https://"} if modern_endpoints else {"bind_tls": True}
+    log_event("tunnel.configured", component="bootstrap", stage="tunnel",
+              status="endpoints_v3" if modern_endpoints else "tunnels_v2",
+              diagnostics={"versions": {"pyngrok": __version__}})
     try:
-        tunnel = ngrok.connect(addr=f"127.0.0.1:{port}", proto="http", bind_tls=True, pyngrok_config=config)
+        tunnel = ngrok.connect(addr=f"http://127.0.0.1:{port}", proto="http",
+                               name="kaggle-studio", pyngrok_config=config, **options)
+        if not isinstance(tunnel.public_url, str) or not tunnel.public_url.startswith("https://"):
+            raise RuntimeError("ngrok did not return an HTTPS endpoint.")
     except Exception as exc:
         log_event("tunnel.failed", component="bootstrap", stage="tunnel", level="ERROR", error=exc)
-        ngrok.kill(pyngrok_config=config)
-        raise RuntimeError("ngrok failed to open a tunnel. Check NGROK_AUTHTOKEN and notebook internet access.") from None
+        details = external_error_metadata(exc)
+        summary = []
+        if "http_status" in details:
+            summary.append(f"HTTP {details['http_status']}")
+        if "ngrok_error_code" in details:
+            summary.append(details["ngrok_error_code"])
+        if "agent_error_code" in details:
+            summary.append(f"agent error {details['agent_error_code']}")
+        suffix = " (" + ", ".join(summary) + ")" if summary else ""
+        # Cleanup errors must not hide the original tunnel rejection.
+        try:
+            ngrok.kill(pyngrok_config=config)
+        except Exception as cleanup_error:
+            log_event("tunnel.cleanup_failed", component="bootstrap", stage="tunnel_shutdown",
+                      level="WARNING", error=cleanup_error)
+        raise RuntimeError(
+            f"ngrok could not create an HTTPS endpoint{suffix}. "
+            "Inspect the tunnel.failed event in kaggle-studio.jsonl for error codes and locations."
+        ) from None
     return tunnel, lambda: ngrok.kill(pyngrok_config=config)
 
 
