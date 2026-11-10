@@ -389,3 +389,29 @@ def test_gemini_code_property_failure_does_not_mask_original_exception():
 
     error = PropertyFailure.__new__(PropertyFailure)
     assert logs.external_error_metadata(error) == {}
+
+
+@pytest.mark.parametrize("prefix", ["CalculatorGraph::Run() failed", "Graph has errors"])
+def test_mediapipe_tensor_mismatch_is_classified_without_logging_raw_details(prefix):
+    private = "synthetic-private-context-not-for-logs"
+    path = logs.configure_logging()
+    try:
+        try:
+            raise RuntimeError(
+                prefix + ": mediapipe/calculators/tensor/tensors_to_detections_calculator.cc:365 "
+                "(raw_box_tensor->shape().dims[1])==(num_boxes_) " + private
+            )
+        except RuntimeError as cause:
+            raise RuntimeError("Face detector inference check failed") from cause
+    except RuntimeError as error:
+        logs.log_event("renderer_failed", component="renderer", error=error)
+    event = read_events(path)[0]
+    assert event["error"]["code"] == "runtime_error"
+    assert event["error"]["causes"][0]["code"] == "mediapipe_model_mismatch"
+    assert private not in path.read_text(encoding="utf-8")
+
+
+def test_other_mediapipe_failures_are_not_mislabeled_as_model_mismatch():
+    path = logs.configure_logging()
+    logs.log_event("renderer_failed", error=RuntimeError("CalculatorGraph::Run() failed: invalid image"))
+    assert read_events(path)[0]["error"]["code"] == "runtime_error"

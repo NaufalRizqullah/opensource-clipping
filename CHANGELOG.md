@@ -8,6 +8,12 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.15.7]
+
+### Fixed
+- **MediaPipe render failure**: Use the pinned BlazeFace short-range model supported by the MediaPipe 0.10.21 Tasks graph. The previous full-range model could initialize but failed on its first image with a tensor box-count assertion. CLI and Studio now share a new cache filename so existing full-range files are not reused or deleted. Short-range detection may be less effective for distant/small faces; the existing YOLO option remains available.
+- **Face detector validation and diagnostics**: Test inference before caching a detector, close failed candidates without hiding the original error, and record the fixed `mediapipe_model_mismatch` category without raw provider/model error text. Correct the MediaPipe image namespace used by automatic speaker counting. Added regression tests and updated both READMEs, the face-tracking Wiki page, and Kaggle troubleshooting instructions.
+
 ## [v1.15.6]
 
 ### Fixed

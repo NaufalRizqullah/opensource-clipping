@@ -35,7 +35,11 @@ Source Frame (16:9)
 - **Device**: CPU only
 - **Speed**: Fast and lightweight
 - **Best for**: Standard single-speaker content
-- **Model**: [BlazeFace Full-Range](https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector)
+- **Model**: [BlazeFace Short-Range](https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector), float16 version 1, cached as `blaze_face_short_range_v1.tflite`
+
+The Tasks FaceDetector used by the constrained MediaPipe 0.10.21 runtime expects the short-range model's 896 boxes. The former full-range model can initialize successfully but fails on its first image with a `raw_box_tensor` / `num_boxes_` assertion. Both CLI and Studio use the compatible model and a distinct cache filename, leaving any old full-range file untouched. The detector runs a synthetic image inference check before it is cached for reuse.
+
+Short-range detection may be less effective for small or distant faces than the previously intended full-range behavior. For wide shots and multi-speaker content, the existing YOLO option below remains available. See [the version-specific Tasks graph](https://github.com/google-ai-edge/mediapipe/blob/v0.10.21/mediapipe/tasks/cc/vision/face_detector/face_detector_graph.cc#L71-L107) for its fixed model parameters.
 
 ### YOLOv8 ADetailer
 

@@ -130,7 +130,10 @@ URL_FONT_THUMBNAIL = (
 )
 
 URL_GLITCH_VIDEO = "https://www.youtube.com/watch?v=5nBcNRYmjs0"
-URL_MEDIAPIPE_MODEL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_full_range/float16/latest/blaze_face_full_range.tflite"
+# Tasks FaceDetector in MediaPipe 0.10.21 uses the short-range 896-box graph.
+# A distinct, versioned filename prevents reuse of the incompatible full-range cache.
+MEDIAPIPE_MODEL_FILENAME = "blaze_face_short_range_v1.tflite"
+URL_MEDIAPIPE_MODEL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite"
 
 # 5. PENGATURAN Auto-BGM & Audio Ducking
 USE_AUTO_BGM = True
@@ -825,7 +828,7 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
             os.path.join(base_dir, NAMA_FONT_THUMBNAIL)
         ),
         file_mediapipe_model=os.path.abspath(
-            os.path.join(base_dir, "blaze_face_full_range.tflite")
+            os.path.join(base_dir, MEDIAPIPE_MODEL_FILENAME)
         ),
         # YOLO configs
         face_detector=args.face_detector,

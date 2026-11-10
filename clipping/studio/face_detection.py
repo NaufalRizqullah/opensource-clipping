@@ -47,7 +47,7 @@ _FACE_DETECTOR = None
 
 def get_face_detector(cfg):
     """
-    Create or reuse a singleton MediaPipe face detector instance.
+    Create or reuse a MediaPipe face detector after a successful inference check.
 
     Args:
         cfg: Runtime config that includes model path and model URL.
@@ -57,11 +57,11 @@ def get_face_detector(cfg):
 
     Side Effects:
         Downloads the Mediapipe face detection model from the internet if it doesn't exist locally.
-        Initializes a global `_FACE_DETECTOR` variable.
+        Checks model/graph compatibility on a synthetic image before caching it.
 
     Raises:
         urllib.error.URLError: If the model download fails.
-        Exception: If Mediapipe initialization fails due to invalid model format.
+        Exception: If Mediapipe initialization or the inference check fails.
     """
     global _FACE_DETECTOR
 
@@ -72,12 +72,31 @@ def get_face_detector(cfg):
             )
 
         base_options = mp_python.BaseOptions(model_asset_path=cfg.file_mediapipe_model)
-        _FACE_DETECTOR = mp_vision.FaceDetector.create_from_options(
+        detector = mp_vision.FaceDetector.create_from_options(
             mp_vision.FaceDetectorOptions(
                 base_options=base_options,
+                running_mode=mp_vision.RunningMode.IMAGE,
                 min_detection_confidence=0.5,
             )
         )
+        try:
+            # Construction can succeed with an incompatible model; MediaPipe
+            # validates the output tensor shape only on the first inference.
+            detector.detect(mp.Image(
+                image_format=mp.ImageFormat.SRGB,
+                data=np.zeros((128, 128, 3), dtype=np.uint8),
+            ))
+        except Exception as exc:
+            try:
+                detector.close()
+            except Exception:
+                # A failed graph can also raise on close. Keep the first cause.
+                pass
+            raise RuntimeError(
+                "MediaPipe face detector failed its inference check; verify "
+                "the model matches this MediaPipe Tasks version."
+            ) from exc
+        _FACE_DETECTOR = detector
 
     return _FACE_DETECTOR
 
@@ -153,8 +172,8 @@ def estimate_speaker_count_from_video(video_path: str, cfg) -> int:
             if results and len(results[0].boxes) > 0:
                 faces_in_frame = len(results[0].boxes)
         else:
-            mp_image = mp_python.Image(
-                image_format=mp_python.ImageFormat.SRGB,
+            mp_image = mp.Image(
+                image_format=mp.ImageFormat.SRGB,
                 data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB),
             )
             results = detector.detect(mp_image)

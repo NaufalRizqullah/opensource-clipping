@@ -27,6 +27,7 @@ from clipping.config import (
     BGM_DIR,
     DAFTAR_FONT,
     GEMINI_FALLBACK_MODEL,
+    MEDIAPIPE_MODEL_FILENAME,
     NAMA_FONT_THUMBNAIL,
     RENDER_OUTPUT_HEIGHT,
     SCALE_KATA_KHUSUS_169,
@@ -136,7 +137,7 @@ def build_config_from_payload(
             os.path.join(base_dir, NAMA_FONT_THUMBNAIL)
         ),
         file_mediapipe_model=os.path.abspath(
-            os.path.join(base_dir, "blaze_face_full_range.tflite")
+            os.path.join(base_dir, MEDIAPIPE_MODEL_FILENAME)
         ),
         # YOLO configs
         face_detector=face_detector,

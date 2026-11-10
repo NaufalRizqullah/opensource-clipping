@@ -35,7 +35,7 @@ _CHECK_NAMES = ("numpy", "renderer", "transcription", "ffmpeg", "runtime")
 _IMPORT_MODULES = {"numpy", "numpy.random", "cv2", "mediapipe.tasks.python.vision",
                    "clipping.studio", "faster_whisper", "clipping.engine"}
 _CODES = {"numpy_abi_mismatch", "missing_dependency", "import_error", "import_failed",
-          "matplotlib_backend", "runtime_error"}
+          "matplotlib_backend", "mediapipe_model_mismatch", "runtime_error"}
 _PACKAGES = ("numpy", "mediapipe", "opencv-python", "opencv-contrib-python", "jax", "jaxlib",
              "ml-dtypes", "matplotlib", "protobuf", "faster-whisper", "torch", "pyngrok", "google-genai")
 _ERROR_TEXT_LIMIT = 16 * 1024
@@ -216,6 +216,8 @@ def _error_details(error: BaseException) -> dict:
         code = "numpy_abi_mismatch"
     elif "backend" in text and ("matplotlib_inline" in text or "not a valid value for backend" in text):
         code = "matplotlib_backend"
+    elif all(marker in text for marker in ("tensors_to_detections_calculator", "raw_box_tensor", "num_boxes_")):
+        code = "mediapipe_model_mismatch"
     elif isinstance(error, ModuleNotFoundError):
         code = "missing_dependency"
     elif isinstance(error, ImportError):
