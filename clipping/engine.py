@@ -1229,7 +1229,12 @@ def analyze_with_gemini(
 
     client = genai.Client(
         api_key=cfg.api_key_gemini,
+        # Use the API-key Developer API even when cloud/notebook flags are set.
+        vertexai=False,
         http_options=types.HttpOptions(
+            # Preserve beta routing for preview models and structured output
+            # across SDK versions (SDK 3 changed its default to v1).
+            api_version="v1beta",
             timeout=REQUEST_TIMEOUT_MS,
             retry_options=types.HttpRetryOptions(attempts=1),
         ),

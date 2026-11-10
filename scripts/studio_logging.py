@@ -37,7 +37,7 @@ _IMPORT_MODULES = {"numpy", "numpy.random", "cv2", "mediapipe.tasks.python.visio
 _CODES = {"numpy_abi_mismatch", "missing_dependency", "import_error", "import_failed",
           "matplotlib_backend", "runtime_error"}
 _PACKAGES = ("numpy", "mediapipe", "opencv-python", "opencv-contrib-python", "jax", "jaxlib",
-             "ml-dtypes", "matplotlib", "protobuf", "faster-whisper", "torch", "pyngrok")
+             "ml-dtypes", "matplotlib", "protobuf", "faster-whisper", "torch", "pyngrok", "google-genai")
 _ERROR_TEXT_LIMIT = 16 * 1024
 _NGROK_ERROR_CODE = re.compile(r"(?<![A-Za-z0-9_])ERR_NGROK_[0-9]{1,10}(?![A-Za-z0-9_])")
 
@@ -140,7 +140,8 @@ def external_error_metadata(error: BaseException) -> dict:
     """Extract bounded transport codes without retaining provider response data.
 
     pyngrok exposes HTTP status, response body, and (in newer versions) a parsed
-    ngrok error code on its exceptions. Keep only numeric/known-format codes;
+    ngrok error code on its exceptions. Gemini APIError exposes HTTP status as
+    ``code``. Keep only numeric/known-format codes;
     never return headers, URLs, response text, or arbitrary exception strings.
     """
     def attribute(name):
@@ -153,6 +154,12 @@ def external_error_metadata(error: BaseException) -> dict:
     status = attribute("status_code")
     if type(status) is int and 100 <= status <= 599:
         result["http_status"] = status
+    elif any(cls.__module__ == "google.genai.errors" and cls.__name__ == "APIError"
+             for cls in type(error).__mro__):
+        # Avoid importing the SDK or interpreting unrelated providers' .code.
+        status = attribute("code")
+        if type(status) is int and 100 <= status <= 599:
+            result["http_status"] = status
     is_ngrok = any(
         cls.__module__ == "pyngrok.exception" and cls.__name__.startswith("Pyngrok")
         for cls in type(error).__mro__

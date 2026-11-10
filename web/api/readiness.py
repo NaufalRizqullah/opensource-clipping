@@ -111,7 +111,7 @@ versions = {}
 for package in (
     "numpy", "mediapipe", "opencv-python", "opencv-contrib-python",
     "jax", "jaxlib", "ml-dtypes", "matplotlib", "protobuf",
-    "faster-whisper", "torch",
+    "faster-whisper", "torch", "google-genai",
 ):
     try:
         versions[package] = importlib.metadata.version(package)

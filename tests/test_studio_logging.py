@@ -327,3 +327,65 @@ def test_provider_property_failure_does_not_mask_original_exception():
             raise ValueError("private property value")
 
     assert logs.external_error_metadata(PropertyFailure()) == {}
+
+
+class APIError(Exception):
+    """Mirror the Gemini SDK's HTTP error base without importing the SDK."""
+
+    __module__ = "google.genai.errors"
+
+    def __init__(self, code, response):
+        super().__init__(response)
+        self.code = code
+        self.response_json = {"error": {"code": code, "message": response}}
+
+
+class ClientError(APIError):
+    pass
+
+
+class ServerError(APIError):
+    pass
+
+
+@pytest.mark.parametrize("error_class,status", [(ClientError, 404), (ServerError, 503)])
+def test_gemini_failure_preserves_status_in_exception_chain_without_private_data(error_class, status):
+    private = "synthetic-private-gemini-key-prompt-response"
+    path = logs.configure_logging()
+    try:
+        try:
+            raise error_class(status, private)
+        except APIError as provider_error:
+            raise RuntimeError("Gemini fallback failed " + private) from provider_error
+    except RuntimeError as error:
+        logs.log_event("stage_failed", component="worker", stage="analyze", error=error,
+                       diagnostics={"versions": {"google-genai": "3.0.0"}})
+    event = read_events(path)[0]
+    assert "http_status" not in event["error"]
+    cause = event["error"]["causes"][0]
+    assert cause["type"] == error_class.__name__
+    assert cause["http_status"] == status
+    assert event["diagnostics"]["versions"] == {"google-genai": "3.0.0"}
+    assert private not in path.read_text(encoding="utf-8")
+    assert "response_json" not in path.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("status", [True, "400", 99, 600, None, [], {}])
+def test_gemini_malformed_http_code_is_omitted(status):
+    assert logs.external_error_metadata(ClientError(status, "private value")) == {}
+
+
+def test_gemini_code_is_not_inferred_from_unrelated_error_or_message():
+    error = RuntimeError("Gemini returned 400")
+    error.code = 400
+    assert logs.external_error_metadata(error) == {}
+
+
+def test_gemini_code_property_failure_does_not_mask_original_exception():
+    class PropertyFailure(APIError):
+        @property
+        def code(self):
+            raise ValueError("private property value")
+
+    error = PropertyFailure.__new__(PropertyFailure)
+    assert logs.external_error_metadata(error) == {}

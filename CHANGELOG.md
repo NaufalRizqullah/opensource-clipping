@@ -8,7 +8,13 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
-## [v1.15.]
+## [v1.15.6]
+
+### Fixed
+- **Gemini API routing**: Explicitly use the API-key Developer API and `v1beta` for transcript analysis and voiceover, including fallback models. Google GenAI SDK 3 defaults to `v1`, which caused preview-model 404 errors followed by rejection of JSON mode. Model selection, JSON schemas, CLI arguments, and the existing retry policy are preserved. Added offline tests using the real SDK request builder.
+- **Gemini diagnostics**: Record the installed `google-genai` version in Studio readiness diagnostics and preserve numeric Gemini HTTP error codes in saved exception chains without response bodies or credentials.
+
+## [v1.15.5]
 
 ### Fixed
 - **Kaggle ngrok startup**: Use a full HTTP upstream URL and select HTTPS options for pyngrok's v3 Endpoints or legacy v2 Tunnels API. This prevents pyngrok 9 from constructing `http://localhost:127.0.0.1:8000`, preserves older supported SDKs, and rejects non-HTTPS public URLs.

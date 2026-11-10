@@ -226,7 +226,12 @@ def generate_commentary_script(transcript_snippet: str, cfg, style="analysis", l
     if not api_key:
         raise ValueError("GOOGLE_API_KEY tidak ditemukan di environment atau config.")
 
-    client = genai.Client(api_key=api_key)
+    client = genai.Client(
+        api_key=api_key,
+        vertexai=False,
+        # Keep preview-model routing consistent with transcript analysis.
+        http_options=types.HttpOptions(api_version="v1beta"),
+    )
     prompt = get_commentary_prompt(transcript_snippet, style, language, length)
     
     gemini_config = types.GenerateContentConfig(

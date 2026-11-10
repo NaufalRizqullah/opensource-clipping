@@ -8,3 +8,5 @@ pytest>=8,<10
 python-dotenv>=1.2
 # Test real SDK request construction offline; no ngrok binary or account needed.
 pyngrok>=7.2,<10
+# Exercise Gemini request routing against the real SDK with a mock transport.
+google-genai>=1.55,<4

@@ -49,12 +49,16 @@ The managed process uses `MPLBACKEND=Agg`. MediaPipe imports Matplotlib, but thi
 | Setup fails | Fix the first visible dependency/download error and rerun setup. No ready banner or tunnel should appear after a failed check. |
 | Missing FFmpeg | Run the notebook's checked FFmpeg installation cell, then restart the server. |
 | Backend Not Connected | Keep the notebook server cell running and use its latest Public URL. The URL can change after a restart. |
+| Gemini preview model returns 404 for `v1`, then fallback says JSON mode requires `v1beta` | Update the checkout with the explicit Gemini API routing fix and restart the backend server cell so the worker imports the new code. Analysis and voiceover now use the API-key Developer API with `v1beta`, including fallbacks. No environment rebuild, key replacement, or model change is required for this routing fix. Reconnect to the latest tunnel URL, then retry the failed job. |
+| Gemini still returns 404 on `v1beta` | Check that the selected model supports `generateContent` and is available to your account using Google's model list/documentation. A 404 alone does not prove the model was retired or the key is invalid. Main and fallback availability can differ; choose accessible models rather than repeatedly retrying the same 404. |
 | AI analysis appears slow | Providers may retry transient errors such as Gemini 503. Follow notebook logs and the job's analysis progress; this is distinct from renderer readiness. Cancellation waits for the current AI operation to return. |
 | SSE fails | Studio sends the ngrok bypass header on its fetch-based event stream and retries it. Polling continues as a fallback. |
 | Video preview fails but API calls work | Native video/link requests cannot set the ngrok bypass header. Use **Open video / Download**, continue through the tunnel warning if shown, and retry. Media remains streamed rather than copied entirely into browser RAM. |
 | Python 3.13+ runtime | Use Python 3.12 for the constrained Kaggle environment; setup stops early on unsupported versions. |
 
 For a local diagnostic in the managed environment, run `python -m web.api.readiness --check` with that environment's Python. It exits nonzero if a required import or FFmpeg fails and does not start a tunnel.
+
+Gemini routing is explicit because [Google GenAI SDK 3.0.0 changed its default to `v1`](https://github.com/googleapis/python-genai/releases/tag/v3.0.0), whereas the reported analysis requests rejected JSON mode and requested `v1beta`. Setting `HttpOptions(api_version="v1beta")` also overrides an inherited `GOOGLE_GENAI_API_VERSION=v1`; `vertexai=False` keeps this API-key integration on the Developer API. Readiness records the installed SDK version under `diagnostics.versions.google-genai` but does not contact Gemini or validate model access. Saved Gemini exceptions retain their numeric HTTP status as `error.http_status` (or under `error.causes` for wrapped failures).
 
 In the notebook, use the same environment builder as startup so the diagnostic also uses the server's headless Matplotlib backend:
 
@@ -115,5 +119,7 @@ node --test tests/studio.test.cjs
 The suite isolates the job store, disables `.env` loading, and mocks model, AI, and download operations. `pytest.ini` restricts default discovery to `tests/`; operational uploader scripts elsewhere are not part of this suite. The CLI help smoke test runs without site packages, and another smoke test starts the real Uvicorn entry point in a fresh interpreter.
 
 Tunnel regression tests use the real pyngrok SDK to construct requests, with agent process/network access replaced by local test doubles. They check the upstream URL, v2/v3 HTTPS options, rejection/cleanup behavior, and safe error-code logging. They do not open a public tunnel or validate account credentials.
+
+Gemini regression tests also use the real SDK with a local mock HTTP transport, synthetic credentials, and blocked outbound sockets. They verify Developer API `v1beta` URLs, JSON request configuration, primary/fallback routing, transient-error retries, and voiceover behavior without paid requests.
 
 These tests do not replace a Kaggle GPU smoke test: start the notebook, verify the ready banner, connect Studio, run a short video, inspect/download a clip, and exercise cancel/reuse. Validate each selected AI provider and optional diarization model with your own credentials in that runtime.
