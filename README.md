@@ -120,7 +120,9 @@ The **Clipping Studio** is a browser-based dashboard hosted for free on **GitHub
 
 **🔗 Open Studio:** [naufalrizqullah.github.io/opensource-clipping/studio/](https://naufalrizqullah.github.io/opensource-clipping/studio/)
 
-**🎥 Video Guide:** [Watch the usage guide on YouTube](https://www.youtube.com/watch?v=L_N8zEJhm6M)
+**🎥 Video Guide:**
+
+[![Watch the usage guide on YouTube](https://img.youtube.com/vi/L_N8zEJhm6M/maxresdefault.jpg)](https://www.youtube.com/watch?v=L_N8zEJhm6M)
 
 ### How It Works
 
