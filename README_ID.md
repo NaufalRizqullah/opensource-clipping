@@ -118,6 +118,8 @@ WHISPER_COMPUTE_TYPE = "float32"
 
 **🔗 Buka Studio:** [naufalrizqullah.github.io/opensource-clipping/studio/](https://naufalrizqullah.github.io/opensource-clipping/studio/)
 
+**🎥 Video Panduan:** [Tonton panduan penggunaan di YouTube](https://www.youtube.com/watch?v=L_N8zEJhm6M)
+
 ### Cara Kerja
 
 ```
