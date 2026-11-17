@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { createJob, uploadVideo } from '../api'
+import { createJob, uploadVideo, fetchSettings } from '../api'
 
 function NewJob() {
   const navigate = useNavigate()
   const location = useLocation()
   const fileRef = useRef(null)
+  const providerTouched = useRef(false)
 
   const [mode, setMode] = useState('url') // 'url' or 'upload'
   const [url, setUrl] = useState('')
@@ -23,6 +24,21 @@ function NewJob() {
   const [whisperModel, setWhisperModel] = useState('large-v3')
   const [whisperDevice, setWhisperDevice] = useState('cuda')
   const [aiProvider, setAiProvider] = useState('gemini')
+  const [vllmModel, setVllmModel] = useState('')
+  const [localMaxTokens, setLocalMaxTokens] = useState('')
+  const [vllmDefaults, setVllmDefaults] = useState({ model: '', tokens: 4096 })
+
+  useEffect(() => {
+    let cancelled = false
+    fetchSettings().then(data => {
+      if (cancelled) return
+      setVllmDefaults({ model: data.vllm_model || '', tokens: data.local_max_tokens || 4096 })
+      if (!providerTouched.current && !location.state?.reuseJob && ['gemini', 'nvidia', 'vllm'].includes(data.default_ai_provider)) {
+        setAiProvider(data.default_ai_provider)
+      }
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [location.state])
 
   // Toggles
   const [useBroll, setUseBroll] = useState(true)
@@ -52,6 +68,8 @@ function NewJob() {
       if (config.whisper_model !== undefined) setWhisperModel(config.whisper_model)
       if (config.whisper_device !== undefined) setWhisperDevice(config.whisper_device)
       if (config.ai_provider !== undefined) setAiProvider(config.ai_provider)
+      if (config.vllm_model) setVllmModel(config.vllm_model)
+      if (config.local_max_tokens != null) setLocalMaxTokens(String(config.local_max_tokens))
       
       if (config.use_broll !== undefined) setUseBroll(config.use_broll)
       if (config.use_hook_glitch !== undefined) setUseHookGlitch(config.use_hook_glitch)
@@ -100,6 +118,14 @@ function NewJob() {
       setError('Job ID tidak boleh kosong')
       return
     }
+    if (aiProvider === 'vllm' && vllmModel.trim() && !/^[A-Za-z0-9._:/@+-]{1,256}$/.test(vllmModel.trim())) {
+      setError('Nama model vLLM tidak valid')
+      return
+    }
+    if (aiProvider === 'vllm' && localMaxTokens !== '' && (!Number.isInteger(Number(localMaxTokens)) || Number(localMaxTokens) < 1 || Number(localMaxTokens) > 131072)) {
+      setError('Batas token output harus berupa angka bulat antara 1 dan 131072')
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -112,6 +138,9 @@ function NewJob() {
         whisper_model: whisperModel,
         whisper_device: whisperDevice,
         ai_provider: aiProvider,
+        ...(aiProvider === 'vllm' && whisperDevice === 'cpu' ? { whisper_compute_type: 'int8' } : {}),
+        ...(aiProvider === 'vllm' && vllmModel.trim() ? { vllm_model: vllmModel.trim() } : {}),
+        ...(aiProvider === 'vllm' && localMaxTokens !== '' ? { local_max_tokens: Number(localMaxTokens) } : {}),
         use_broll: useBroll,
         use_hook_glitch: useHookGlitch,
         use_auto_bgm: useBgm,
@@ -280,11 +309,24 @@ function NewJob() {
             <h4>🤖 AI & Whisper</h4>
             <div className="form-group">
               <label className="form-label">AI Provider</label>
-              <select className="form-select" value={aiProvider} onChange={(e) => setAiProvider(e.target.value)}>
+              <select className="form-select" value={aiProvider} onChange={(e) => { providerTouched.current = true; setAiProvider(e.target.value) }}>
                 <option value="gemini">Google Gemini</option>
                 <option value="nvidia">NVIDIA NIM</option>
+                <option value="vllm">vLLM (Self-hosted)</option>
               </select>
             </div>
+            {aiProvider === 'vllm' && <>
+              <div className="form-group">
+                <label className="form-label" htmlFor="vllm-model">Model vLLM</label>
+                <input id="vllm-model" className="form-input" maxLength="256" value={vllmModel} onChange={(e) => setVllmModel(e.target.value)} placeholder={vllmDefaults.model || 'Gunakan model default server'} />
+                <p className="form-hint">Kosongkan untuk default server. Gunakan nama model atau alias yang sudah dijalankan di Kaggle.</p>
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="vllm-tokens">Batas token output</label>
+                <input id="vllm-tokens" className="form-input" type="number" min="1" max="131072" step="1" value={localMaxTokens} onChange={(e) => setLocalMaxTokens(e.target.value)} placeholder={String(vllmDefaults.tokens)} />
+                <p className="form-hint">Mulai dengan 1–2 klip. Pada satu GPU 16 GB, pilih Whisper CPU atau YouTube Subs agar memori cukup. vLLM tidak otomatis beralih ke cloud.</p>
+              </div>
+            </>}
             <div className="form-group">
               <label className="form-label">Whisper Model</label>
               <select className="form-select" value={whisperModel} onChange={(e) => setWhisperModel(e.target.value)}>

@@ -1,6 +1,9 @@
 yt-dlp
 faster-whisper
 google-genai
+openai>=2.6,<3
+httpx>=0.27,<1
+jsonschema>=4.23,<5
 numpy<2.0.0
 mediapipe
 opencv-python

@@ -6,6 +6,23 @@ Common issues, their solutions, and frequently asked questions.
 
 ## Common Errors
 
+### vLLM / Gemma 4 Q4 on Kaggle
+
+Use the [Kaggle vLLM guide](../docs/KAGGLE_VLLM.md) and [provider reference](../docs/providers.md). This preset still requires validation in the target Kaggle session.
+
+| Symptom | Action |
+|---|---|
+| Server unreachable | Start the vLLM helper; confirm port 8001 and `VLLM_BASE_URL` in the backend environment. Container/remote `localhost` refers to that runtime, not another host. |
+| Model not served / 404 | Match `VLLM_MODEL` or the job model to `/v1/models`; a model ID is not a request to download/start that model. Proxies must expose `/tokenize` too. |
+| 401/403 | Match client/server `VLLM_API_KEY`; model download access uses `HF_TOKEN` separately. |
+| Prompt plus output exceeds context | Start with one clip and a shorter transcript; lower output budget only if enough remains for the full schema. Increasing the client ceiling cannot enlarge the server context. |
+| Output truncated | Reduce requested clips or increase output budget within the server context. This error is not retried with the same request. |
+| Invalid timestamps/schema | The client makes bounded repair attempts. Inspect the evaluation report and model suitability; it will not silently clamp invalid clip timing. |
+| GPU unsupported / out of memory | T4 and P100 are both commonly described as 16 GB, but P100 does not support this preset. Keep Whisper on CPU/int8; disable other GPU consumers and lower server context if needed. Q4 does not guarantee the full pipeline fits. |
+| Missing cached AI JSON | Turn off Bypass AI for a fresh analysis, or reuse the job that actually contains `gemini_response.json`. |
+
+vLLM failures never fall back to a cloud provider. The Kaggle helper does not support a CPU-only session; CPU serving needs a separate compatible build/model configuration.
+
 ### 🔴 `GOOGLE_API_KEY` not set
 
 **Error:** Gemini AI analysis fails with authentication error.

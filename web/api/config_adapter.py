@@ -102,6 +102,19 @@ def build_config_from_payload(
 
     # Resolve AI provider
     ai_provider = payload.get("ai_provider", "gemini")
+    vllm_values = {}
+    cache_only = payload.get("load_gemini_json", False) and not payload.get("voiceover", False)
+    if ai_provider == "vllm" and not cache_only:
+        from clipping.providers.config import vllm_config_values
+
+        # Endpoint and key are operator-controlled, never supplied by a job.
+        operator_env = dict(os.environ)
+        operator_env.update(env)
+        vllm_values = vllm_config_values(
+            {name: payload[name] for name in ("vllm_model", "local_max_tokens")
+             if payload.get(name) is not None},
+            environ=operator_env,
+        )
 
     # Resolve render height
     render_height = payload.get("render_height", str(RENDER_OUTPUT_HEIGHT))
@@ -128,6 +141,7 @@ def build_config_from_payload(
     yt_cookies = default_cookies_path if os.path.exists(default_cookies_path) else None
 
     cfg = SimpleNamespace(
+        **vllm_values,
         # Paths
         base_dir=base_dir,
         outputs_dir=outputs_dir,

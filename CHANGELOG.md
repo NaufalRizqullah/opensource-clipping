@@ -8,6 +8,18 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.0]
+
+### Added
+- **Self-hosted vLLM provider**: CLI and both Studio interfaces support a served model/alias and output-token budget. Operator environment configures the endpoint and optional key. Local analysis and CLI voiceover do not fall back to cloud providers. Added exact token preflight, structured JSON, temporal validation, bounded retries, and `ai_run_meta.json` provenance while retaining the legacy response-cache filename.
+- **Kaggle Gemma 4 Q4 setup**: Separate server environment, pinned official QAT W4A16 model and vLLM version, managed process helper, notebook, short-transcript evaluation and opt-in live test. This is an experimental single-GPU preset; memory fit, quality and performance still require Kaggle validation. Tests were authored but not executed on the development PC at the user's request.
+
+### Changed
+- Extracted Gemini and NVIDIA transports into `clipping/providers/`, sharing the clip schema while preserving Gemini's dialect, public engine functions, retry patch points, NIM request and existing cloud fallback behavior. Added frozen schema/request contract tests.
+
+### Fixed
+- Declare the OpenAI client dependency in the main manifests so NIM works outside the Kaggle requirements. Validate credentials for the selected provider instead of requiring a Google key for every CLI job. Cache-only analysis does not require provider credentials or a reachable server; missing cache fails clearly.
+
 ## [v1.15.7]
 
 ### Fixed

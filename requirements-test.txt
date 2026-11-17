@@ -10,3 +10,5 @@ python-dotenv>=1.2
 pyngrok>=7.2,<10
 # Exercise Gemini request routing against the real SDK with a mock transport.
 google-genai>=1.55,<4
+openai>=2.6,<3
+jsonschema>=4.23,<5

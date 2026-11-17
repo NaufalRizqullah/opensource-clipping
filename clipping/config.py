@@ -452,9 +452,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--ai-provider",
-        choices=["gemini", "nvidia"],
+        choices=["gemini", "nvidia", "vllm"],
         default=AI_PROVIDER,
-        help="AI provider for video analysis (gemini or nvidia).",
+        help="AI provider for video analysis (gemini, nvidia, or self-hosted vllm).",
     )
     p.add_argument(
         "--nvidia-model",
@@ -462,6 +462,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Model name for NVIDIA NIM API (e.g. deepseek-ai/deepseek-v3).",
     )
     p.add_argument("--gemini-model", default=GEMINI_MODEL, help="Gemini model name")
+    p.add_argument("--vllm-model", default=None, help="vLLM served model/alias (default: VLLM_MODEL or Gemma 4 E2B QAT 4-bit).")
+    p.add_argument("--local-base-url", dest="vllm_base_url", default=None, help="vLLM service URL, with optional /v1 (default: VLLM_BASE_URL or http://127.0.0.1:8001).")
+    p.add_argument("--local-max-tokens", type=int, default=None, help="vLLM output token budget (default: VLLM_MAX_TOKENS or 4096).")
+    p.add_argument("--local-context-limit", dest="vllm_context_limit", type=int, default=None, help="Optional vLLM client context ceiling; cannot increase server capacity.")
+    p.add_argument("--local-timeout", dest="vllm_timeout", type=float, default=None, help="vLLM request/retry deadline in seconds (default: VLLM_TIMEOUT or 900).")
     p.add_argument(
         "--gemini-fallback-model",
         default=GEMINI_FALLBACK_MODEL,
@@ -968,4 +973,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         watermark_scale=args.watermark_scale,
     )
 
+    # Cache-only reruns need neither a live endpoint nor its former settings.
+    if cfg.ai_provider == "vllm" and (not cfg.load_gemini_json or cfg.voiceover):
+        from clipping.providers.config import vllm_config_values
+        vars(cfg).update(vllm_config_values(vars(args)))
     return cfg

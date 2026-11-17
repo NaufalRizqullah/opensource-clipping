@@ -1,0 +1,279 @@
+{
+  "type": "ARRAY",
+  "items": {
+    "type": "OBJECT",
+    "properties": {
+      "rank": {
+        "type": "INTEGER"
+      },
+      "viral_score": {
+        "type": "INTEGER"
+      },
+      "hook_start_time": {
+        "type": "NUMBER"
+      },
+      "hook_end_time": {
+        "type": "NUMBER"
+      },
+      "start_time": {
+        "type": "NUMBER"
+      },
+      "end_time": {
+        "type": "NUMBER"
+      },
+      "typography_plan": {
+        "type": "ARRAY",
+        "items": {
+          "type": "OBJECT",
+          "properties": {
+            "kata_utama": {
+              "type": "STRING"
+            },
+            "scale_level": {
+              "type": "INTEGER"
+            },
+            "style": {
+              "type": "STRING"
+            },
+            "animasi": {
+              "type": "STRING"
+            }
+          },
+          "required": [
+            "kata_utama",
+            "scale_level",
+            "style",
+            "animasi"
+          ]
+        }
+      },
+      "broll_list": {
+        "type": "ARRAY",
+        "items": {
+          "type": "OBJECT",
+          "properties": {
+            "start_time": {
+              "type": "NUMBER"
+            },
+            "end_time": {
+              "type": "NUMBER"
+            },
+            "search_query": {
+              "type": "STRING"
+            }
+          },
+          "required": [
+            "start_time",
+            "end_time",
+            "search_query"
+          ]
+        }
+      },
+      "recommended_visual_broll_hook": {
+        "type": "ARRAY",
+        "items": {
+          "type": "OBJECT",
+          "properties": {
+            "broll_idea": {
+              "type": "STRING"
+            },
+            "search_keyword": {
+              "type": "STRING"
+            },
+            "why_it_works": {
+              "type": "STRING"
+            }
+          },
+          "required": [
+            "broll_idea",
+            "search_keyword",
+            "why_it_works"
+          ]
+        }
+      },
+      "alasan": {
+        "type": "STRING"
+      },
+      "bgm_mood": {
+        "type": "STRING"
+      },
+      "title_indonesia": {
+        "type": "STRING"
+      },
+      "title_inggris": {
+        "type": "STRING"
+      },
+      "hastag": {
+        "type": "STRING"
+      },
+      "description_hook": {
+        "type": "STRING"
+      },
+      "description_context": {
+        "type": "STRING"
+      },
+      "keyword_tags": {
+        "type": "ARRAY",
+        "items": {
+          "type": "STRING"
+        }
+      },
+      "tiktok_title_id": {
+        "type": "STRING"
+      },
+      "tiktok_caption_id": {
+        "type": "STRING"
+      },
+      "tiktok_caption": {
+        "type": "STRING"
+      },
+      "klasifikasi_akun": {
+        "type": "OBJECT",
+        "properties": {
+          "tipe_akun": {
+            "type": "STRING"
+          },
+          "akun_tujuan": {
+            "type": "STRING"
+          },
+          "confidence": {
+            "type": "INTEGER"
+          },
+          "angle_utama": {
+            "type": "STRING"
+          },
+          "alasan": {
+            "type": "STRING"
+          },
+          "kata_kunci_pendukung": {
+            "type": "ARRAY",
+            "items": {
+              "type": "STRING"
+            }
+          },
+          "bio_akun": {
+            "type": "STRING"
+          },
+          "alternatif_akun": {
+            "type": "OBJECT",
+            "properties": {
+              "tipe_akun": {
+                "type": "STRING"
+              },
+              "akun_tujuan": {
+                "type": "STRING"
+              },
+              "alasan": {
+                "type": "STRING"
+              }
+            },
+            "required": [
+              "tipe_akun",
+              "akun_tujuan",
+              "alasan"
+            ]
+          }
+        },
+        "required": [
+          "tipe_akun",
+          "akun_tujuan",
+          "confidence",
+          "angle_utama",
+          "alasan",
+          "kata_kunci_pendukung",
+          "bio_akun",
+          "alternatif_akun"
+        ]
+      },
+      "hook_v2": {
+        "type": "OBJECT",
+        "properties": {
+          "enabled": {
+            "type": "BOOLEAN"
+          },
+          "items": {
+            "type": "ARRAY",
+            "items": {
+              "type": "OBJECT",
+              "properties": {
+                "start_time": {
+                  "type": "NUMBER"
+                },
+                "end_time": {
+                  "type": "NUMBER"
+                },
+                "text": {
+                  "type": "STRING"
+                }
+              },
+              "required": [
+                "start_time",
+                "end_time",
+                "text"
+              ]
+            }
+          },
+          "transition": {
+            "type": "OBJECT",
+            "properties": {
+              "type": {
+                "type": "STRING"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        },
+        "required": [
+          "enabled",
+          "items",
+          "transition"
+        ]
+      },
+      "keep_segments": {
+        "type": "ARRAY",
+        "items": {
+          "type": "OBJECT",
+          "properties": {
+            "start_time": {
+              "type": "NUMBER"
+            },
+            "end_time": {
+              "type": "NUMBER"
+            }
+          },
+          "required": [
+            "start_time",
+            "end_time"
+          ]
+        }
+      }
+    },
+    "required": [
+      "rank",
+      "viral_score",
+      "hook_start_time",
+      "hook_end_time",
+      "start_time",
+      "end_time",
+      "typography_plan",
+      "broll_list",
+      "recommended_visual_broll_hook",
+      "alasan",
+      "bgm_mood",
+      "title_indonesia",
+      "title_inggris",
+      "hastag",
+      "description_hook",
+      "description_context",
+      "keyword_tags",
+      "tiktok_title_id",
+      "tiktok_caption_id",
+      "tiktok_caption",
+      "klasifikasi_akun",
+      "hook_v2",
+      "keep_segments"
+    ]
+  }
+}

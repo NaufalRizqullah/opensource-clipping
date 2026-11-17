@@ -56,6 +56,7 @@ class FaceDetector(str, enum.Enum):
 class AIProvider(str, enum.Enum):
     GEMINI = "gemini"
     NVIDIA = "nvidia"
+    VLLM = "vllm"
 
 
 class WhisperDevice(str, enum.Enum):
@@ -115,6 +116,14 @@ class JobCreateRequest(BaseModel):
     # AI
     ai_provider: AIProvider = AIProvider.GEMINI
     gemini_model: str = "gemini-3-flash-preview"
+    vllm_model: Optional[str] = Field(
+        None, min_length=1, max_length=256, pattern=r"^[A-Za-z0-9._:/@+-]+$",
+        description="Served vLLM model or alias; omitted uses the operator default",
+    )
+    local_max_tokens: Optional[int] = Field(
+        None, strict=True, ge=1, le=131072,
+        description="Maximum vLLM output tokens; omitted uses the operator default",
+    )
     face_detector: FaceDetector = FaceDetector.MEDIAPIPE
     load_gemini_json: bool = False
 
@@ -215,6 +224,10 @@ class SettingsResponse(BaseModel):
     pexels_api_key_set: bool = False
     hf_token_set: bool = False
     nvidia_api_key_set: bool = False
+    # vLLM endpoint and credentials are configured by the server operator only.
+    vllm_api_key_set: bool = False
+    vllm_model: str = ""
+    local_max_tokens: int = 4096
     default_clips: int = 7
     default_ratio: str = "9:16"
     default_font_style: str = "HORMOZI"

@@ -177,10 +177,23 @@
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">AI Provider</label>
-                                    <select id="input-ai" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-900 dark:text-white">
+                                    <select id="input-ai" onchange="updateProviderFields(true)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-900 dark:text-white">
                                         <option value="gemini">Google Gemini</option>
                                         <option value="nvidia">NVIDIA NIM</option>
+                                        <option value="vllm">vLLM (Self-hosted)</option>
                                     </select>
+                                </div>
+                                <div id="vllm-fields" class="hidden space-y-4">
+                                    <div>
+                                        <label for="input-vllm-model" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Model vLLM</label>
+                                        <input id="input-vllm-model" maxlength="256" placeholder="Gunakan model default server" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm text-slate-900 dark:text-white">
+                                        <p class="text-xs text-slate-500 mt-1">Kosongkan untuk default server, atau isi nama model/alias yang sudah dijalankan di Kaggle.</p>
+                                    </div>
+                                    <div>
+                                        <label for="input-vllm-tokens" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Batas token output</label>
+                                        <input id="input-vllm-tokens" type="number" min="1" max="131072" step="1" placeholder="4096" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm text-slate-900 dark:text-white">
+                                    </div>
+                                    <p class="text-xs text-slate-500">Mulai dengan 1–2 klip. Pada satu GPU 16 GB, pilih Whisper CPU atau YouTube Subs agar memori cukup. vLLM tidak otomatis beralih ke cloud.</p>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Whisper Model</label>
@@ -261,6 +274,31 @@
             </div>
         `).join('');
 
+        let providerTouched = false;
+        let providerDefaultsGeneration = 0;
+
+        function updateProviderFields(touched = false) {
+            if (touched) providerTouched = true;
+            document.getElementById('vllm-fields').classList.toggle('hidden', document.getElementById('input-ai').value !== 'vllm');
+        }
+
+        async function loadProviderDefaults() {
+            const generation = ++providerDefaultsGeneration;
+            if (!StudioAPI.isConfigured()) return;
+            try {
+                const settings = await StudioAPI.fetchSettings();
+                if (generation !== providerDefaultsGeneration) return;
+                document.getElementById('input-vllm-model').placeholder = settings.vllm_model || 'Gunakan model default server';
+                document.getElementById('input-vllm-tokens').placeholder = String(settings.local_max_tokens || 4096);
+                if (!providerTouched && ['gemini', 'nvidia', 'vllm'].includes(settings.default_ai_provider)) {
+                    document.getElementById('input-ai').value = settings.default_ai_provider;
+                    updateProviderFields();
+                }
+            } catch (_) {
+                // Defaults are optional; connection failures are shown on submit.
+            }
+        }
+
         function setMode(mode) {
             currentMode = mode;
             const urlBtn = document.getElementById('mode-url-btn');
@@ -305,6 +343,21 @@
                 return;
             }
 
+            const vllmModel = document.getElementById('input-vllm-model').value.trim();
+            const vllmTokens = document.getElementById('input-vllm-tokens').value;
+            if (document.getElementById('input-ai').value === 'vllm') {
+                if (vllmModel && !/^[A-Za-z0-9._:/@+-]{1,256}$/.test(vllmModel)) {
+                    errorText.textContent = 'Nama model vLLM tidak valid';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+                if (vllmTokens !== '' && (!Number.isInteger(Number(vllmTokens)) || Number(vllmTokens) < 1 || Number(vllmTokens) > 131072)) {
+                    errorText.textContent = 'Batas token output harus berupa angka bulat antara 1 dan 131072';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+            }
+
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner"></span> Processing...';
 
@@ -319,6 +372,11 @@
                     whisper_device: document.getElementById('input-device').value,
                     ai_provider: document.getElementById('input-ai').value,
                 };
+                if (payload.ai_provider === 'vllm') {
+                    if (payload.whisper_device === 'cpu') payload.whisper_compute_type = 'int8';
+                    if (vllmModel) payload.vllm_model = vllmModel;
+                    if (vllmTokens !== '') payload.local_max_tokens = Number(vllmTokens);
+                }
 
                 if (currentMode === 'url') {
                     payload.url = document.getElementById('input-url').value.trim();
@@ -344,7 +402,9 @@
         }
         window.addEventListener('studio:connected', () => {
             document.getElementById('form-error').classList.add('hidden');
+            loadProviderDefaults();
         });
+        loadProviderDefaults();
     </script>
 </body>
 

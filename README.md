@@ -30,7 +30,7 @@
 | Feature | Description |
 |---|---|
 | **AI Transcriber** | Word-level transcription using **Faster-Whisper** (large-v3) |
-| **AI Content Curator** | **Google Gemini** analyzes context, picks the most viral moments, and generates metadata |
+| **AI Content Curator** | **Google Gemini**, **NVIDIA NIM**, or self-hosted **vLLM** analyzes context, selects highlights, and generates metadata |
 | **Smart Auto-Framing** | Face-tracking via **[MediaPipe BlazeFace (Short-Range)](https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector)** with Smooth Pan, Deadzone & anti-jitter algorithms |
 | **Cinematic Teaser Hook** | 3-second hook with dark overlay, cinematic bars, and **TV Glitch** transition |
 | **Karaoke Subtitles** | Word-by-word highlighted `.ASS` subtitles (Alex Hormozi / Veed style) |
@@ -54,10 +54,12 @@
 
 ## 📋 Prerequisites
 
+**Experimental Kaggle vLLM setup:** the [Gemma 4 Q4 notebook](notebooks/kaggle-vllm-gemma4.ipynb) and [guide](docs/KAGGLE_VLLM.md) prepare an isolated server for a supported single 16 GB GPU. Kaggle validation is pending; P100 is unsupported by this preset. Gemini remains the default provider.
+
 - **Python** 3.10+
 - **FFmpeg** installed and available in PATH
 - **CUDA GPU** recommended (for Whisper; CPU fallback available)
-- **Google Gemini API Key** ([get one here](https://aistudio.google.com/apikey))
+- **AI provider**: a [Google Gemini API key](https://aistudio.google.com/apikey), NVIDIA NIM key, or a running self-hosted vLLM server ([configuration](docs/providers.md))
 - **Pexels API Key** (optional, for B-roll — [get one here](https://www.pexels.com/api/))
 - **HuggingFace Token** (optional, for split-screen / camera-switch — [get one here](https://huggingface.co/settings/tokens), requires accepting [Pyannote model agreement](https://huggingface.co/pyannote/speaker-diarization-3.1))
 
@@ -234,6 +236,9 @@ python main.py --url "VIDEO_URL" --source-height 1440 --render-height source --v
 # Use NVIDIA NIM (DeepSeek-V3) instead of Gemini
 python main.py --url "VIDEO_URL" --ai-provider nvidia --nvidia-model "deepseek-ai/deepseek-v4-pro"
 
+# Self-hosted vLLM (start the server first; single-GPU Kaggle uses CPU Whisper)
+python main.py --url "VIDEO_URL" --ai-provider vllm --clips 1 --whisper-device cpu --whisper-compute-type int8
+
 # Square output for Instagram Feed (1:1)
 python main.py --url "VIDEO_URL" --ratio "1:1" --clips 5
 
@@ -267,7 +272,7 @@ python main.py --help
 | `--clips`, `-n` | `7` | Number of highlight clips to generate |
 | `--ratio`, `-r` | `9:16` | Output aspect ratio (`9:16`, `16:9`, `1:1`, `3:4`, `4:5`) |
 | `--source-height` | `max` | Preferred source download max height (`max`, `1080`, `1440`, `2160`, etc.) |
-| `--ai-provider` | `gemini` | AI provider for analysis (`gemini` or `nvidia`). |
+| `--ai-provider` | `gemini` | AI provider for analysis (`gemini`, `nvidia`, or `vllm`). See [provider settings](docs/providers.md). |
 | `--nvidia-model` | `deepseek...` | Model name for NVIDIA NIM API (e.g. `deepseek-ai/deepseek-v3`). |
 | `--render-height` | `1080` | Target render output height (`1080`, `1440`, `2160`, `source`) |
 | `--video-bitrate` | `auto` | Target video bitrate (e.g. 8M, 12M, auto). 'auto' scales based on resolution. |

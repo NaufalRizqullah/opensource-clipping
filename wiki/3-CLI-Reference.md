@@ -21,11 +21,18 @@ Complete reference for all command-line arguments. Run `python main.py --help` f
 
 | Argument | Default | Description |
 |---|---|---|
-| `--ai-provider` | `gemini` | AI provider for analysis: `gemini` or `nvidia` |
+| `--ai-provider` | `gemini` | AI provider for analysis: `gemini`, `nvidia`, or `vllm` |
 | `--gemini-model` | `gemini-3-flash-preview` | Gemini model name |
 | `--gemini-fallback-model` | `gemini-2.5-flash` | Fallback model if main model fails |
 | `--nvidia-model` | `deepseek-ai/deepseek-v4-pro` | Model name for NVIDIA NIM API |
+| `--vllm-model` | `VLLM_MODEL` or `google/gemma-4-E2B-it-qat-w4a16-ct` | Exact served model ID/alias |
+| `--local-base-url` | `VLLM_BASE_URL` or `http://127.0.0.1:8001` | vLLM server root, optional `/v1` suffix |
+| `--local-max-tokens` | `VLLM_MAX_TOKENS` or `4096` | Analysis output-token budget |
+| `--local-context-limit` | `VLLM_CONTEXT_LIMIT` or unset | Conservative client ceiling; does not increase server context |
+| `--local-timeout` | `VLLM_TIMEOUT` or `900` | Overall request/retry budget, seconds |
 | `--load-gemini-json` | `False` | Load saved `gemini_response.json` to bypass AI call |
+
+vLLM does not require Google/NVIDIA keys and never falls back to cloud. Optional authentication uses `VLLM_API_KEY`. CLI voiceover follows vLLM when selected; TTS still requires Internet. The experimental [Kaggle Gemma 4 Q4 notebook](../notebooks/kaggle-vllm-gemma4.ipynb) isolates the server environment. See [provider behavior and validation](../docs/providers.md).
 
 ---
 

@@ -50,7 +50,9 @@ def _print_banner(cfg, version, url, idx=None, total=None):
         print(f"   Dynamic Split: {'ON' if cfg.use_dynamic_split else 'OFF'}")
         print(f"   Split Trigger: {cfg.split_trigger}")
     print(f"   Whisper     : {cfg.whisper_model} ({cfg.whisper_device})")
-    print(f"   Gemini      : {cfg.gemini_model}")
+    provider = getattr(cfg, "ai_provider", "gemini")
+    model = getattr(cfg, f"{provider}_model", "(cache)")
+    print(f"   AI Provider : {provider} ({model})")
     if getattr(cfg, "watermark_enabled", False):
         wm_type = "Text" if cfg.watermark_text else "Image"
         wm_content = cfg.watermark_text or cfg.watermark_image or "-"
@@ -131,9 +133,12 @@ def main():
         return
 
     # ── Normal Auto-Clip Mode ────────────────────────────────────────
-    if not cfg.api_key_gemini:
-        print("❌ ERROR: GOOGLE_API_KEY environment variable tidak ditemukan.")
-        print("   Set via: export GOOGLE_API_KEY='your-key' atau buat file .env")
+    from clipping.providers.validation import validate_analysis_config
+    try:
+        # Batch output paths are assigned below; each runner checks its cache.
+        validate_analysis_config(cfg, check_cache=False)
+    except ValueError as exc:
+        print(f"❌ ERROR: {exc}")
         sys.exit(1)
 
     url_list = getattr(cfg, "url_list", [cfg.url_youtube] if isinstance(cfg.url_youtube, str) else cfg.url_youtube)

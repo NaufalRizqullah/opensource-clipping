@@ -4,6 +4,8 @@ Use [`notebooks/kaggle-studio-server.ipynb`](../notebooks/kaggle-studio-server.i
 
 ## Setup and startup
 
+For self-hosted **vLLM + Gemma 4 Q4 in the same Kaggle session**, use the separate [vLLM notebook and guide](KAGGLE_VLLM.md). It creates a second environment and uses port 8001 for inference; Studio stays on port 8000. The experimental single-GPU preset keeps Whisper on CPU/int8 and requires a supported GPU (a 16 GB P100 is not supported). End-to-end Kaggle validation is still pending.
+
 1. Select a Linux x86_64 runtime with Python 3.10–3.12 (prefer 3.12), enable Internet, and select a GPU for CUDA transcription/rendering.
 2. Run the clone/setup cells. The repository is cloned into a named directory without deleting the working directory. Existing checkouts and outputs are retained; an existing checkout is not automatically pulled or reset.
 3. Setup creates `.cache/kaggle-studio/venv` without access to the notebook's installed packages or reliance on distro `ensurepip`. It checks the target interpreter, bootstraps missing pip into that venv, then installs `requirements-kaggle.txt` with `constraints-kaggle.txt`, runs `pip check`, and installs a checksum-verified Deno runtime for yt-dlp's YouTube JavaScript challenges. Installer errors stop the cell and remain visible.
@@ -29,7 +31,7 @@ The managed process uses `MPLBACKEND=Agg`. MediaPipe imports Matplotlib, but thi
 
 - `GET /api/health` reports API liveness and system information. A healthy HTTP server alone does not mean its renderer works.
 - `GET /api/ready` returns HTTP 200 with `ready: true`, or HTTP 503 with safe per-check diagnostics. Import failures identify the attempted module, category, dependency versions, and traceback module/function/line locations, including nested causes. Raw exception messages, source lines, locals, and filesystem paths are excluded. Results are cached for that server process. Restart after changing packages; modifying a running notebook's packages does not repair loaded native modules.
-- `POST /api/jobs` checks readiness before queuing work. NVIDIA credentials can be used without a Google key. Cached AI reuse does not require an AI key.
+- `POST /api/jobs` checks readiness before queuing work. NVIDIA credentials can be used without a Google key. vLLM needs no cloud key; the operator configures `VLLM_BASE_URL`, `VLLM_MODEL` and optional `VLLM_API_KEY` in the backend environment. New Job accepts the served model/alias and output budget. Cached AI reuse does not require an AI key or a running inference server. `/api/ready` does not probe vLLM; model availability and context are checked during analysis.
 - **Reuse Job** accepts an existing terminal job with its original source still present. Active jobs cannot be reused. **Bypass AI** requires `gemini_response.json`; switching it off performs fresh analysis. Reuse replaces that job's state and can overwrite its rendered outputs, so download results you want to keep first.
 - Detected `youtube_cookies.txt` is forwarded to the downloader. Treat cookies as credentials and provide them through the notebook's optional cookie input, never commit them.
 - **Cancel Job** requests cancellation. The current download, transcription, AI retry sequence, or render can finish before the next safe checkpoint. The record remains visible with `cancel_requested` until the worker stops; a subsequent delete removes the terminal record. It does not delete output files.
