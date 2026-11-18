@@ -8,6 +8,11 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.1]
+
+### Fixed
+- **Kaggle vLLM bootstrap with a Python 3.13 kernel**: GPU preflight and process-control commands no longer reject the notebook's Python version. A new Prepare Python cell reuses CPython 3.12 or installs it under the checkout cache through checksum-pinned uv, then runs application/server setup using that interpreter. The kernel, system Python and dependency constraints remain unchanged. Added mocked regression coverage; execution is deferred to Kaggle at the user's request.
+
 ## [v1.16.0]
 
 ### Added

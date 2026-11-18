@@ -43,8 +43,6 @@ DEFAULT_STATE = ROOT / ".cache" / "kaggle-vllm" / "server.json"
 def require_platform() -> None:
     if platform.system() != "Linux" or platform.machine() not in {"x86_64", "AMD64"}:
         raise RuntimeError("This helper targets Linux x86_64 Kaggle/Colab only.")
-    if not (3, 11) <= sys.version_info[:2] <= (3, 12):
-        raise RuntimeError("Use Python 3.11 or 3.12 for both isolated environments.")
 
 
 def gpu_preflight(index: int = 0) -> dict:
@@ -185,6 +183,12 @@ def stop_owned(path: Path, state: dict, timeout: float = 30) -> None:
 
 def setup(env_dir: Path, version: str) -> None:
     require_platform()
+    if not (3, 11) <= sys.version_info[:2] <= (3, 12):
+        raise RuntimeError(
+            f"Setup is running under Python {sys.version_info[0]}.{sys.version_info[1]}. "
+            "Run the notebook's Prepare Python cell, then use BOOTSTRAP_PYTHON for setup. "
+            "The model/application environments require Python 3.11 or 3.12; the kernel may be newer."
+        )
     if env_dir.resolve() in {(ROOT / ".cache/kaggle-studio/venv").resolve(), Path(sys.prefix).resolve()}:
         raise RuntimeError("Use a separate vLLM environment, never the Studio environment.")
     if version != DEFAULT_VERSION:

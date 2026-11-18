@@ -6,7 +6,7 @@ Gunakan [notebook Kaggle vLLM](../notebooks/kaggle-vllm-gemma4.ipynb) untuk menj
 
 | Komponen | Nilai |
 | --- | --- |
-| Runtime | Linux x86_64, Python 3.11–3.12, Internet aktif |
+| Runtime | Linux x86_64, Internet aktif; kernel Python 3.13 boleh, bootstrap menyiapkan Python 3.12 terpisah |
 | GPU | Satu GPU kelas 16 GB, compute capability SM 7.5 atau lebih baru |
 | Model | `google/gemma-4-E2B-it-qat-w4a16-ct` |
 | Revision model/tokenizer | `971342c08f607aa7779983f6b5289778b5d271a7` |
@@ -25,6 +25,7 @@ Pilihan model mengikuti [resep resmi Gemma 4 untuk vLLM](https://docs.vllm.ai/pr
 
 1. Unggah/buka notebook di Kaggle. Pilih GPU dan aktifkan Internet. Pastikan `REPO_REF` menunjuk branch/commit yang sudah memuat perubahan ini. Checkout lama tidak dihapus, ditarik ulang, atau di-reset otomatis.
 2. Jalankan preflight GPU sebelum setup. Jika mendapat P100 atau CPU saja, ganti accelerator yang sesuai; helper ini tidak memasang backend CPU.
+   Setelah preflight, jalankan **Prepare Python 3.12**. Notebook memakai interpreter 3.12 yang tersedia atau mengunduhnya ke `.cache/kaggle-python` memakai uv 0.13.9 dengan SHA-256 terverifikasi. Tidak ada paket yang dipasang ke kernel, symlink Python sistem yang diganti, atau environment lama yang dihapus. Semua setup berikutnya memakai `BOOTSTRAP_PYTHON`, bukan `sys.executable` kernel. Python dikelola menggunakan [mekanisme instalasi uv](https://docs.astral.sh/uv/guides/install-python/).
 3. `HF_TOKEN` dapat dipasang di Kaggle Secrets untuk download terautentikasi, dengan akses notebook diaktifkan. Checkpoint publik tidak mewajibkan token; model alternatif yang gated memerlukan akses akun yang sesuai. `NGROK_AUTHTOKEN` hanya untuk Studio, `PEXELS_API_KEY` opsional untuk B-roll. Provider vLLM tidak memerlukan Google/NVIDIA API key.
 4. Jalankan setup dua lingkungan: `.cache/kaggle-studio/venv` untuk aplikasi, `.cache/kaggle-vllm/venv` untuk server. Jangan memasang `requirements-vllm-kaggle.txt` ke kernel notebook atau lingkungan aplikasi. Instalasi dan `pip check` yang gagal menghentikan setup.
 5. Jalankan Start vLLM. Unduhan pertama dapat lama; helper menunggu model yang tepat muncul pada `/v1/models`, bukan sekadar port HTTP hidup.
@@ -36,12 +37,13 @@ Jangan mengganti `VLLM_API_KEY` ketika server masih berjalan. Notebook membuat k
 
 ## Penggunaan CLI di lingkungan Kaggle
 
-Perintah berikut dijalankan dari root checkout di terminal Kaggle, setelah setup dan konfigurasi secrets. Notebook menyediakan bentuk subprocess dengan environment terisolasi yang sama.
+Perintah berikut dijalankan dari root checkout di terminal Kaggle, setelah setup dan konfigurasi secrets. Notebook menyediakan bentuk subprocess dengan environment terisolasi yang sama. `preflight`, `status`, dan `stop` hanya memerlukan interpreter kernel; `setup` harus memakai Python 3.11/3.12. Di notebook gunakan `BOOTSTRAP_PYTHON` hasil Prepare Python untuk setup/start seperti pada sel yang disediakan.
 
 ```sh
 python scripts/kaggle_vllm.py preflight
-python scripts/kaggle_vllm.py setup
-python scripts/kaggle_vllm.py start
+# Untuk setup/start gunakan path BOOTSTRAP_PYTHON dari notebook, misalnya:
+/path/to/python3.12 scripts/kaggle_vllm.py setup
+/path/to/python3.12 scripts/kaggle_vllm.py start
 python scripts/kaggle_vllm.py status
 python scripts/kaggle_vllm.py stop
 ```
@@ -64,6 +66,8 @@ Analisis vLLM tidak fallback ke cloud. Jika voiceover CLI diaktifkan, pembuatan 
 
 | Gejala | Tindakan |
 | --- | --- |
+| `Use Python 3.11 or 3.12` pada preflight, traceback `/usr/lib/python3.13` | Checkout/notebook lama menolak versi kernel sebelum membaca GPU. Ambil perbaikan branch yang dipakai, buka notebook terbaru, lalu ulangi preflight dan Prepare Python. Kernel tetap 3.13; setup memakai Python 3.12 terpisah. Jangan sekadar menghapus batas Python setup karena dependency aplikasi masih dibatasi. |
+| Download Python/uv gagal | Pastikan Internet Kaggle aktif dan GitHub dapat diakses, lalu ulangi Prepare Python. Setup dependency belum dimulai. Jangan mengganti Python sistem atau memasang paket vLLM ke kernel. |
 | P100 / compute capability di bawah 7.5 | Pilih T4 atau GPU yang lebih baru; jangan memaksakan wheel ini pada P100. |
 | CUDA/driver atau kernel tidak kompatibel | Periksa `nvidia-smi` dan `logs/kaggle-vllm.log`. Setup yang sukses belum membuktikan kompatibilitas inference. Gunakan runtime dengan driver yang cocok; jangan mengubah paket Torch aplikasi untuk memperbaiki server. |
 | 401/403 dari Hugging Face | Pastikan akun menerima ketentuan model dan `HF_TOKEN` memiliki akses; ulangi konfigurasi secrets. |

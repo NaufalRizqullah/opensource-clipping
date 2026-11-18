@@ -57,7 +57,7 @@ The managed process uses `MPLBACKEND=Agg`. MediaPipe imports Matplotlib, but thi
 | AI analysis appears slow | Providers may retry transient errors such as Gemini 503. Follow notebook logs and the job's analysis progress; this is distinct from renderer readiness. Cancellation waits for the current AI operation to return. |
 | SSE fails | Studio sends the ngrok bypass header on its fetch-based event stream and retries it. Polling continues as a fallback. |
 | Video preview fails but API calls work | Native video/link requests cannot set the ngrok bypass header. Use **Open video / Download**, continue through the tunnel warning if shown, and retry. Media remains streamed rather than copied entirely into browser RAM. |
-| Python 3.13+ runtime | Use Python 3.12 for the constrained Kaggle environment; setup stops early on unsupported versions. |
+| Python 3.13+ notebook kernel | The vLLM notebook has a **Prepare Python 3.12** cell that creates/reuses a separate interpreter and passes it to both setup helpers. The regular Studio notebook still requires invoking setup with a compatible Python 3.10–3.12 interpreter. Do not remove the application dependency guard or replace the system Python. See [vLLM bootstrap](KAGGLE_VLLM.md). |
 
 For a local diagnostic in the managed environment, run `python -m web.api.readiness --check` with that environment's Python. It exits nonzero if a required import or FFmpeg fails and does not start a tunnel.
 
