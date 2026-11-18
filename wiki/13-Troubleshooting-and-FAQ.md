@@ -13,6 +13,7 @@ Use the [Kaggle vLLM guide](../docs/KAGGLE_VLLM.md) and [provider reference](../
 | Symptom | Action |
 |---|---|
 | Server unreachable | Start the vLLM helper; confirm port 8001 and `VLLM_BASE_URL` in the backend environment. Container/remote `localhost` refers to that runtime, not another host. |
+| T4: `shared memory, Required: 98304, Hardware limit: 65536` followed by server disconnect | Update the checkout, then Stop → Start → Eval. The pinned server helper applies a guarded Triton tile workaround inside the server venv before model loading. This is per-kernel shared memory, so increasing VRAM allocation or using a second T4 does not fix the limit. See the [T4 recovery steps](../docs/KAGGLE_VLLM.md#t4-shared-memory-triton-96-kib-melebihi-batas-64-kib); Kaggle inference verification remains required. |
 | Model not served / 404 | Match `VLLM_MODEL` or the job model to `/v1/models`; a model ID is not a request to download/start that model. Proxies must expose `/tokenize` too. |
 | 401/403 | Match client/server `VLLM_API_KEY`; model download access uses `HF_TOKEN` separately. |
 | Prompt plus output exceeds context | Start with one clip and a shorter transcript; lower output budget only if enough remains for the full schema. Increasing the client ceiling cannot enlarge the server context. |

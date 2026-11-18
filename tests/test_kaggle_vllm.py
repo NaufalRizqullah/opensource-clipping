@@ -55,6 +55,24 @@ def test_custom_checkpoint_does_not_inherit_an_unrelated_revision(tmp_path):
     assert command[command.index("--revision") + 1] == "custom-commit"
 
 
+@pytest.mark.parametrize("capability", [7.5, 8.0, 8.6])
+def test_attention_compat_runs_only_in_turing_server_environment(monkeypatch, tmp_path, capability):
+    calls = []
+    environment = {"CUDA_VISIBLE_DEVICES": "GPU-selected"}
+
+    def run(command, **kwargs):
+        calls.append(command)
+        assert command == [str(helper.environment_python(tmp_path)),
+                           str(helper.ROOT / "scripts/kaggle_vllm_compat.py"),
+                           "--venv", str(tmp_path)]
+        assert kwargs["env"] is environment
+        assert kwargs["check"] is True and kwargs["timeout"] == 30
+
+    monkeypatch.setattr(helper.subprocess, "run", run)
+    helper.prepare_attention_compat(tmp_path, {"compute_capability": capability}, environment)
+    assert len(calls) == (1 if capability == 7.5 else 0)
+
+
 @pytest.mark.parametrize("name,capability,total,expected_error", [
     ("Tesla T4", "7.5", "15360", None),
     ("Tesla P100", "6.0", "16384", "SM 7.5"),
@@ -198,13 +216,23 @@ def test_changed_managed_settings_require_explicit_stop(monkeypatch, tmp_path):
         helper.start(arguments(tmp_path))
 
 
-def test_failed_start_stops_only_the_new_owned_server(monkeypatch, tmp_path):
+@pytest.mark.parametrize("failure_stage", ["compatibility", "readiness"])
+def test_failed_start_stops_only_the_new_owned_server(monkeypatch, tmp_path, failure_stage):
     monkeypatch.setattr(helper, "require_platform", lambda: None)
     monkeypatch.setattr(helper, "validate_environment", lambda directory: None)
     monkeypatch.setattr(helper, "ROOT", tmp_path)
     monkeypatch.setattr(helper, "read_state", lambda path: None)
-    monkeypatch.setattr(helper, "gpu_preflight", lambda index: {"uuid": "GPU-test"})
+    monkeypatch.setattr(helper, "gpu_preflight", lambda index: {"uuid": "GPU-test", "compute_capability": 7.5})
     monkeypatch.setattr(helper, "process_identity", lambda pid: ("123456", "boot-id"))
+    prepared = []
+
+    def prepare(env_dir, gpu, environment):
+        assert environment["CUDA_VISIBLE_DEVICES"] == gpu["uuid"]
+        if failure_stage == "compatibility":
+            raise RuntimeError("compatibility failed")
+        prepared.append(env_dir)
+
+    monkeypatch.setattr(helper, "prepare_attention_compat", prepare)
 
     class Socket:
         def __enter__(self):
@@ -219,6 +247,7 @@ def test_failed_start_stops_only_the_new_owned_server(monkeypatch, tmp_path):
     monkeypatch.setattr(helper.socket, "socket", Socket)
 
     def spawn(command, **kwargs):
+        assert prepared == [tmp_path / "server-venv"]
         assert kwargs["start_new_session"] is True
         assert kwargs["env"]["CUDA_VISIBLE_DEVICES"] == "GPU-test"
         return SimpleNamespace(pid=12001)
@@ -232,7 +261,10 @@ def test_failed_start_stops_only_the_new_owned_server(monkeypatch, tmp_path):
     monkeypatch.setattr(helper, "wait_ready", fail)
     monkeypatch.setattr(helper, "stop_owned", lambda path, state: stopped.append(state))
     helper_args = arguments(tmp_path)
-    with pytest.raises(RuntimeError, match="readiness failed"):
+    with pytest.raises(RuntimeError, match=f"{failure_stage} failed"):
         helper.start(helper_args)
-    assert len(stopped) == 1 and stopped[0]["pid"] == 12001
+    if failure_stage == "readiness":
+        assert len(stopped) == 1 and stopped[0]["pid"] == 12001
+    else:
+        assert stopped == []  # No process was created when the patch could not be applied.
     assert helper.read_state(helper_args.state) is None  # read_state is deliberately faked above.

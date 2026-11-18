@@ -191,22 +191,39 @@ class VllmProvider:
         self._deadline = started + self.timeout
         self.run_meta = dict(
             actual_provider="vllm", model=self.model, attempts=0,
-            fallback_used=False, status="failed", usage=[],
+            fallback_used=False, status="failed", usage=[], failures=[],
         )
+        stage = "model_probe"
+
+        def record_failure(exc, cycle):
+            # Keep the first inference failure even if a retry can no longer
+            # reach the server. Never retain raw exception/response content.
+            self.run_meta["failures"].append({
+                "retry_cycle": cycle,
+                "stage": stage,
+                "error_type": type(exc).__name__,
+                "status_code": exc.status_code,
+                "retryable": exc.retryable,
+            })
+
         try:
             current = list(messages)
             validated = False
             for attempt in range(MAX_ATTEMPTS):
                 try:
                     if not validated:
+                        stage = "model_probe"
                         self.validate()
                         validated = True
+                    stage = "tokenize"
                     self._preflight_tokens(current, max_tokens)
+                    stage = "inference"
                     self.run_meta["attempts"] += 1
                     response = self._completion(
                         current, max_tokens=max_tokens, temperature=temperature,
                         top_p=top_p, schema=schema,
                     )
+                    stage = "output_validation"
                     usage = getattr(response, "usage", None)
                     if usage is not None:
                         self.run_meta["usage"].append({
@@ -225,6 +242,7 @@ class VllmProvider:
                     self.run_meta["status"] = "completed"
                     return result
                 except InvalidOutputError as exc:
+                    record_failure(exc, attempt + 1)
                     if attempt == MAX_ATTEMPTS - 1:
                         raise
                     # Trusted diagnostic only; never echo model text into repair/logs.
@@ -233,13 +251,19 @@ class VllmProvider:
                         + " Ikuti schema dan batas timestamp sumber; jangan menambahkan penjelasan."
                     )}]
                 except ProviderUnavailableError as exc:
+                    record_failure(exc, attempt + 1)
                     if not exc.retryable or attempt == MAX_ATTEMPTS - 1:
                         raise
+                except ProviderError as exc:
+                    record_failure(exc, attempt + 1)
+                    raise
+                stage = "retry_wait"
                 delay = min(2 ** attempt, self._remaining())
                 self._sleep(delay)
             raise ProviderUnavailableError("Percobaan vLLM habis.")
         except ProviderError as exc:
             self.run_meta["error_type"] = type(exc).__name__
+            self.run_meta["error_stage"] = stage
             raise
         finally:
             self.run_meta["duration_seconds"] = round(self._clock() - started, 3)

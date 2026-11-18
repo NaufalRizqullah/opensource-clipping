@@ -8,6 +8,12 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.2]
+
+### Fixed
+- **Kaggle Gemma 4 on T4**: The supplied server log identified a Triton attention kernel requesting 96 KiB shared memory on hardware limited to 64 KiB, causing the first inference to terminate the server. Start now applies a bounded tile-size workaround in the isolated vLLM 0.32.0 server environment on SM 7.5, with source/version checks, an original-file backup and atomic/idempotent writes. Model, memory budget and single-GPU selection stay the same. Added mocked regression coverage and recovery instructions; the workaround still needs inference validation in Kaggle, and no tests were run on the user's PC.
+- **vLLM failure diagnostics**: Preserve bounded per-attempt stage/HTTP-status history and the final failed stage in run metadata. An inference error followed by a failed tokenization connection no longer loses its original diagnostic context. The Kaggle eval cell now displays the server log tail on failure. Added mocked regression tests and log-retrieval instructions.
+
 ## [v1.16.1]
 
 ### Fixed

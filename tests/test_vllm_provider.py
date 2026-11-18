@@ -237,6 +237,53 @@ def test_retryable_http_error_then_success(provider_factory, schema, clip):
     assert state.delays == [1]
 
 
+def test_inference_error_is_preserved_when_server_disappears_before_retry(provider_factory, schema):
+    state = provider_factory(
+        [(500, {"error": {"message": "private-engine-crash"}})],
+        token_outcomes=[
+            {"count": 4779, "max_model_len": 16384},
+            httpx.ConnectError("private-network-detail"),
+        ],
+        model_limit=16384, max_tokens=4096,
+    )
+    with pytest.raises(ProviderUnavailableError):
+        generate(state, schema)
+    meta = state.cfg.ai_run_meta
+    assert meta["attempts"] == 1
+    assert meta["prompt_tokens"] == 4779
+    assert meta["error_stage"] == "tokenize"
+    assert meta["failures"] == [
+        {"retry_cycle": 1, "stage": "inference", "error_type": "ProviderUnavailableError",
+         "status_code": 500, "retryable": True},
+        {"retry_cycle": 2, "stage": "tokenize", "error_type": "ProviderUnavailableError",
+         "status_code": None, "retryable": False},
+    ]
+    assert "private-engine-crash" not in json.dumps(meta)
+    assert "private-network-detail" not in json.dumps(meta)
+    assert state.delays == [1]
+
+
+def test_initial_connection_failure_is_distinct_from_inference_failure(provider_factory, schema):
+    state = provider_factory([], model_outcomes=[httpx.ConnectError("unreachable")])
+    with pytest.raises(ProviderUnavailableError):
+        generate(state, schema)
+    meta = state.cfg.ai_run_meta
+    assert meta["error_stage"] == "model_probe"
+    assert meta["attempts"] == 0
+    assert len(meta["failures"]) == 1
+    assert meta["failures"][0]["stage"] == "model_probe"
+
+
+def test_recovered_run_retains_failure_history_without_final_error_stage(provider_factory, schema, clip):
+    state = provider_factory([(503, {"error": "busy"}), completion(json.dumps({"clips": [clip]}))])
+    assert generate(state, schema) == [clip]
+    meta = state.cfg.ai_run_meta
+    assert meta["status"] == "completed"
+    assert "error_stage" not in meta
+    assert len(meta["failures"]) == 1
+    assert meta["failures"][0]["status_code"] == 503
+
+
 @pytest.mark.parametrize("stage", ["models", "tokenize", "completion"])
 @pytest.mark.parametrize("failure", ["busy", "timeout"])
 def test_transient_failures_share_one_bounded_retry_policy(provider_factory, schema, clip, stage, failure):

@@ -65,6 +65,8 @@ def gpu_preflight(index: int = 0) -> dict:
             raise RuntimeError("This profile targets a 16 GB-class GPU; less than 14 GiB was detected.")
         print(json.dumps(info, indent=2))
         print("VRAM is GPU memory; system RAM is separate. This check does not prove the model fits.")
+        if info["compute_capability"] == 7.5:
+            print("Turing GPU: start will check/apply the pinned Triton attention workaround before loading Gemma 4.")
         return info
     raise RuntimeError(f"NVIDIA GPU index {index} was not found.")
 
@@ -230,6 +232,17 @@ def build_server_command(args) -> list[str]:
     return command
 
 
+def prepare_attention_compat(env_dir: Path, gpu: dict, environment: dict) -> None:
+    """Patch only the server venv on Turing; no GPU work occurs in this process."""
+    if gpu["compute_capability"] != 7.5:
+        return
+    subprocess.run(
+        [str(environment_python(env_dir)), str(ROOT / "scripts/kaggle_vllm_compat.py"),
+         "--venv", str(env_dir)],
+        cwd=ROOT, env=environment, check=True, timeout=30,
+    )
+
+
 def start(args) -> None:
     require_platform()
     validate_environment(args.venv)
@@ -252,6 +265,9 @@ def start(args) -> None:
     environment.update({"CUDA_VISIBLE_DEVICES": gpu["uuid"], "OSC_VLLM_OWNER": owner,
                         "VLLM_NO_USAGE_STATS": "1", "DO_NOT_TRACK": "1",
                         "VLLM_LOGGING_LEVEL": "INFO", "VLLM_DEBUG_LOG_API_SERVER_RESPONSE": "False"})
+    # This also repairs an already-installed server env after a checkout update.
+    # A source/version mismatch must fail before Popen, never after model loading.
+    prepare_attention_compat(args.venv, gpu, environment)
     log = ROOT / "logs" / "kaggle-vllm.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     with log.open("ab") as output:
