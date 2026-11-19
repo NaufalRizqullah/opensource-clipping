@@ -8,6 +8,12 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.5]
+
+### Fixed
+- **Kaggle vLLM native imports**: Pin official TorchCodec 0.17.0 CPU wheels with checksums for the isolated Python 3.11/3.12 server environment, addressing the reported `libnvrtc.so.13` failure before model loading on the CUDA 12.9 preset. Setup now checks CLI imports after `pip check` and retains diagnostics in `logs/kaggle-vllm-import.log`; vLLM inference remains on GPU. Existing environments need setup rerun after stopping the managed server. Added mocked regression coverage and recovery instructions; runtime validation remains pending in Kaggle, with no tests or installations run on the user's PC.
+- **Kaggle model switching**: Select the matching reasoning parser for recognized official Gemma 4 and Qwen3 checkpoints instead of applying the Gemma parser to every model. Other models do not inherit a parser automatically; the helper accepts an explicit parser override or `none`. Documented an experimental Qwen3 4B AWQ configuration without claiming validated T4 capacity or clip quality.
+
 ## [v1.16.4]
 
 ### Added

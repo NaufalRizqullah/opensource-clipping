@@ -183,6 +183,33 @@ def stop_owned(path: Path, state: dict, timeout: float = 30) -> None:
     print("Managed vLLM server stopped.")
 
 
+def check_runtime_imports(env_dir: Path) -> None:
+    """Check native imports in the server environment without loading a model.
+
+    pip check only verifies package metadata. Even text-only vLLM imports media
+    decoders, whose shared-library dependencies must also be loadable.
+    """
+    log = ROOT / "logs" / "kaggle-vllm-import.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    environment = dict(runtime_environment(env_dir))
+    # CLI help can include argument defaults. Authentication is unnecessary for
+    # this import-only probe; keep the server key out of its diagnostic output.
+    environment.pop("VLLM_API_KEY", None)
+    command = [str(environment_python(env_dir)), "-m", "vllm.entrypoints.cli.main", "serve", "--help"]
+    try:
+        with log.open("wb") as output:
+            subprocess.run(command, cwd=ROOT, env=environment,
+                           stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT,
+                           check=True, timeout=180)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(
+            f"vLLM runtime import check failed before model startup; inspect {log}. "
+            "If libnvrtc.so.13 is missing, update the checkout and rerun setup to install "
+            "the pinned CPU TorchCodec wheel. Do not change the Studio environment."
+        ) from exc
+    print("vLLM runtime imports passed. No model was loaded; inference remains unverified.")
+
+
 def setup(env_dir: Path, version: str) -> None:
     require_platform()
     if not (3, 11) <= sys.version_info[:2] <= (3, 12):
@@ -209,26 +236,40 @@ def setup(env_dir: Path, version: str) -> None:
                         "--index-url", "https://pypi.org/simple"],
                        cwd=ROOT, env=environment, check=True)
         subprocess.run([python, "-m", "pip", "check"], cwd=ROOT, env=environment, check=True)
+    check_runtime_imports(env_dir)
     print("vLLM dependencies installed in isolation. GPU/model startup remains unverified until start.")
 
 
 def build_server_command(args) -> list[str]:
-    """Build the Gemma 4 text-only profile without importing or starting vLLM."""
+    """Build a text-only model profile without importing or starting vLLM."""
     revision = args.revision
     if revision is None and args.model == DEFAULT_MODEL:
         revision = DEFAULT_REVISION
+    reasoning_parser = getattr(args, "reasoning_parser", "auto")
+    if reasoning_parser == "auto":
+        if args.model.startswith("google/gemma-4-"):
+            reasoning_parser = "gemma4"
+        elif (args.model.startswith("Qwen/Qwen3-")
+              and args.model.removeprefix("Qwen/Qwen3-")[:1].isdigit()):
+            reasoning_parser = "qwen3"
+        else:
+            reasoning_parser = None
+    elif reasoning_parser == "none":
+        reasoning_parser = None
     command = [str(environment_python(args.venv)), "-m", "vllm.entrypoints.cli.main", "serve", args.model,
                "--host", "127.0.0.1", "--port", str(args.port),
                "--dtype", "half", "--tensor-parallel-size", "1",
                "--max-model-len", str(args.context), "--max-num-seqs", str(args.max_num_seqs),
                "--gpu-memory-utilization", str(args.gpu_memory_utilization),
-               "--enforce-eager", "--language-model-only", "--reasoning-parser", "gemma4",
+               "--enforce-eager", "--language-model-only",
                "--no-enable-log-requests", "--no-enable-log-outputs",
                "--default-chat-template-kwargs", '{"enable_thinking":false}']
+    if reasoning_parser:
+        command += ["--reasoning-parser", reasoning_parser]
     if revision:
         command += ["--revision", revision, "--tokenizer-revision", revision]
-    # The checkpoint declares compressed-tensors W4A16. Do not substitute a
-    # runtime quantizer or download a different, unquantized checkpoint.
+    # Respect the selected checkpoint's quantization configuration. Do not
+    # substitute a runtime quantizer or download a different checkpoint.
     return command
 
 
@@ -295,6 +336,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--vllm-version", default=DEFAULT_VERSION)
     parser.add_argument("--gpu-index", type=int, default=0)
     parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("--reasoning-parser", default="auto",
+                        help="auto selects known official Gemma 4/Qwen3 parsers; "
+                             "none disables; otherwise a vLLM parser name")
     parser.add_argument("--revision", default=None, help="HF revision; default checkpoint is commit-pinned")
     parser.add_argument("--port", type=int, default=8001)
     parser.add_argument("--context", type=int, default=16384)

@@ -5,5 +5,11 @@
 --extra-index-url https://download.pytorch.org/whl/cu129
 vllm @ https://github.com/vllm-project/vllm/releases/download/v0.32.0/vllm-0.32.0%2Bcu129-cp38-abi3-manylinux_2_28_x86_64.whl#sha256=9918be806fb2808c406547ff4f9f43870ac6ff28dc4b179291fcf532145bb50b
 transformers==5.16.1
+# vLLM imports TorchCodec even for text-only serving. The PyPI CUDA build can
+# require libnvrtc.so.13, which is absent from this CUDA 12.9 environment.
+# Pin ONLY the media decoder to CPU wheels; Torch/vLLM keep their CUDA wheels.
+# Official CPU index, explicit URLs to avoid changing Torch's resolver index.
+torchcodec @ https://download.pytorch.org/whl/cpu/torchcodec-0.17.0%2Bcpu-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl#sha256=d859426bd2fed833ed0826c6d3fefa7a261178cd550420bd536e9f073e7eea56 ; python_version == "3.11"
+torchcodec @ https://download.pytorch.org/whl/cpu/torchcodec-0.17.0%2Bcpu-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl#sha256=de8e58e5f30692ee7cf92b1b313d0ffdeaac95148525ef2a865067fca0255246 ; python_version == "3.12"
 # Kaggle's startup hook can import wrapt even inside an isolated environment.
 wrapt>=1.14,<3

@@ -1,6 +1,6 @@
 # vLLM + Gemma 4 Q4 di Kaggle
 
-Gunakan [notebook Kaggle vLLM](../notebooks/kaggle-vllm-gemma4.ipynb) untuk menjalankan analisis transkrip dengan server milik sendiri. Log Kaggle T4 terbaru menunjukkan workaround attention diterapkan dan evaluasi transkrip pendek berhasil (`success: true`, satu klip, nol peringatan metadata). **Kualitas narasi, transkrip panjang, dan pipeline video/Studio lengkap masih perlu diuji**. Tidak ada instalasi, test, atau pemuatan model yang dilakukan di PC lokal selama pengerjaan.
+Gunakan [notebook Kaggle vLLM](../notebooks/kaggle-vllm-gemma4.ipynb) untuk menjalankan analisis transkrip dengan server milik sendiri. Log Gemma 4 dari sesi Kaggle T4 sebelumnya menunjukkan workaround attention diterapkan dan evaluasi transkrip pendek berhasil (`success: true`, satu klip, nol peringatan metadata). **Kualitas narasi, transkrip panjang, dan pipeline video/Studio lengkap masih perlu diuji**. Tidak ada instalasi, test, atau pemuatan model yang dilakukan di PC lokal selama pengerjaan.
 
 [Notebook Studio biasa](../notebooks/kaggle-studio-server.ipynb) kini juga menyediakan **Prepare Python 3.12** dan opsi `START_LOCAL_VLLM=True` untuk memakai helper serta preset yang sama sebelum membuka Studio. Kedua notebook mempertahankan kernel Python 3.13 dan memasang dependency ke environment terpisah. Pilih satu notebook untuk mengelola server dalam satu checkout; lihat [panduan Studio](KAGGLE_STUDIO.md) untuk alur gabungan yang masih perlu divalidasi di Kaggle.
 
@@ -13,6 +13,7 @@ Gunakan [notebook Kaggle vLLM](../notebooks/kaggle-vllm-gemma4.ipynb) untuk menj
 | Model | `google/gemma-4-E2B-it-qat-w4a16-ct` |
 | Revision model/tokenizer | `971342c08f607aa7779983f6b5289778b5d271a7` |
 | Server | vLLM 0.32.0, wheel CUDA 12.9; Transformers 5.16.1 |
+| Decoder media server | TorchCodec 0.17.0+cpu, wheel resmi dengan checksum untuk Python 3.11/3.12; inferensi vLLM tetap di GPU |
 | Quantization | QAT W4A16 dari checkpoint: bobot INT4, activations FP16 |
 | Context / output | 16.384 token total / maksimal 4.096 token output |
 | Serving | Satu GPU, satu sequence, eager, text-only, thinking dimatikan |
@@ -30,7 +31,7 @@ Pilihan model mengikuti [resep resmi Gemma 4 untuk vLLM](https://docs.vllm.ai/pr
 2. Jalankan preflight GPU sebelum setup. Jika mendapat P100 atau CPU saja, ganti accelerator yang sesuai; helper ini tidak memasang backend CPU.
    Setelah preflight, jalankan **Prepare Python 3.12**. Notebook memakai interpreter 3.12 yang tersedia atau mengunduhnya ke `.cache/kaggle-python` memakai uv 0.13.9 dengan SHA-256 terverifikasi. Tidak ada paket yang dipasang ke kernel, symlink Python sistem yang diganti, atau environment lama yang dihapus. Semua setup berikutnya memakai `BOOTSTRAP_PYTHON`, bukan `sys.executable` kernel. Python dikelola menggunakan [mekanisme instalasi uv](https://docs.astral.sh/uv/guides/install-python/).
 3. `HF_TOKEN` dapat dipasang di Kaggle Secrets untuk download terautentikasi, dengan akses notebook diaktifkan. Checkpoint publik tidak mewajibkan token; model alternatif yang gated memerlukan akses akun yang sesuai. `NGROK_AUTHTOKEN` hanya untuk Studio, `PEXELS_API_KEY` opsional untuk B-roll. Provider vLLM tidak memerlukan Google/NVIDIA API key.
-4. Jalankan setup dua lingkungan: `.cache/kaggle-studio/venv` untuk aplikasi, `.cache/kaggle-vllm/venv` untuk server. Jangan memasang `requirements-vllm-kaggle.txt` ke kernel notebook atau lingkungan aplikasi. Instalasi dan `pip check` yang gagal menghentikan setup.
+4. Jalankan setup dua lingkungan: `.cache/kaggle-studio/venv` untuk aplikasi, `.cache/kaggle-vllm/venv` untuk server. Jangan memasang `requirements-vllm-kaggle.txt` ke kernel notebook atau lingkungan aplikasi. Setelah instalasi dan `pip check`, setup menjalankan `vllm serve --help` melalui interpreter server untuk memeriksa import library native, tanpa memulai server atau memuat model. Kegagalan pada salah satu tahap menghentikan setup; hasil pemeriksaan import tersimpan di `logs/kaggle-vllm-import.log`.
 5. Jalankan Start vLLM. Pada T4, helper memeriksa/menerapkan workaround attention dalam environment server sebelum memuat model, termasuk pada environment yang sudah terpasang. Unduhan pertama dapat lama; helper menunggu model yang tepat muncul pada `/v1/models`. Respons ini belum membuktikan inference berhasil; lanjutkan ke eval.
 6. Jalankan eval fixture pendek, satu klip. Hasil disimpan ke `/kaggle/working/vllm-eval-short.json`. Evaluasi ini tidak memuat Whisper atau merender video.
 7. Opsional: jalankan regression tests, lalu smoke test nyata melalui switch di notebook. Setelah itu jalankan Studio dan uji video pendek untuk menilai transkripsi, hasil kurasi, serta rendering.
@@ -65,6 +66,20 @@ Pada Studio, pilih **vLLM**, model preset, satu klip, **Whisper Device: CPU**, d
 
 Analisis vLLM tidak fallback ke cloud. Jika voiceover CLI diaktifkan, pembuatan naskah mengikuti vLLM; TTS edge-tts dan B-roll Pexels tetap membutuhkan Internet. Fitur voiceover pada worker web tetap mengikuti dukungan pipeline yang sudah ada. Cache analisis tetap memakai nama `gemini_response.json` demi kompatibilitas; nama itu tidak menunjukkan provider aktual. Metadata provider tersimpan terpisah di `ai_run_meta.json` untuk job baru.
 
+### Mencoba Qwen3
+
+`Qwen/Qwen3-4B-AWQ` adalah [checkpoint resmi yang tersedia publik](https://huggingface.co/Qwen/Qwen3-4B-AWQ). Untuk mencoba model ini, ubah konfigurasi notebook sebelum nilai-nilainya disalin ke `os.environ`:
+
+```python
+VLLM_MODEL = "Qwen/Qwen3-4B-AWQ"
+CONTEXT_LIMIT = 8192
+OUTPUT_TOKENS = 2048
+```
+
+Ini titik awal untuk evaluasi, belum hasil pengujian kapasitas atau kualitas Qwen pada T4. Helper tetap menggunakan satu GPU. Setelah mengganti konfigurasi, hentikan server lama, jalankan sel konfigurasi, lalu Start dan Eval; pada notebook Studio, jalankan kembali sel gabungan setup/start/eval. Pilih model yang sama pada form job Studio. Jatah input dan output bersama-sama harus muat dalam context server.
+
+Helper memilih parser `gemma4` untuk keluarga resmi `google/gemma-4-...` dan `qwen3` untuk keluarga resmi `Qwen/Qwen3-<ukuran>...` yang dikenali. Keduanya mempertahankan `enable_thinking=false`. Keluarga lain seperti Qwen3.5, Qwen3-Next, Qwen3-VL, atau alias kustom tidak otomatis mewarisi parser Gemma. Untuk model kustom, gunakan flag helper `--reasoning-parser NAMA` sesuai model atau `--reasoning-parser none` untuk menghilangkan flag tersebut. Nama parser mengikuti [registry vLLM 0.32.0](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/reasoning/__init__.py).
+
 ## Error yang perlu diperiksa
 
 | Gejala | Tindakan |
@@ -72,6 +87,8 @@ Analisis vLLM tidak fallback ke cloud. Jika voiceover CLI diaktifkan, pembuatan 
 | `Use Python 3.11 or 3.12` pada preflight, traceback `/usr/lib/python3.13` | Checkout/notebook lama menolak versi kernel sebelum membaca GPU. Ambil perbaikan branch yang dipakai, buka notebook terbaru, lalu ulangi preflight dan Prepare Python. Kernel tetap 3.13; setup memakai Python 3.12 terpisah. Jangan sekadar menghapus batas Python setup karena dependency aplikasi masih dibatasi. |
 | Download Python/uv gagal | Pastikan Internet Kaggle aktif dan GitHub dapat diakses, lalu ulangi Prepare Python. Setup dependency belum dimulai. Jangan mengganti Python sistem atau memasang paket vLLM ke kernel. |
 | P100 / compute capability di bawah 7.5 | Pilih T4 atau GPU yang lebih baru; jangan memaksakan wheel ini pada P100. |
+| `libnvrtc.so.13` hilang saat import `torchcodec/libtorchcodec_image.so` | Decoder TorchCodec meminta runtime CUDA 13 sebelum model dimuat. Gunakan requirements server terbaru yang memin TorchCodec CPU, lalu Stop → perbarui checkout → Setup → Start → Eval. Lihat langkah pemulihan di bawah; mengulang Start saja tidak mengganti dependency. |
+| `vLLM runtime import check failed` saat setup | Baca `logs/kaggle-vllm-import.log`. `pip check` memeriksa metadata dependency, sedangkan pemeriksaan ini memuat library native. Selesaikan error import sebelum Start; hasilnya belum membuktikan inference atau kecukupan VRAM. |
 | CUDA/driver atau kernel tidak kompatibel | Periksa `nvidia-smi` dan `logs/kaggle-vllm.log`. Setup yang sukses belum membuktikan kompatibilitas inference. Gunakan runtime dengan driver yang cocok; jangan mengubah paket Torch aplikasi untuk memperbaiki server. |
 | `OutOfResources: shared memory, Required: 98304, Hardware limit: 65536` | Gunakan workaround T4 di bawah, lalu Stop → Start → Eval. Ini batas shared memory per blok kernel; mengurangi context atau menambah GPU tidak mengubah batas tersebut. |
 | `vLLM tile selector differs` / versi workaround tidak cocok | Helper berhenti sebelum memuat model dan tidak menimpa sumber yang tidak dikenali. Periksa versi environment server dan patch lain; jangan menghapus guard agar patch dipaksakan pada versi berbeda. |
@@ -82,6 +99,19 @@ Analisis vLLM tidak fallback ke cloud. Jika voiceover CLI diaktifkan, pembuatan 
 | Output terpotong / JSON atau timestamp tidak valid | Kurangi jumlah klip, tinjau report eval, atau sesuaikan budget output dan context bersama-sama. Perbaikan output dibatasi; hasil tidak diam-diam dipotong/clamp menjadi klip lain. |
 | Port 8001 sibuk / setting server berubah | Jalankan `stop` untuk server yang dikelola helper. Proses lain tidak diadopsi atau dimatikan otomatis; pilih port lain dan perbarui `VLLM_BASE_URL`. |
 | Studio siap tetapi job gagal | Periksa log tahap job; readiness Studio tidak menguji inference vLLM. Jalankan fixture eval terlebih dahulu. |
+
+### TorchCodec meminta CUDA 13 pada preset CUDA 12.9
+
+Log yang dilaporkan saat memilih Qwen3 berhenti pada import `torchcodec`, dengan `libnvrtc.so.13: cannot open shared object file` lalu `Could not load ... libtorchcodec_image.so`. Ini terjadi sebelum checkpoint Qwen dimuat, sehingga traceback tersebut belum menunjukkan masalah kapasitas VRAM atau kualitas model.
+
+TorchCodec menyediakan [wheel CPU resmi](https://github.com/meta-pytorch/torchcodec/tree/v0.17.0#cpu-only-installation). Requirements server sekarang memilih `0.17.0+cpu` secara eksplisit dari [indeks PyTorch](https://download.pytorch.org/whl/cpu/torchcodec/), dengan URL/checksum terpisah untuk Python 3.11 dan 3.12. Pilihan ini hanya mengubah decoder media pada environment server text-only. vLLM tetap menggunakan wheel CUDA 12.9 dan GPU; environment Studio serta kernel notebook tetap terpisah.
+
+Untuk memperbaiki environment yang sudah terpasang:
+
+1. Simpan log kegagalan dan jalankan **Stop vLLM**. Pada notebook Studio, pertahankan `START_LOCAL_VLLM=True` ketika memakai sel Stop lokal.
+2. Setelah perbaikan tersedia pada branch remote yang dipakai notebook, perbarui checkout Kaggle, misalnya `git pull --ff-only` pada branch tersebut. Sel clone tidak menarik pembaruan otomatis; pembaruan Git juga tidak mengganti sel yang sudah terbuka di editor notebook.
+3. Jalankan kembali **Setup vLLM** menggunakan `BOOTSTRAP_PYTHON`. Pada notebook Studio, sel gabungan setup/start/eval sudah memanggil setup tersebut. Setup memasang wheel decoder yang dipin, menjalankan `pip check`, lalu memeriksa import CLI. Mengulang Start saja belum memperbaiki decoder yang sudah terpasang.
+4. Lanjutkan **Start → Eval transkrip pendek**. Simpan `logs/kaggle-vllm-import.log` jika setup gagal; simpan `logs/kaggle-vllm.log` dan report eval jika startup/inference gagal. Perbaikan dependency ini masih memerlukan validasi di Kaggle.
 
 ### T4: shared memory Triton 96 KiB melebihi batas 64 KiB
 
