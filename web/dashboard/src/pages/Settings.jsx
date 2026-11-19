@@ -47,10 +47,11 @@ function Settings() {
   const [pexelsKey, setPexelsKey] = useState('')
   const [hfToken, setHfToken] = useState('')
   const [nvidiaKey, setNvidiaKey] = useState('')
+  const [defaultAiProvider, setDefaultAiProvider] = useState('gemini')
 
   useEffect(() => {
     fetchSettings()
-      .then(data => { setSettings(data); setLoading(false) })
+      .then(data => { setSettings(data); setDefaultAiProvider(data.default_ai_provider || 'gemini'); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
 
@@ -64,6 +65,7 @@ function Settings() {
       if (pexelsKey) payload.pexels_api_key = pexelsKey
       if (hfToken) payload.hf_token = hfToken
       if (nvidiaKey) payload.nvidia_api_key = nvidiaKey
+      if (defaultAiProvider !== settings?.default_ai_provider) payload.default_ai_provider = defaultAiProvider
 
       if (Object.keys(payload).length === 0) {
         setMsg('Tidak ada perubahan')
@@ -163,6 +165,20 @@ function Settings() {
           {/* System Info */}
           <div className="settings-section">
             <h3>💻 System Info</h3>
+            <div className="form-group">
+              <label className="form-label" htmlFor="default-ai-provider">Default AI Provider</label>
+              <select id="default-ai-provider" className="form-select" value={defaultAiProvider} onChange={(e) => setDefaultAiProvider(e.target.value)}>
+                <option value="gemini">Google Gemini</option>
+                <option value="nvidia">NVIDIA NIM</option>
+                <option value="vllm">vLLM (Self-hosted)</option>
+              </select>
+              <p className="form-hint">Berlaku selama backend berjalan. Endpoint dan key vLLM dikonfigurasi di notebook/server.</p>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Model default vLLM</label>
+              <p style={{ fontSize: '12px', overflowWrap: 'anywhere' }}>{settings?.vllm_model || 'Gunakan konfigurasi server'}</p>
+              <p className="form-hint">Key vLLM: {settings?.vllm_api_key_set ? 'tersedia' : 'tidak disetel (opsional)'}. Status ini tidak memeriksa koneksi ke model.</p>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>GPU</span>

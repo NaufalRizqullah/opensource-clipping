@@ -219,7 +219,17 @@ SCRIPT VOICE-OVER (Hanya teks yang dibacakan, tanpa tanda kutip di awal/akhir):"
     return prompt
 
 def generate_commentary_script(transcript_snippet: str, cfg, style="analysis", language="id", length="short") -> str:
-    """Generate commentary script using Gemini AI."""
+    """Generate commentary locally for vLLM, preserving the legacy cloud path."""
+    if getattr(cfg, "ai_provider", "gemini") == "vllm":
+        from clipping.providers.vllm import VllmProvider
+
+        prompt = get_commentary_prompt(transcript_snippet, style, language, length)
+        with VllmProvider.from_cfg(cfg) as provider:
+            script = provider.generate_text(
+                prompt, temperature=0.7, top_p=0.9, max_tokens=1024,
+            )
+        return script.strip().strip('"').strip()
+
     print(f"   🧠 Generating {style} commentary script via Gemini ({language}, {length})...")
     
     api_key = cfg.api_key_gemini

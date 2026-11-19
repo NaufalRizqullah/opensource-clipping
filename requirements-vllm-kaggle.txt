@@ -1,0 +1,9 @@
+# Server only: NEVER install into the Clipping/MediaPipe environment or notebook kernel.
+# CUDA 12.9 wheel deliberately avoids the default CUDA 13 build on older Kaggle drivers.
+# Dependency resolution/startup must still be verified in the actual Kaggle session.
+# T4 Start applies scripts/kaggle_vllm_compat.py; review its version/source guard before upgrading.
+--extra-index-url https://download.pytorch.org/whl/cu129
+vllm @ https://github.com/vllm-project/vllm/releases/download/v0.32.0/vllm-0.32.0%2Bcu129-cp38-abi3-manylinux_2_28_x86_64.whl#sha256=9918be806fb2808c406547ff4f9f43870ac6ff28dc4b179291fcf532145bb50b
+transformers==5.16.1
+# Kaggle's startup hook can import wrapt even inside an isolated environment.
+wrapt>=1.14,<3

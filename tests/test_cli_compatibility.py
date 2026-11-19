@@ -16,7 +16,7 @@ def test_cli_help_does_not_require_fastapi_or_gpu(tmp_path):
         capture_output=True, text=True, encoding="utf-8", timeout=15,
     )
     assert result.returncode == 0, result.stderr
-    for flag in ("--url", "--yt-cookies", "--load-gemini-json", "--ai-provider", "--story-mode"):
+    for flag in ("--url", "--yt-cookies", "--load-gemini-json", "--ai-provider"):
         assert flag in result.stdout
     assert not (tmp_path / "outputs").exists()
 
@@ -37,15 +37,6 @@ def test_cli_single_batch_and_cached_ai_flags_are_preserved(monkeypatch, tmp_pat
     assert batch.ai_provider == "nvidia"
     assert batch.cleanup_source is True
     assert batch.file_video_asli == str(tmp_path / "video_asli.mp4")
-
-
-def test_cli_story_mode_still_accepts_no_url(monkeypatch, tmp_path):
-    monkeypatch.chdir(tmp_path)
-    for name in ("GOOGLE_API_KEY", "NVIDIA_API_KEY", "PEXELS_API_KEY", "HF_TOKEN"):
-        monkeypatch.setenv(name, "")
-    cfg = config.build_config(["--story-mode"])
-    assert cfg.story_mode is True
-    assert cfg.url_list == []
 
 
 def test_cli_and_studio_use_compatible_model_without_reusing_legacy_cache(monkeypatch, tmp_path):

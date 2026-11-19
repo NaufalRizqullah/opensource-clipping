@@ -28,7 +28,7 @@
 | Fitur | Deskripsi |
 |---|---|
 | **AI Transcriber** | Transkripsi per-kata dengan akurasi tinggi menggunakan **Faster-Whisper** (large-v3) |
-| **AI Content Curator** | **Google Gemini** menganalisis konteks, memilih momen paling viral, dan membuat metadata |
+| **AI Content Curator** | **Google Gemini**, **NVIDIA NIM**, atau **vLLM** milik sendiri menganalisis konteks, memilih momen, dan membuat metadata |
 | **Smart Auto-Framing** | Pelacakan wajah via **[MediaPipe BlazeFace (Short-Range)](https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector)** dengan algoritma Smooth Pan, Deadzone & anti-jitter |
 | **Cinematic Teaser Hook** | Hook 3 detik dengan overlay gelap, cinematic bars, dan transisi **TV Glitch** |
 | **Karaoke Subtitles** | Subtitle `.ASS` yang menyala per-kata (gaya Alex Hormozi / Veed) |
@@ -46,16 +46,14 @@
 | **Podcast Camera Switch** | Deteksi speaker aktif otomatis dengan switching yang scene-aware — crop full 9:16 fokus ke pembicara aktif; blurred pillarbox hanya saat speaker di scene yang sama bicara bersamaan (9:16) |
 | **AI Voice-Over** | Mengubah auto-clip menjadi video reaksi/komentar original menggunakan **Gemini** (pembuat script) dan **edge-tts** (text-to-speech gratis), lengkap dengan audio ducking, penimpaan teks subtitle, dan ambient edge glow |
 
-> 🎬 **BARU: Mode Story Clip (`--story-mode`)**  
-> Perlu merakit cerita dari potongan adegan spesifik di berbagai sumber video (misalnya untuk *campaign* brand)? Gunakan fitur Story Clip multi-sumber!  
-> 👉 **[Baca dokumentasi lengkap Story Clip di sini](docs/STORY_CLIP.md)**
-
 ## 📋 Prasyarat
+
+**Setup vLLM Kaggle eksperimental:** [notebook Gemma 4 Q4](notebooks/kaggle-vllm-gemma4.ipynb) dan [panduan](docs/KAGGLE_VLLM.md) menyiapkan server terpisah untuk satu GPU 16 GB yang didukung. Validasi Kaggle masih menunggu; P100 tidak didukung preset ini. Provider default tetap Gemini.
 
 - **Python** 3.10+
 - **FFmpeg** terinstall dan tersedia di PATH
 - **GPU CUDA** disarankan (untuk Whisper; bisa fallback ke CPU)
-- **Google Gemini API Key** ([dapatkan di sini](https://aistudio.google.com/apikey))
+- **Provider AI**: [API key Gemini](https://aistudio.google.com/apikey), key NVIDIA NIM, atau server vLLM yang berjalan ([konfigurasi](docs/providers.md))
 - **Pexels API Key** (opsional, untuk B-roll — [dapatkan di sini](https://www.pexels.com/api/))
 - **HuggingFace Token** (opsional, untuk split-screen / camera-switch — [dapatkan di sini](https://huggingface.co/settings/tokens), perlu accept [Pyannote model agreement](https://huggingface.co/pyannote/speaker-diarization-3.1))
 
@@ -232,6 +230,9 @@ python main.py --url "URL_VIDEO" --source-height 1440 --render-height source --v
 # Menggunakan NVIDIA NIM (DeepSeek-V3) sebagai pengganti Gemini
 python main.py --url "URL_VIDEO" --ai-provider nvidia --nvidia-model "deepseek-ai/deepseek-v3"
 
+# vLLM milik sendiri (server sudah berjalan; Kaggle satu GPU memakai Whisper CPU)
+python main.py --url "URL_VIDEO" --ai-provider vllm --clips 1 --whisper-device cpu --whisper-compute-type int8
+
 # Output kotak untuk Instagram Feed (1:1)
 python main.py --url "URL_VIDEO" --ratio "1:1" --clips 5
 
@@ -265,7 +266,7 @@ python main.py --help
 | `--clips`, `-n` | `7` | Jumlah klip highlight yang dihasilkan |
 | `--ratio`, `-r` | `9:16` | Rasio aspek output (`9:16`, `16:9`, `1:1`, `3:4`, `4:5`) |
 | `--source-height` | `max` | Batas tinggi resolusi source saat download (`max`, `1080`, `1440`, `2160`, dst.) |
-| `--ai-provider` | `gemini` | Provider AI untuk analisis (`gemini` atau `nvidia`). |
+| `--ai-provider` | `gemini` | Provider analisis (`gemini`, `nvidia`, atau `vllm`). Lihat [konfigurasi provider](docs/providers.md). |
 | `--nvidia-model` | `deepseek...` | Nama model untuk NVIDIA NIM API (misal `deepseek-ai/deepseek-v3`). |
 | `--render-height` | `1080` | Target tinggi output render (`1080`, `1440`, `2160`, `source`) |
 | `--video-bitrate` | `auto` | Target bitrate video (misal 8M, 12M, auto). 'auto' menyesuaikan resolusi. |
@@ -525,7 +526,6 @@ opensource-clipping/
 │   ├── diarization.py       # Pyannote speaker diarization
 │   ├── metadata.py          # Normalisasi & QA metadata
 │   ├── runner.py            # Orkestrator pipeline
-│   ├── story/               # Modul mode Story Clip
 │   └── studio/              # Modul mesin render video
 ├── facebook_uploader/       # Upload & penjadwalan Reels Facebook Pages
 ├── web/                     # Web API dan React Dashboard

@@ -101,11 +101,12 @@ def _looks_indonesian(text):
 # MAIN API
 # ==============================================================================
 
-def normalize_and_validate(hasil_json: list[dict]) -> list[dict]:
+def normalize_and_validate(hasil_json: list[dict], *, report: list[dict] | None = None) -> list[dict]:
     """
     Normalize and enrich metadata fields, add *_final fields.
 
-    Mutates items in-place and returns sorted list.
+    Mutates items in-place and returns sorted list. An optional report collector
+    receives the existing warning summaries without changing the output fields.
     """
     valid_items = []
     laporan = []
@@ -254,6 +255,8 @@ def normalize_and_validate(hasil_json: list[dict]) -> list[dict]:
             "warnings": item.pop("_warnings_temp", "OK"),
         })
 
+    if report is not None:
+        report.extend(laporan)
     return valid_items
 
 

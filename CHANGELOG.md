@@ -8,6 +8,29 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.2]
+
+### Fixed
+- **Kaggle Gemma 4 on T4**: The supplied server log identified a Triton attention kernel requesting 96 KiB shared memory on hardware limited to 64 KiB, causing the first inference to terminate the server. Start now applies a bounded tile-size workaround in the isolated vLLM 0.32.0 server environment on SM 7.5, with source/version checks, an original-file backup and atomic/idempotent writes. Model, memory budget and single-GPU selection stay the same. Added mocked regression coverage and recovery instructions; the workaround still needs inference validation in Kaggle, and no tests were run on the user's PC.
+- **vLLM failure diagnostics**: Preserve bounded per-attempt stage/HTTP-status history and the final failed stage in run metadata. An inference error followed by a failed tokenization connection no longer loses its original diagnostic context. The Kaggle eval cell now displays the server log tail on failure. Added mocked regression tests and log-retrieval instructions.
+
+## [v1.16.1]
+
+### Fixed
+- **Kaggle vLLM bootstrap with a Python 3.13 kernel**: GPU preflight and process-control commands no longer reject the notebook's Python version. A new Prepare Python cell reuses CPython 3.12 or installs it under the checkout cache through checksum-pinned uv, then runs application/server setup using that interpreter. The kernel, system Python and dependency constraints remain unchanged. Added mocked regression coverage; execution is deferred to Kaggle at the user's request.
+
+## [v1.16.0]
+
+### Added
+- **Self-hosted vLLM provider**: CLI and both Studio interfaces support a served model/alias and output-token budget. Operator environment configures the endpoint and optional key. Local analysis and CLI voiceover do not fall back to cloud providers. Added exact token preflight, structured JSON, temporal validation, bounded retries, and `ai_run_meta.json` provenance while retaining the legacy response-cache filename.
+- **Kaggle Gemma 4 Q4 setup**: Separate server environment, pinned official QAT W4A16 model and vLLM version, managed process helper, notebook, short-transcript evaluation and opt-in live test. This is an experimental single-GPU preset; memory fit, quality and performance still require Kaggle validation. Tests were authored but not executed on the development PC at the user's request.
+
+### Changed
+- Extracted Gemini and NVIDIA transports into `clipping/providers/`, sharing the clip schema while preserving Gemini's dialect, public engine functions, retry patch points, NIM request and existing cloud fallback behavior. Added frozen schema/request contract tests.
+
+### Fixed
+- Declare the OpenAI client dependency in the main manifests so NIM works outside the Kaggle requirements. Validate credentials for the selected provider instead of requiring a Google key for every CLI job. Cache-only analysis does not require provider credentials or a reachable server; missing cache fails clearly.
+
 ## [v1.15.7]
 
 ### Fixed
@@ -267,7 +290,7 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 ## [v1.7.6] - 2026-06-26
 
 ### Added
-- **Wiki Documentation**: Created a comprehensive GitHub Wiki with 15 pages covering Getting Started, CLI Reference, Feature Guides, Story Clip Mode, Colab deployment, and a detailed YouTube API Setup Guide.
+- **Wiki Documentation**: Created a comprehensive GitHub Wiki with 15 pages covering Getting Started, CLI Reference, Feature Guides, Colab deployment, and a detailed YouTube API Setup Guide.
 
 ## [v1.7.5] - 2026-06-26
 
@@ -408,30 +431,11 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 ## [v1.4.0] - 2026-05-11
 
 ### Added
-- **Story Clip Mode (`--story-mode`)**: Brand-new multi-source narrative assembly pipeline for building clips from multiple video sources. Designed for campaign work (e.g., Shopee, brand briefs) where specific scenes from different videos must be stitched together into a cohesive story.
-  - Define video sources in `sources.json` — supports YouTube, TikTok, Instagram, Google Drive, and local files.
-  - Define the clip recipe in `story_recipe.json` — specify scenes with exact timestamps, hooks, highlights, transitions, and metadata per clip.
-  - Each clip produces **2 separate outputs**: `hook_N.mp4` (teaser intro) and `highlight_N.mp4` (main content).
-  - Automatic multi-source download with idempotent caching (`outputs/story_cache/`).
-  - Scene normalization ensures consistent resolution/fps across heterogeneous sources before concatenation.
-  - Transition support: `cut` (hard cut) and `smooth`/`crossfade` (0.5s dissolve).
-  - Hook text overlay rendering via FFmpeg drawtext filter.
-  - Full manifest output (`story_manifest.json`) with status tracking per clip.
-  - Includes `sources.sample.json` and `story_recipe.sample.json` templates.
+- ~~**Story Clip Mode (`--story-mode`)**: Removed in a later version.~~
 - **New CLI Flags**:
-  - `--story-mode`: Enable Story Clip pipeline (bypasses AI analysis — no `GOOGLE_API_KEY` needed).
-  - `--story-recipe`: Path to recipe JSON (default: `story_recipe.json`).
-  - `--sources-json`: Path to sources registry JSON (default: `sources.json`).
-  - `--story-output-dir`: Custom output directory (default: `outputs/story_clips`).
-  - `--skip-download`: Skip source downloads and use existing cache.
-- **New Modules**:
-  - `clipping/story/loader.py` — JSON parser & validator with cross-reference validation between sources and recipe.
-  - `clipping/story/source_manager.py` — Multi-platform download & cache manager (reuses existing engine).
-  - `clipping/story/assembler.py` — FFmpeg-based scene trimming, normalization, concatenation, and text overlay.
-  - `clipping/story_runner.py` — Pipeline orchestrator for Story Clip mode.
 
 ### Changed
-- **`--url` is now optional**: The `--url` flag is no longer globally required — it is only required when running in standard auto-clip mode. Story Clip mode uses `sources.json` instead.
+- **`--url` is now required**: The `--url` flag is required for all modes.
 
 ---
 

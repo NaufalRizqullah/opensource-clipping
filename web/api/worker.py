@@ -96,16 +96,9 @@ def _check_cancelled(job_id: str) -> None:
 
 def _validate_analysis_config(cfg) -> None:
     """Validate only the provider that will actually be called."""
-    if cfg.load_gemini_json:
-        cached = Path(cfg.outputs_dir) / "gemini_response.json"
-        if not cached.is_file():
-            raise ValueError("Cached AI JSON tidak ditemukan. Nonaktifkan Bypass AI untuk analisis baru.")
-        return
-    if cfg.ai_provider == "nvidia" and cfg.api_key_nvidia:
-        return
-    if not cfg.api_key_gemini:
-        key_name = "NVIDIA_API_KEY atau GOOGLE_API_KEY" if cfg.ai_provider == "nvidia" else "GOOGLE_API_KEY"
-        raise ValueError(f"{key_name} tidak ditemukan. Set via Settings atau environment.")
+    from clipping.providers.validation import validate_analysis_config
+
+    validate_analysis_config(cfg, probe=False)
 
 
 def is_job_active(job_id: str) -> bool:
@@ -303,15 +296,30 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
         )
 
         gemini_output_path = os.path.join(cfg.outputs_dir, "gemini_response.json")
+        from clipping.providers.metadata import save_run_metadata
 
         if getattr(cfg, "load_gemini_json", False) and os.path.exists(gemini_output_path):
             log_event("analysis_reused", component="worker", job_id=job_id, stage="analyze")
             with open(gemini_output_path, "r", encoding="utf-8") as f:
                 hasil_json = json.load(f)
+            save_run_metadata(cfg, cached=True)
         else:
-            hasil_json = engine.analyze_with_ai(transkrip_lengkap, cfg)
+            try:
+                hasil_json = engine.analyze_with_ai(transkrip_lengkap, cfg)
+            except Exception:
+                if getattr(cfg, "ai_run_meta", None):
+                    try:
+                        save_run_metadata(cfg)
+                    except (OSError, TypeError, ValueError) as metadata_error:
+                        # A sidecar write failure must not hide the AI failure.
+                        log_event(
+                            "analysis_metadata_failed", component="worker", level="WARNING",
+                            job_id=job_id, stage="analyze", error=metadata_error,
+                        )
+                raise
             with open(gemini_output_path, "w", encoding="utf-8") as f:
                 json.dump(hasil_json, f, indent=4, ensure_ascii=False)
+            save_run_metadata(cfg)
 
         store.update_progress(
             job_id,

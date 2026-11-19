@@ -36,6 +36,11 @@ def run_pipeline(cfg, whisper_model_instance=None) -> list[dict]:
         Render manifest (one dict per clip).
     """
 
+    from clipping.providers.validation import validate_analysis_config
+    from clipping.providers.metadata import save_run_metadata
+
+    validate_analysis_config(cfg, probe=getattr(cfg, "ai_provider", "gemini") == "vllm")
+
     # Step 1 — Download
     source_platform = getattr(cfg, "source_platform", "youtube")
     engine.download_video(
@@ -89,13 +94,24 @@ def run_pipeline(cfg, whisper_model_instance=None) -> list[dict]:
         print(f"\n🔄 [3/3] Memuat data AI ({cfg.ai_provider}) dari file lokal: {gemini_output_path}")
         with open(gemini_output_path, "r", encoding="utf-8") as f:
             hasil_json = json.load(f)
+        save_run_metadata(cfg, cached=True)
     else:
-        hasil_json = engine.analyze_with_ai(transkrip_lengkap, cfg)
+        try:
+            hasil_json = engine.analyze_with_ai(transkrip_lengkap, cfg)
+        except Exception:
+            if getattr(cfg, "ai_run_meta", None):
+                try:
+                    save_run_metadata(cfg)
+                except (OSError, TypeError, ValueError):
+                    # A diagnostic write must not hide the inference failure.
+                    print("[AI] Metadata kegagalan tidak dapat disimpan.")
+            raise
         
         # Save raw gemini json for future loading/reproduction
         with open(gemini_output_path, "w", encoding="utf-8") as f:
             json.dump(hasil_json, f, indent=4, ensure_ascii=False)
         print(f"💾 Raw AI response tersimpan di: {gemini_output_path}")
+        save_run_metadata(cfg)
 
     # Step 4 — Metadata normalisation
     hasil_json = metadata.normalize_and_validate(hasil_json)

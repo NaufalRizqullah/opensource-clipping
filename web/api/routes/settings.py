@@ -54,12 +54,27 @@ async def get_settings() -> SettingsResponse:
     pexels_key = env.get("PEXELS_API_KEY", os.environ.get("PEXELS_API_KEY", ""))
     hf_token = env.get("HF_TOKEN", os.environ.get("HF_TOKEN", ""))
     nvidia_key = env.get("NVIDIA_API_KEY", os.environ.get("NVIDIA_API_KEY", ""))
+    from clipping.providers.config import DEFAULT_LOCAL_MAX_TOKENS, DEFAULT_VLLM_MODEL
+
+    vllm_key = env.get("VLLM_API_KEY", os.environ.get("VLLM_API_KEY", ""))
+    vllm_model = env.get("VLLM_MODEL", os.environ.get("VLLM_MODEL", DEFAULT_VLLM_MODEL))
+    try:
+        local_max_tokens = int(env.get("VLLM_MAX_TOKENS", os.environ.get("VLLM_MAX_TOKENS", DEFAULT_LOCAL_MAX_TOKENS)))
+        if not 1 <= local_max_tokens <= 131072:
+            local_max_tokens = DEFAULT_LOCAL_MAX_TOKENS
+    except (TypeError, ValueError):
+        # The provider reports invalid operator settings when selected; listing
+        # settings must still work for existing cloud-only installations.
+        local_max_tokens = DEFAULT_LOCAL_MAX_TOKENS
 
     return SettingsResponse(
         google_api_key_set=bool(google_key),
         pexels_api_key_set=bool(pexels_key),
         hf_token_set=bool(hf_token),
         nvidia_api_key_set=bool(nvidia_key),
+        vllm_api_key_set=bool(vllm_key),
+        vllm_model=vllm_model,
+        local_max_tokens=local_max_tokens,
         default_clips=int(env.get("DEFAULT_CLIPS", "7")),
         default_ratio=env.get("DEFAULT_RATIO", "9:16"),
         default_font_style=env.get("DEFAULT_FONT_STYLE", "HORMOZI"),

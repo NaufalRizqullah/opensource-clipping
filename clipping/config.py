@@ -233,7 +233,7 @@ def _build_parser() -> argparse.ArgumentParser:
     # --- Pengaturan utama ---
     p.add_argument(
         "--url", "-u", required=False, default=None, nargs="+",
-        help="One or more video URLs to process (space-separated). Supports YouTube, TikTok, Instagram, Google Drive. Required unless --story-mode is used.",
+        help="One or more video URLs to process (space-separated). Supports YouTube, TikTok, Instagram, Google Drive.",
     )
     p.add_argument(
         "--yt-cookies", type=str, default=None,
@@ -452,9 +452,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--ai-provider",
-        choices=["gemini", "nvidia"],
+        choices=["gemini", "nvidia", "vllm"],
         default=AI_PROVIDER,
-        help="AI provider for video analysis (gemini or nvidia).",
+        help="AI provider for video analysis (gemini, nvidia, or self-hosted vllm).",
     )
     p.add_argument(
         "--nvidia-model",
@@ -462,6 +462,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Model name for NVIDIA NIM API (e.g. deepseek-ai/deepseek-v3).",
     )
     p.add_argument("--gemini-model", default=GEMINI_MODEL, help="Gemini model name")
+    p.add_argument("--vllm-model", default=None, help="vLLM served model/alias (default: VLLM_MODEL or Gemma 4 E2B QAT 4-bit).")
+    p.add_argument("--local-base-url", dest="vllm_base_url", default=None, help="vLLM service URL, with optional /v1 (default: VLLM_BASE_URL or http://127.0.0.1:8001).")
+    p.add_argument("--local-max-tokens", type=int, default=None, help="vLLM output token budget (default: VLLM_MAX_TOKENS or 4096).")
+    p.add_argument("--local-context-limit", dest="vllm_context_limit", type=int, default=None, help="Optional vLLM client context ceiling; cannot increase server capacity.")
+    p.add_argument("--local-timeout", dest="vllm_timeout", type=float, default=None, help="vLLM request/retry deadline in seconds (default: VLLM_TIMEOUT or 900).")
     p.add_argument(
         "--gemini-fallback-model",
         default=GEMINI_FALLBACK_MODEL,
@@ -630,36 +635,6 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Instruct AI to aggressively trim silence/dead air from clips.",
     )
 
-    # --- Story Clip Mode ---
-    story_group = p.add_argument_group("Story Clip Mode")
-    story_group.add_argument(
-        "--story-mode",
-        action="store_true",
-        default=False,
-        help="Enable Story Clip mode: assemble clips from multiple video sources using a JSON recipe.",
-    )
-    story_group.add_argument(
-        "--story-recipe",
-        default="story_recipe.json",
-        help="Path to the story recipe JSON file.",
-    )
-    story_group.add_argument(
-        "--sources-json",
-        default="sources.json",
-        help="Path to the sources registry JSON file.",
-    )
-    story_group.add_argument(
-        "--story-output-dir",
-        default=None,
-        help="Output directory for story clips (default: outputs/story_clips).",
-    )
-    story_group.add_argument(
-        "--skip-download",
-        action="store_true",
-        default=False,
-        help="Skip source downloads and use existing cached files.",
-    )
-
     # --- Voice-Over Commentary Pipeline ---
     vo_group = p.add_argument_group("Voice-Over Commentary (TTS)")
     vo_group.add_argument(
@@ -783,9 +758,9 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    # Validate: --url is required unless --story-mode is used
-    if not args.story_mode and not args.url:
-        parser.error("--url is required unless --story-mode is used.")
+    # Validate: --url is required
+    if not args.url:
+        parser.error("--url is required.")
 
     # Normalize URL list for batch support
     url_list = args.url if isinstance(args.url, list) else ([args.url] if args.url else [])
@@ -937,16 +912,6 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         dev_mode_with_output_merge=args.dev_mode_with_output_merge,
         track_lines=args.track_lines,
         static_crop=args.static_crop,
-        # Story Clip Mode
-        story_mode=args.story_mode,
-        story_recipe_path=os.path.abspath(args.story_recipe) if args.story_recipe else None,
-        sources_json_path=os.path.abspath(args.sources_json) if args.sources_json else None,
-        story_output_dir=(
-            os.path.abspath(args.story_output_dir)
-            if args.story_output_dir
-            else os.path.join(outputs_dir, "story_clips")
-        ),
-        skip_download=args.skip_download,
         # Voice-Over Commentary
         voiceover=args.voiceover,
         voiceover_voice=args.voiceover_voice,
@@ -968,4 +933,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         watermark_scale=args.watermark_scale,
     )
 
+    # Cache-only reruns need neither a live endpoint nor its former settings.
+    if cfg.ai_provider == "vllm" and (not cfg.load_gemini_json or cfg.voiceover):
+        from clipping.providers.config import vllm_config_values
+        vars(cfg).update(vllm_config_values(vars(args)))
     return cfg

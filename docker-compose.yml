@@ -15,7 +15,15 @@ services:
       - PEXELS_API_KEY=${PEXELS_API_KEY:-}
       - HF_TOKEN=${HF_TOKEN:-}
       - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
+      - VLLM_BASE_URL=${VLLM_BASE_URL:-http://host.docker.internal:8001}
+      - VLLM_MODEL=${VLLM_MODEL:-google/gemma-4-E2B-it-qat-w4a16-ct}
+      - VLLM_API_KEY=${VLLM_API_KEY:-}
+      - VLLM_MAX_TOKENS=${VLLM_MAX_TOKENS:-4096}
+      - VLLM_CONTEXT_LIMIT=${VLLM_CONTEXT_LIMIT:-}
+      - VLLM_TIMEOUT=${VLLM_TIMEOUT:-900}
       - MAX_CONCURRENT_JOBS=${MAX_CONCURRENT_JOBS:-1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     # Uncomment below for GPU support (requires NVIDIA Container Toolkit)
     # deploy:

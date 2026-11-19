@@ -927,215 +927,38 @@ Transkrip:
 
 
 def analyze_with_nvidia(transkrip_lengkap: str, cfg) -> list[dict]:
-    """Analyze transcript using NVIDIA NIM API (OpenAI compatible)."""
-    from openai import OpenAI
-    
-    print(f"[3/3] Menganalisis Top {cfg.jumlah_clip} momen menggunakan NVIDIA ({cfg.nvidia_model})...")
-    
-    if not cfg.api_key_nvidia:
-        raise ValueError("NVIDIA_API_KEY tidak ditemukan di environment.")
+    """Legacy facade for NVIDIA NIM analysis."""
+    from clipping.providers.nvidia import NvidiaNimProvider
+    from clipping.providers.schema import build_clips_schema
 
-    client = OpenAI(
-        base_url="https://integrate.api.nvidia.com/v1",
-        api_key=cfg.api_key_nvidia
-    )
-    
     prompt = get_analysis_prompt(transkrip_lengkap, cfg.jumlah_clip, cfg.durasi_hook, cfg=cfg)
-    
-    # Define the strict schema for Guided JSON (NVIDIA NIM specific)
-    clips_schema = {
-        "type": "array",
-        "items": {
-            "type": "object",
-            "additionalProperties": False,
-            "properties": {
-                "rank": {"type": "integer"},
-                "viral_score": {"type": "integer"},
-                "start_time": {"type": "number"},
-                "end_time": {"type": "number"},
-                "hook_start_time": {"type": "number"},
-                "hook_end_time": {"type": "number"},
-                "bgm_mood": {
-                    "type": "string",
-                    "enum": ["chill", "epic", "sad", "upbeat", "suspense"]
-                },
-                "typography_plan": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "properties": {
-                            "kata_utama": {"type": "string"},
-                            "scale_level": {"type": "integer", "enum": [1, 2, 3]},
-                            "style": {"type": "string", "enum": ["utama", "khusus"]},
-                            "animasi": {"type": "string", "enum": ["bounce_pop", "stagger_up"]}
-                        },
-                        "required": ["kata_utama", "scale_level", "style", "animasi"]
-                    }
-                },
-                "broll_list": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "properties": {
-                            "start_time": {"type": "number"},
-                            "end_time": {"type": "number"},
-                            "search_query": {"type": "string"}
-                        },
-                        "required": ["start_time", "end_time", "search_query"]
-                    }
-                },
-                "recommended_visual_broll_hook": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "properties": {
-                            "broll_idea": {"type": "string"},
-                            "search_keyword": {"type": "string"},
-                            "why_it_works": {"type": "string"}
-                        },
-                        "required": ["broll_idea", "search_keyword", "why_it_works"]
-                    }
-                },
-                "title_indonesia": {"type": "string"},
-                "title_inggris": {"type": "string"},
-                "hastag": {"type": "string"},
-                "description_hook": {"type": "string"},
-                "description_context": {"type": "string"},
-                "keyword_tags": {
-                    "type": "array",
-                    "items": {"type": "string"}
-                },
-                "tiktok_title_id": {"type": "string"},
-                "tiktok_caption_id": {"type": "string"},
-                "tiktok_caption": {"type": "string"},
-                "alasan": {"type": "string"},
-                "klasifikasi_akun": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {
-                        "tipe_akun": {"type": "string", "enum": list(TARGET_ACCOUNTS.keys())},
-                        "akun_tujuan": {"type": "string"},
-                        "confidence": {"type": "integer"},
-                        "angle_utama": {"type": "string"},
-                        "alasan": {"type": "string"},
-                        "kata_kunci_pendukung": {
-                            "type": "array",
-                            "items": {"type": "string"}
-                        },
-                        "bio_akun": {"type": "string"},
-                        "alternatif_akun": {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "properties": {
-                                "tipe_akun": {"type": "string", "enum": list(TARGET_ACCOUNTS.keys())},
-                                "akun_tujuan": {"type": "string"},
-                                "alasan": {"type": "string"}
-                            },
-                            "required": ["tipe_akun", "akun_tujuan", "alasan"]
-                        }
-                    },
-                    "required": ["tipe_akun", "akun_tujuan", "confidence", "angle_utama", "alasan", "kata_kunci_pendukung", "bio_akun", "alternatif_akun"]
-                },
-                "hook_v2": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {
-                        "enabled": {"type": "boolean"},
-                        "items": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "additionalProperties": False,
-                                "properties": {
-                                    "start_time": {"type": "number"},
-                                    "end_time": {"type": "number"},
-                                    "text": {"type": "string"},
-                                },
-                                "required": ["start_time", "end_time", "text"],
-                            },
-                        },
-                        "transition": {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "properties": {
-                                "type": {"type": "string", "enum": ["white_flash", "glitch"]},
-                            },
-                            "required": ["type"],
-                        },
-                    },
-                    "required": ["enabled", "items", "transition"],
-                },
-                "keep_segments": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "properties": {
-                            "start_time": {"type": "number"},
-                            "end_time": {"type": "number"},
-                        },
-                        "required": ["start_time", "end_time"],
-                    },
-                },
-            },
-            "required": [
-                "rank", "viral_score", "start_time", "end_time", "hook_start_time", "hook_end_time",
-                "bgm_mood", "typography_plan", "broll_list", "recommended_visual_broll_hook", "title_indonesia",
-                "title_inggris", "hastag", "description_hook", "description_context",
-                "keyword_tags", "tiktok_title_id", "tiktok_caption_id", "tiktok_caption",
-                "alasan", "klasifikasi_akun", "hook_v2", "keep_segments"
-            ]
-        }
-    }
+    return NvidiaNimProvider.from_cfg(cfg).generate_clips(prompt, build_clips_schema(TARGET_ACCOUNTS))
 
-    completion = client.chat.completions.create(
-        model=cfg.nvidia_model,
-        messages=[
-            {"role": "system", "content": "You are a professional video editor and strategist. Return JSON only. Follow the provided JSON schema exactly."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.5,
-        top_p=1,
-        max_tokens=16384,
-        extra_body={
-            "chat_template_kwargs": {"thinking": False},
-            "nvext": {
-                "guided_json": clips_schema
-            }
-        }
-    )
-    
-    content = completion.choices[0].message.content
-    
-    if "```" in content:
-        content = re.sub(r"```(json)?", "", content).strip()
-        content = content.split("```")[0].strip()
-        
-    hasil = json.loads(content)
-    
-    # Guided JSON should return an array directly if schema says type: array
-    # but we keep the unwrapper just in case of non-conforming fallbacks
-    if isinstance(hasil, dict):
-        for key in ["clips", "data", "highlights"]:
-            if key in hasil and isinstance(hasil[key], list):
-                hasil = hasil[key]
-                break
-                
-    if not isinstance(hasil, list):
-        if isinstance(hasil, dict):
-            return [hasil]
-        raise ValueError(f"Provider NVIDIA mengembalikan format non-list/dict: {type(hasil)}")
-        
-    return hasil
+
+def analyze_with_vllm(transkrip_lengkap: str, cfg) -> list[dict]:
+    """Analyze using the configured self-hosted server, with no cloud fallback."""
+    from clipping.providers.schema import build_clips_schema
+    from clipping.providers.vllm import VllmProvider
+
+    prompt = get_analysis_prompt(transkrip_lengkap, cfg.jumlah_clip, cfg.durasi_hook, cfg=cfg)
+    with VllmProvider.from_cfg(cfg) as provider:
+        return provider.generate_clips(
+            prompt,
+            build_clips_schema(TARGET_ACCOUNTS),
+            transcript=transkrip_lengkap,
+            requested_clips=cfg.jumlah_clip,
+            min_duration=MIN_CLIP_DURATION,
+            max_duration=MAX_CLIP_DURATION,
+        )
 
 
 def analyze_with_ai(transkrip_lengkap: str, cfg) -> list[dict]:
-    """Dispatcher for AI analysis based on provider."""
+    """Dispatch analysis; retain legacy NVIDIA-to-Gemini fallback only."""
+    cfg.ai_run_meta = None
     provider = getattr(cfg, "ai_provider", "gemini")
-    
+    if provider == "vllm":
+        return analyze_with_vllm(transkrip_lengkap, cfg)
+
     if provider == "nvidia":
         if not cfg.api_key_nvidia:
             print("⚠️ NVIDIA_API_KEY tidak ditemukan! Mencoba fallback ke Gemini...")
@@ -1144,189 +967,19 @@ def analyze_with_ai(transkrip_lengkap: str, cfg) -> list[dict]:
                 return analyze_with_nvidia(transkrip_lengkap, cfg)
             except Exception as e:
                 print(f"⚠️ NVIDIA API gagal: {e}. Fallback ke Gemini...")
-    
+
     return analyze_with_gemini(transkrip_lengkap, cfg)
 
 
-def analyze_with_gemini(
-    transkrip_lengkap: str,
-    cfg,
-) -> list[dict]:
-    """Analyse transcript with Gemini AI."""
-    import google.genai as genai
-    from google.genai import types
-
-    print(f"[3/3] Menganalisis Top {cfg.jumlah_clip} momen terbaik menggunakan Gemini...")
+def analyze_with_gemini(transkrip_lengkap: str, cfg) -> list[dict]:
+    """Legacy Gemini facade; live retry and prompt patch points remain here."""
+    from clipping.providers.gemini import GeminiProvider
+    from clipping.providers.schema import build_gemini_schema
 
     prompt = get_analysis_prompt(transkrip_lengkap, cfg.jumlah_clip, cfg.durasi_hook, cfg=cfg)
-
-    # JSON Schema definitions (same as before)
-    schema_broll = {
-        "type": "ARRAY",
-        "items": {
-            "type": "OBJECT",
-            "properties": {
-                "start_time": {"type": "NUMBER"},
-                "end_time": {"type": "NUMBER"},
-                "search_query": {"type": "STRING"},
-            },
-            "required": ["start_time", "end_time", "search_query"],
-        },
-    }
-
-    schema_visual_broll_hook = {
-        "type": "ARRAY",
-        "items": {
-            "type": "OBJECT",
-            "properties": {
-                "broll_idea": {"type": "STRING"},
-                "search_keyword": {"type": "STRING"},
-                "why_it_works": {"type": "STRING"},
-            },
-            "required": ["broll_idea", "search_keyword", "why_it_works"],
-        },
-    }
-
-    schema_typography = {
-        "type": "ARRAY",
-        "items": {
-            "type": "OBJECT",
-            "properties": {
-                "kata_utama": {"type": "STRING"},
-                "scale_level": {"type": "INTEGER"},
-                "style": {"type": "STRING"},
-                "animasi": {"type": "STRING"},
-            },
-            "required": ["kata_utama", "scale_level", "style", "animasi"],
-        },
-    }
-
-    schema_klasifikasi = {
-        "type": "OBJECT",
-        "properties": {
-            "tipe_akun": {"type": "STRING"},
-            "akun_tujuan": {"type": "STRING"},
-            "confidence": {"type": "INTEGER"},
-            "angle_utama": {"type": "STRING"},
-            "alasan": {"type": "STRING"},
-            "kata_kunci_pendukung": {
-                "type": "ARRAY",
-                "items": {"type": "STRING"},
-            },
-            "bio_akun": {"type": "STRING"},
-            "alternatif_akun": {
-                "type": "OBJECT",
-                "properties": {
-                    "tipe_akun": {"type": "STRING"},
-                    "akun_tujuan": {"type": "STRING"},
-                    "alasan": {"type": "STRING"},
-                },
-                "required": ["tipe_akun", "akun_tujuan", "alasan"],
-            },
-        },
-        "required": ["tipe_akun", "akun_tujuan", "confidence", "angle_utama", "alasan", "kata_kunci_pendukung", "bio_akun", "alternatif_akun"],
-    }
-
-    client = genai.Client(
-        api_key=cfg.api_key_gemini,
-        # Use the API-key Developer API even when cloud/notebook flags are set.
-        vertexai=False,
-        http_options=types.HttpOptions(
-            # Preserve beta routing for preview models and structured output
-            # across SDK versions (SDK 3 changed its default to v1).
-            api_version="v1beta",
-            timeout=REQUEST_TIMEOUT_MS,
-            retry_options=types.HttpRetryOptions(attempts=1),
-        ),
+    provider = GeminiProvider(
+        cfg,
+        generate_json=_generate_json_with_retry,
+        timeout_ms=REQUEST_TIMEOUT_MS,
     )
-
-    gemini_config = types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema={
-            "type": "ARRAY",
-            "items": {
-                "type": "OBJECT",
-                "properties": {
-                    "rank": {"type": "INTEGER"},
-                    "viral_score": {"type": "INTEGER"},
-                    "hook_start_time": {"type": "NUMBER"},
-                    "hook_end_time": {"type": "NUMBER"},
-                    "start_time": {"type": "NUMBER"},
-                    "end_time": {"type": "NUMBER"},
-                    "typography_plan": schema_typography,
-                    "broll_list": schema_broll,
-                    "recommended_visual_broll_hook": schema_visual_broll_hook,
-                    "alasan": {"type": "STRING"},
-                    "bgm_mood": {"type": "STRING"},
-                    "title_indonesia": {"type": "STRING"},
-                    "title_inggris": {"type": "STRING"},
-                    "hastag": {"type": "STRING"},
-                    "description_hook": {"type": "STRING"},
-                    "description_context": {"type": "STRING"},
-                    "keyword_tags": {
-                        "type": "ARRAY",
-                        "items": {"type": "STRING"},
-                    },
-                    "tiktok_title_id": {"type": "STRING"},
-                    "tiktok_caption_id": {"type": "STRING"},
-                    "tiktok_caption": {"type": "STRING"},
-                    "klasifikasi_akun": schema_klasifikasi,
-                    "hook_v2": {
-                        "type": "OBJECT",
-                        "properties": {
-                            "enabled": {"type": "BOOLEAN"},
-                            "items": {
-                                "type": "ARRAY",
-                                "items": {
-                                    "type": "OBJECT",
-                                    "properties": {
-                                        "start_time": {"type": "NUMBER"},
-                                        "end_time": {"type": "NUMBER"},
-                                        "text": {"type": "STRING"},
-                                    },
-                                    "required": ["start_time", "end_time", "text"],
-                                },
-                            },
-                            "transition": {
-                                "type": "OBJECT",
-                                "properties": {
-                                    "type": {"type": "STRING"},
-                                },
-                                "required": ["type"],
-                            },
-                        },
-                        "required": ["enabled", "items", "transition"],
-                    },
-                    "keep_segments": {
-                        "type": "ARRAY",
-                        "items": {
-                            "type": "OBJECT",
-                            "properties": {
-                                "start_time": {"type": "NUMBER"},
-                                "end_time": {"type": "NUMBER"},
-                            },
-                            "required": ["start_time", "end_time"],
-                        },
-                    },
-                },
-                "required": [
-                    "rank", "viral_score", "hook_start_time", "hook_end_time",
-                    "start_time", "end_time", "typography_plan",
-                    "broll_list", "recommended_visual_broll_hook", "alasan", "bgm_mood",
-                    "title_indonesia", "title_inggris", "hastag",
-                    "description_hook", "description_context",
-                    "keyword_tags", "tiktok_title_id",
-                    "tiktok_caption_id", "tiktok_caption",
-                    "klasifikasi_akun", "hook_v2", "keep_segments",
-                ],
-            },
-        },
-    )
-
-    return _generate_json_with_retry(
-        client=client,
-        model=cfg.gemini_model,
-        fallback_model=getattr(cfg, "gemini_fallback_model", None),
-        contents=prompt,
-        config=gemini_config,
-    )
+    return provider.generate_clips(prompt, build_gemini_schema(TARGET_ACCOUNTS))
