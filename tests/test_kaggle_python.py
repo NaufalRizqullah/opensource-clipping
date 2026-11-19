@@ -51,7 +51,7 @@ def test_bootstrap_keeps_secrets_but_isolates_python_uv_and_install_locations(mo
 def test_compatible_existing_python_skips_downloads(monkeypatch, tmp_path, kernel_is_312):
     selected = "/kernel/python3.13" if kernel_is_312 else "/usr/bin/python3.12"
     monkeypatch.setattr(bootstrap.shutil, "which", lambda name: "/usr/bin/python3.12")
-    monkeypatch.setattr(bootstrap, "python_version", lambda path, env: (3, 12) if str(path) == selected else (3, 13))
+    monkeypatch.setattr(bootstrap, "python_version", lambda path, env: (3, 12) if path == Path(selected) else (3, 13))
     assert bootstrap.ensure_python(tmp_path) == Path(selected)
     assert not (tmp_path / "uv").exists()
 
