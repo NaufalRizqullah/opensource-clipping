@@ -8,8 +8,6 @@ from .base import InvalidOutputError, ProviderConfigError
 
 
 def validate_analysis_config(cfg, *, probe=False, check_cache=True):
-    if getattr(cfg, "story_mode", False):
-        return
     cached = getattr(cfg, "load_gemini_json", False)
     voiceover = getattr(cfg, "voiceover", False)
     provider = getattr(cfg, "ai_provider", "gemini")

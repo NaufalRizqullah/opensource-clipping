@@ -105,10 +105,6 @@ def test_nvidia_voiceover_still_requires_gemini_key():
         validate_analysis_config(cfg)
 
 
-def test_story_mode_has_no_llm_dependency():
-    validate_analysis_config(SimpleNamespace(story_mode=True, ai_provider="unrecognized"), probe=True)
-
-
 @pytest.mark.parametrize("source", [
     "No timestamps", "[0 - 0] Empty", "[-1 - 20] Negative", "[20 - 10] Reversed",
     "[0 - 20] Valid\n[nan - 100] Invalid trailing row",

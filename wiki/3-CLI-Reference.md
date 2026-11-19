@@ -8,7 +8,7 @@ Complete reference for all command-line arguments. Run `python main.py --help` f
 
 | Argument | Default | Description |
 |---|---|---|
-| `--url`, `-u` | — | Video URL to process (**Required** unless `--story-mode`) |
+| `--url`, `-u` | — | Video URL to process (**Required**) |
 | `--source` | `youtube` | Video source platform: `youtube`, `tiktok`, `instagram`, `gdrive` |
 | `--clips`, `-n` | `7` | Number of highlight clips to generate |
 | `--ratio`, `-r` | `9:16` | Output aspect ratio: `9:16`, `16:9`, `1:1`, `3:4`, `4:5` |
@@ -186,12 +186,3 @@ vLLM does not require Google/NVIDIA keys and never falls back to cloud. Optional
 
 ---
 
-## Story Clip Mode
-
-| Argument | Default | Description |
-|---|---|---|
-| `--story-mode` | `False` | Enable Story Clip multi-source assembly |
-| `--story-recipe` | `story_recipe.json` | Path to story recipe JSON file |
-| `--sources-json` | `sources.json` | Path to sources registry JSON |
-| `--story-output-dir` | `outputs/story_clips` | Output directory for story clips |
-| `--skip-download` | `False` | Skip downloads, use cached files |

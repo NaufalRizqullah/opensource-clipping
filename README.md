@@ -48,10 +48,6 @@
 | **Podcast Camera Switch** | Auto active-speaker detection with scene-aware switching — full 9:16 crop focuses on whoever is talking; blurred pillarbox only when speakers in the same scene talk simultaneously (9:16) |
 | **AI Voice-Over** | Converts auto-clips into original commentary/reaction videos using **Gemini** (script generation) and **edge-tts** (free text-to-speech), complete with audio ducking, text override, and ambient edge glow |
 
-> 🎬 **NEW: Story Clip Mode (`--story-mode`)**  
-> Need to assemble a narrative from multiple specific video sources (like a brand campaign)? We've just introduced the Multi-Source Story Clip Mode!  
-> 👉 **[Read the full Story Clip Documentation](docs/STORY_CLIP.md)**
-
 ## 📋 Prerequisites
 
 **Experimental Kaggle vLLM setup:** the [Gemma 4 Q4 notebook](notebooks/kaggle-vllm-gemma4.ipynb) and [guide](docs/KAGGLE_VLLM.md) prepare an isolated server for a supported single 16 GB GPU. Kaggle validation is pending; P100 is unsupported by this preset. Gemini remains the default provider.
@@ -604,7 +600,6 @@ opensource-clipping/
 │   ├── diarization.py       # Pyannote speaker diarization
 │   ├── metadata.py          # QA metadata normalization
 │   ├── runner.py            # Pipeline orchestrator
-│   ├── story/               # Story mode modules
 │   └── studio/              # Video render engine modules
 ├── facebook_uploader/       # Facebook Pages Reels upload & scheduling
 ├── web/                     # Web API and React Dashboard

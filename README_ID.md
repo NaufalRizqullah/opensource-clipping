@@ -46,10 +46,6 @@
 | **Podcast Camera Switch** | Deteksi speaker aktif otomatis dengan switching yang scene-aware — crop full 9:16 fokus ke pembicara aktif; blurred pillarbox hanya saat speaker di scene yang sama bicara bersamaan (9:16) |
 | **AI Voice-Over** | Mengubah auto-clip menjadi video reaksi/komentar original menggunakan **Gemini** (pembuat script) dan **edge-tts** (text-to-speech gratis), lengkap dengan audio ducking, penimpaan teks subtitle, dan ambient edge glow |
 
-> 🎬 **BARU: Mode Story Clip (`--story-mode`)**  
-> Perlu merakit cerita dari potongan adegan spesifik di berbagai sumber video (misalnya untuk *campaign* brand)? Gunakan fitur Story Clip multi-sumber!  
-> 👉 **[Baca dokumentasi lengkap Story Clip di sini](docs/STORY_CLIP.md)**
-
 ## 📋 Prasyarat
 
 **Setup vLLM Kaggle eksperimental:** [notebook Gemma 4 Q4](notebooks/kaggle-vllm-gemma4.ipynb) dan [panduan](docs/KAGGLE_VLLM.md) menyiapkan server terpisah untuk satu GPU 16 GB yang didukung. Validasi Kaggle masih menunggu; P100 tidak didukung preset ini. Provider default tetap Gemini.
@@ -530,7 +526,6 @@ opensource-clipping/
 │   ├── diarization.py       # Pyannote speaker diarization
 │   ├── metadata.py          # Normalisasi & QA metadata
 │   ├── runner.py            # Orkestrator pipeline
-│   ├── story/               # Modul mode Story Clip
 │   └── studio/              # Modul mesin render video
 ├── facebook_uploader/       # Upload & penjadwalan Reels Facebook Pages
 ├── web/                     # Web API dan React Dashboard
