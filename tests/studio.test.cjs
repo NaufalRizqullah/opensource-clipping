@@ -5,15 +5,16 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const studioPath = path.join(__dirname, '..', 'docs', 'studio');
+const i18nSource = fs.readFileSync(path.join(studioPath, 'i18n.js'), 'utf8');
 const apiSource = fs.readFileSync(path.join(studioPath, 'api.js'), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { 'Content-Type': 'application/json' },
 });
 
-function createHarness(fetchImpl = async () => json({ status: 'ok' })) {
+function createHarness(fetchImpl = async () => json({ status: 'ok' }), options = {}) {
   const elements = new Map();
-  const storage = new Map();
+  const storage = new Map(Object.entries(options.storage || {}));
   const timers = new Map();
   const intervals = new Map();
   const window = new EventTarget();
@@ -21,8 +22,13 @@ function createHarness(fetchImpl = async () => json({ status: 'ok' })) {
   function element(id) {
     if (!elements.has(id)) {
       const classes = new Set(['hidden']);
+      const attributes = new Map();
       elements.set(id, {
         id, textContent: '', innerHTML: '', value: '', disabled: false, style: {},
+        setAttribute: (key, value) => attributes.set(key, String(value)),
+        getAttribute: key => attributes.get(key) ?? null,
+        removeAttribute: key => attributes.delete(key),
+        hasAttribute: key => attributes.has(key),
         classList: {
           add: name => classes.add(name), remove: name => classes.delete(name),
           contains: name => classes.has(name),
@@ -43,14 +49,16 @@ function createHarness(fetchImpl = async () => json({ status: 'ok' })) {
   const context = vm.createContext({
     window, URL, URLSearchParams, AbortController, TextDecoder,
     CustomEvent: DetailEvent, console, fetch: fetchImpl,
+    navigator: { language: options.browserLanguage || 'id-ID' },
     confirm: () => true, alert: () => {}, lucide: { createIcons() {} },
     localStorage: {
-      getItem: key => storage.get(key) || null,
-      setItem: (key, value) => storage.set(key, value),
+      getItem: key => { if (options.blockStorage) throw new Error('Storage blocked'); return storage.get(key) || null; },
+      setItem: (key, value) => { if (options.blockStorage) throw new Error('Storage blocked'); storage.set(key, value); },
       removeItem: key => storage.delete(key),
     },
     document: {
       getElementById: element, querySelector: element, createElement: element,
+      querySelectorAll: selector => [...elements.values()].filter(el => el.hasAttribute(selector.slice(1, -1))),
       documentElement: element('html'), body: { appendChild() {} }, addEventListener() {},
     },
     setTimeout(fn, delay) { const timer = {}; timers.set(timer, { fn, delay }); return timer; },
@@ -58,6 +66,7 @@ function createHarness(fetchImpl = async () => json({ status: 'ok' })) {
     setInterval(fn, delay) { const timer = {}; intervals.set(timer, { fn, delay }); return timer; },
     clearInterval: timer => intervals.delete(timer),
   });
+  vm.runInContext(i18nSource, context, { filename: 'i18n.js' });
   vm.runInContext(apiSource, context, { filename: 'api.js' });
   function runPage(filename) {
     const html = fs.readFileSync(path.join(studioPath, filename), 'utf8');
@@ -67,6 +76,7 @@ function createHarness(fetchImpl = async () => json({ status: 'ok' })) {
   return {
     context, storage, timers, intervals, window, element, runPage,
     api: vm.runInContext('StudioAPI', context),
+    i18n: vm.runInContext('StudioI18n', context),
     event: type => window.dispatchEvent(new DetailEvent(type)),
   };
 }
@@ -261,4 +271,153 @@ test('late polling response cannot overwrite completed clips', async () => {
   await flush();
   assert.equal(h.element('job-badge').textContent, 'Completed');
   assert.equal(h.element('clips-section').classList.contains('hidden'), false);
+});
+
+test('Studio defaults to English regardless of browser language and persists an explicit choice', () => {
+  const h = createHarness(undefined, { browserLanguage: 'id-ID' });
+  assert.equal(h.i18n.getLanguage(), 'en');
+  assert.equal(h.element('html').lang, 'en');
+  assert.equal(h.i18n.t('new.heading'), 'New Clipping Job');
+  h.i18n.setLanguage('id');
+  assert.equal(h.storage.get('osc_studio_language'), 'id');
+  assert.equal(h.element('html').lang, 'id');
+  const nextPage = createHarness(undefined, { storage: Object.fromEntries(h.storage) });
+  assert.equal(nextPage.i18n.getLanguage(), 'id');
+  assert.equal(nextPage.i18n.t('new.heading'), 'Job Clipping Baru');
+  nextPage.i18n.setLanguage('en');
+  assert.equal(nextPage.storage.get('osc_studio_language'), 'en');
+});
+
+test('unsupported preferences and unavailable storage still allow a working English default', () => {
+  for (const options of [{ storage: { osc_studio_language: 'fr' } }, { blockStorage: true }]) {
+    const h = createHarness(undefined, options);
+    assert.equal(h.i18n.getLanguage(), 'en');
+    h.i18n.setLanguage('id');
+    assert.equal(h.i18n.t('settings.save'), 'Simpan Pengaturan');
+    h.i18n.setLanguage('unsupported');
+    assert.equal(h.i18n.getLanguage(), 'en');
+    assert.equal(h.i18n.t('missing.key'), 'missing.key');
+  }
+});
+
+test('switching language updates text, attributes, dates and selectors without altering form values', () => {
+  const h = createHarness();
+  const input = h.element('input-url');
+  input.value = 'https://youtube.com/watch?v=keep-me';
+  input.setAttribute('data-i18n-placeholder', 'new.reuseExample');
+  const keyInput = h.element('input-google-key');
+  keyInput.value = 'unsaved-test-key';
+  const toggle = h.element('toggle-use_broll');
+  toggle.checked = false;
+  const provider = h.element('input-ai');
+  provider.value = 'vllm';
+  const selector = h.element('language');
+  selector.setAttribute('data-language-select', '');
+  const title = h.element('title');
+  h.i18n.text(title, 'dashboard.title');
+  const help = h.element('help');
+  help.setAttribute('data-i18n-title', 'settings.visibility');
+  help.setAttribute('data-i18n-aria-label', 'nav.menu');
+  const date = h.element('created');
+  const timestamp = '2026-11-19T05:30:00Z';
+  date.setAttribute('data-i18n-date', timestamp);
+  h.i18n.setLanguage('id');
+  assert.equal(title.textContent, 'Dasbor — OSC Studio');
+  assert.equal(input.getAttribute('placeholder'), 'Contoh: d20b47341e08');
+  assert.equal(help.getAttribute('title'), 'Tampilkan/sembunyikan');
+  assert.equal(help.getAttribute('aria-label'), 'Buka navigasi');
+  assert.equal(date.textContent, new Date(timestamp).toLocaleString('id-ID', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }));
+  assert.equal(selector.value, 'id');
+  h.i18n.setLanguage('en');
+  assert.equal(title.textContent, 'Dashboard — OSC Studio');
+  assert.equal(date.textContent, new Date(timestamp).toLocaleString('en-US', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }));
+  assert.equal(input.value, 'https://youtube.com/watch?v=keep-me');
+  assert.equal(keyInput.value, 'unsaved-test-key');
+  assert.equal(toggle.checked, false);
+  assert.equal(provider.value, 'vllm');
+});
+
+test('validation and in-flight client errors translate again when the language changes', async () => {
+  const h = createHarness();
+  h.runPage('new-job.html');
+  await vm.runInContext('handleSubmit({ preventDefault() {} })', h.context);
+  assert.match(h.element('form-error-text').textContent, /Backend not connected/);
+  h.i18n.setLanguage('id');
+  assert.match(h.element('form-error-text').textContent, /Backend belum terhubung/);
+  h.api.setBackendUrl('https://tunnel.example');
+  await vm.runInContext('handleSubmit({ preventDefault() {} })', h.context);
+  assert.equal(h.element('form-error-text').textContent, 'URL tidak boleh kosong');
+  h.i18n.setLanguage('en');
+  assert.equal(h.element('form-error-text').textContent, 'URL cannot be empty');
+  let failure;
+  try { await h.api.connect('not a URL'); } catch (error) { failure = error; }
+  h.i18n.text(h.element('connect-status-msg'), 'connection.failed', { message: h.i18n.errorMessage(failure) });
+  h.i18n.setLanguage('id');
+  assert.match(h.element('connect-status-msg').textContent, /^❌ Koneksi gagal: Masukkan URL backend/);
+});
+
+test('localized template parameters are escaped and server content is preserved', () => {
+  const h = createHarness();
+  const unsafe = '<img src=x onerror=alert(1)>"&';
+  const rendered = h.i18n.html('common.message', { message: unsafe });
+  assert(!rendered.includes('<img'));
+  assert.match(rendered, /&lt;img/);
+  h.i18n.text(h.element('server-message'), 'common.message', { message: unsafe });
+  h.i18n.setLanguage('id');
+  assert.equal(h.element('server-message').textContent, unsafe);
+  h.i18n.text(h.element('model'), 'settings.serverConfig');
+  h.i18n.literal(h.element('model'), 'custom/model-alias');
+  h.i18n.setLanguage('en');
+  assert.equal(h.element('model').textContent, 'custom/model-alias');
+});
+
+test('changing language preserves job polling and clip markup while updating cancellation status', async () => {
+  const h = createHarness();
+  h.api.setBackendUrl('https://tunnel.example');
+  let fetches = 0;
+  h.api.fetchJob = async () => {
+    fetches++;
+    return { id: 'abc123', status: 'rendering', cancel_requested: true, clips: [] };
+  };
+  h.api.createSSE = () => ({ close() {} });
+  h.runPage('job.html');
+  await flush();
+  const timer = [...h.intervals.keys()][0];
+  h.i18n.setLanguage('id');
+  assert.equal(h.element('job-badge').textContent, 'Pembatalan diminta');
+  assert.equal(h.element('cancel-job-btn').disabled, true);
+  assert.match(h.element('progress-message').textContent, /Pembatalan diminta/);
+  assert.equal(h.intervals.has(timer), true);
+  assert.equal(fetches, 1);
+  vm.runInContext("renderJob({ id: 'abc123', status: 'completed', clips: [{ rank: 1, download_url: '/api/outputs/abc123/clip.mp4' }] })", h.context);
+  const clips = h.element('clips-grid').innerHTML;
+  assert.match(clips, /Buka video/);
+  h.i18n.setLanguage('en');
+  assert.equal(h.element('job-badge').textContent, 'Completed');
+  assert.equal(h.element('clips-grid').innerHTML, clips, 'language changes must not replace video elements');
+});
+
+test('both catalogs cover every key and placeholder, and all pages load localization before their API client', () => {
+  const catalog = JSON.parse(i18nSource.match(/const messages = (\{[\s\S]*?\n\s*\});/)[1]);
+  assert.deepEqual(Object.keys(catalog.en).sort(), Object.keys(catalog.id).sort());
+  for (const key of Object.keys(catalog.en)) {
+    assert(catalog.en[key].trim() && catalog.id[key].trim(), key);
+    const placeholders = value => [...value.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort();
+    assert.deepEqual(placeholders(catalog.en[key]), placeholders(catalog.id[key]), key);
+  }
+  for (const page of ['index.html', 'new-job.html', 'job.html', 'settings.html']) {
+    const source = fs.readFileSync(path.join(studioPath, page), 'utf8');
+    assert(source.indexOf('src="i18n.js"') < source.indexOf('src="api.js"'), page);
+    assert.match(source, /<html lang="en">/);
+    assert.match(source, /data-language-select/);
+    assert.match(source, /value="en" lang="en">EN · English/);
+    assert.match(source, /value="id" lang="id">ID · Bahasa Indonesia/);
+    for (const match of source.matchAll(/data-i18n(?:-placeholder|-title|-aria-label|-content)?="([\w.]+)"/g)) {
+      assert(Object.hasOwn(catalog.en, match[1]), `${page}: ${match[1]}`);
+    }
+  }
 });

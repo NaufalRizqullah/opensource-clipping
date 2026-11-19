@@ -40,6 +40,7 @@ Welcome to the **OpenSource Clipping** wiki! This is the central hub for all doc
 - 🎙️ **Podcast Split-Screen** — Auto speaker diarization with top-bottom split layout
 - 📤 **Auto YouTube Upload** — Upload with scheduling and full metadata support
 - 📐 **5 Aspect Ratios** — `9:16`, `16:9`, `1:1`, `3:4`, `4:5`
+- 🌐 **Bilingual Web Studio** — The GitHub Pages Studio opens in English; choose Indonesian from the sidebar's Language selector. The browser remembers the choice across Studio pages and reloads.
 
 ## 🔄 Pipeline Flow
 

@@ -19,6 +19,7 @@
   z-index: 40;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
   border-right: 1px solid rgba(148, 163, 184, 0.15);
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
@@ -95,6 +96,40 @@
 .connect-panel {
   padding: 14px;
   border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+/* Language remains available in the mobile sidebar and without a backend. */
+.language-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #64748b;
+}
+.language-picker label {
+  font-weight: 600;
+}
+.language-picker select {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+}
+.language-picker select:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+.dark .language-picker { color: #94a3b8; }
+.dark .language-picker select {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
 }
 .dark .connect-panel {
   border-color: rgba(255, 255, 255, 0.06);

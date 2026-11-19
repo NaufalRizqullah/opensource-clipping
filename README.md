@@ -118,6 +118,8 @@ The **Clipping Studio** is a browser-based dashboard hosted for free on **GitHub
 
 **🔗 Open Studio:** [naufalrizqullah.github.io/opensource-clipping/studio/](https://naufalrizqullah.github.io/opensource-clipping/studio/)
 
+**Interface language:** Studio opens in **English (EN)** by default. Select **ID · Bahasa Indonesia** from **Language** in the sidebar (open the menu on mobile) to switch instantly. Your choice is remembered across Studio pages and browser reloads, without clearing form inputs. This changes the interface language; generated video content and backend logs keep their original language. See the [Studio translation guide](docs/STUDIO_I18N.md) for contributor details.
+
 **🎥 Video Guide:**
 
 [![Watch the usage guide on YouTube](https://img.youtube.com/vi/L_N8zEJhm6M/maxresdefault.jpg)](https://www.youtube.com/watch?v=L_N8zEJhm6M)

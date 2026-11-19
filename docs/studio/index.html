@@ -3,9 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
+    <script src="i18n.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard — OSC Studio</title>
-    <meta name="description" content="OpenSource Clipping Studio Dashboard — Monitor your AI auto-clipping jobs powered by Kaggle/Colab GPU.">
+    <title data-i18n="dashboard.title">Dashboard — OSC Studio</title>
+    <meta name="description" content="OpenSource Clipping Studio Dashboard — Monitor your AI auto-clipping jobs powered by Kaggle/Colab GPU." data-i18n-content="dashboard.description">
 
     <!-- Tailwind CSS Play CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -65,43 +66,50 @@
                     </span>
                 </a>
                 <h2 class="font-display font-bold text-lg text-slate-900 dark:text-white">🎬 Studio</h2>
-                <p class="text-xs text-slate-400 dark:text-slate-500">AI Auto-Clipper · Remote GPU</p>
+                <p class="text-xs text-slate-400 dark:text-slate-500"><span data-i18n="nav.tagline">AI Auto-Clipper · Remote GPU</span></p>
             </div>
 
             <nav class="sidebar-nav">
                 <a href="index.html" class="sidebar-link active">
                     <i data-lucide="layout-dashboard" class="nav-icon"></i>
-                    Dashboard
+                    <span data-i18n="nav.dashboard">Dashboard</span>
                 </a>
                 <a href="new-job.html" class="sidebar-link">
                     <i data-lucide="plus-circle" class="nav-icon"></i>
-                    New Job
+                    <span data-i18n="nav.newJob">New Job</span>
                 </a>
                 <a href="settings.html" class="sidebar-link">
                     <i data-lucide="settings" class="nav-icon"></i>
-                    Settings
+                    <span data-i18n="nav.settings">Settings</span>
                 </a>
             </nav>
 
             <!-- Connect Panel -->
             <div class="connect-panel">
+                <div class="language-picker">
+                    <label for="studio-language" data-i18n="language">Language</label>
+                    <select id="studio-language" data-language-select onchange="StudioI18n.setLanguage(this.value)">
+                        <option value="en" lang="en">EN · English</option>
+                        <option value="id" lang="id">ID · Bahasa Indonesia</option>
+                    </select>
+                </div>
                 <div class="flex items-center gap-2 mb-2">
                     <span id="connect-dot" class="connect-dot offline"></span>
-                    <span id="connect-label" class="text-xs text-slate-500 dark:text-slate-400 truncate flex-1">Not connected</span>
+                    <span id="connect-label" class="text-xs text-slate-500 dark:text-slate-400 truncate flex-1"><span data-i18n="connection.offline">Not connected</span></span>
                 </div>
                 <div class="flex gap-2 w-full">
                     <button id="connect-btn" onclick="showConnectModal()" class="flex-1 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
-                        Connect
+                        <span data-i18n="common.connect">Connect</span>
                     </button>
-                    <button id="sidebar-stop-btn" onclick="stopBackendServer()" class="hidden w-10 flex items-center justify-center text-xs font-medium rounded-lg border border-red-500 bg-red-600 hover:bg-red-700 text-white transition-colors" title="Stop Kaggle Server">
+                    <button id="sidebar-stop-btn" onclick="stopBackendServer()" class="hidden w-10 flex items-center justify-center text-xs font-medium rounded-lg border border-red-500 bg-red-600 hover:bg-red-700 text-white transition-colors" title="Stop Kaggle Server" data-i18n-title="connection.stopKaggle">
                         <i data-lucide="power" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
                 <button onclick="toggleTheme()" class="w-full mt-2 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300 flex items-center justify-center gap-2">
                     <span class="dark:hidden"><i data-lucide="moon" class="w-3.5 h-3.5"></i></span>
                     <span class="hidden dark:inline"><i data-lucide="sun" class="w-3.5 h-3.5"></i></span>
-                    <span class="dark:hidden">Dark Mode</span>
-                    <span class="hidden dark:inline">Light Mode</span>
+                    <span class="dark:hidden"><span data-i18n="theme.dark">Dark Mode</span></span>
+                    <span class="hidden dark:inline"><span data-i18n="theme.light">Light Mode</span></span>
                 </button>
             </div>
         </aside>
@@ -110,7 +118,7 @@
         <main class="studio-main">
             <!-- Mobile Header -->
             <div class="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80">
-                <button onclick="toggleSidebar()" class="mobile-toggle p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+                <button onclick="toggleSidebar()" class="mobile-toggle p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Open navigation" data-i18n-aria-label="nav.menu">
                     <i data-lucide="menu" class="w-5 h-5"></i>
                 </button>
                 <span class="font-display font-bold text-sm">🎬 OSC Studio</span>
@@ -120,12 +128,12 @@
                 <!-- Page Header -->
                 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
                     <div>
-                        <h1 class="font-display font-bold text-2xl sm:text-3xl text-slate-900 dark:text-white">Dashboard</h1>
-                        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Overview semua clipping jobs</p>
+                        <h1 class="font-display font-bold text-2xl sm:text-3xl text-slate-900 dark:text-white"><span data-i18n="nav.dashboard">Dashboard</span></h1>
+                        <p class="text-slate-500 dark:text-slate-400 text-sm mt-1"><span data-i18n="dashboard.subtitle">Overview of all clipping jobs</span></p>
                     </div>
                     <a href="new-job.html" class="px-5 py-2.5 rounded-xl bg-brand-600 text-white font-medium text-sm hover:bg-brand-700 dark:bg-brand-500 dark:hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/20 hover:-translate-y-0.5 flex items-center gap-2">
                         <i data-lucide="plus" class="w-4 h-4"></i>
-                        New Job
+                        <span data-i18n="nav.newJob">New Job</span>
                     </a>
                 </div>
 
@@ -134,11 +142,11 @@
                     <div class="flex items-start gap-3">
                         <i data-lucide="wifi-off" class="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5"></i>
                         <div>
-                            <h3 class="text-sm font-semibold text-amber-800 dark:text-amber-300">Backend Not Connected</h3>
+                            <h3 class="text-sm font-semibold text-amber-800 dark:text-amber-300"><span data-i18n="dashboard.disconnected">Backend Not Connected</span></h3>
                             <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                                Run your Kaggle/Colab notebook first, then click
-                                <button onclick="showConnectModal()" class="underline font-semibold hover:text-amber-800 dark:hover:text-amber-200">Connect</button>
-                                and paste the tunnel URL.
+                                <span data-i18n="dashboard.connectBefore">Run your Kaggle/Colab notebook first, then click</span>
+                                <button onclick="showConnectModal()" class="underline font-semibold hover:text-amber-800 dark:hover:text-amber-200"><span data-i18n="common.connect">Connect</span></button>
+                                <span data-i18n="dashboard.connectAfter">and paste the tunnel URL.</span>
                             </p>
                         </div>
                     </div>
@@ -147,19 +155,19 @@
                 <!-- Stats Cards -->
                 <div id="stats-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     <div class="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
-                        <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Total Jobs</div>
+                        <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500"><span data-i18n="dashboard.totalJobs">Total Jobs</span></div>
                         <div id="stat-total" class="stat-value">—</div>
                     </div>
                     <div class="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
-                        <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Completed</div>
+                        <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500"><span data-i18n="status.completed">Completed</span></div>
                         <div id="stat-completed" class="text-[28px] font-extrabold mt-1 text-emerald-500">—</div>
                     </div>
                     <div class="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
-                        <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Total Clips</div>
+                        <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500"><span data-i18n="dashboard.totalClips">Total Clips</span></div>
                         <div id="stat-clips" class="text-[28px] font-extrabold mt-1 text-brand-500 dark:text-brand-400">—</div>
                     </div>
                     <div class="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
-                        <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">System</div>
+                        <div class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500"><span data-i18n="dashboard.system">System</span></div>
                         <div id="stat-system" class="text-xs mt-2 space-y-1">
                             <div class="text-slate-400">—</div>
                         </div>
@@ -171,17 +179,17 @@
                     <!-- Loading State -->
                     <div id="job-loading" class="text-center py-16">
                         <div class="spinner spinner-dark mx-auto mb-3"></div>
-                        <p class="text-sm text-slate-400">Loading jobs...</p>
+                        <p class="text-sm text-slate-400"><span data-i18n="dashboard.loading">Loading jobs...</span></p>
                     </div>
 
                     <!-- Empty State -->
                     <div id="job-empty" class="hidden text-center py-16">
                         <div class="text-5xl mb-4">🎬</div>
-                        <h3 class="font-display font-semibold text-lg text-slate-900 dark:text-white mb-2">Belum ada job</h3>
-                        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-sm mx-auto">Buat job pertama untuk memulai clipping video otomatis dengan AI.</p>
+                        <h3 class="font-display font-semibold text-lg text-slate-900 dark:text-white mb-2"><span data-i18n="dashboard.empty">No jobs yet</span></h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-sm mx-auto"><span data-i18n="dashboard.emptyHelp">Create your first job to start clipping videos automatically with AI.</span></p>
                         <a href="new-job.html" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 text-white font-medium text-sm hover:bg-brand-700 transition-colors shadow-lg shadow-brand-500/20">
                             <i data-lucide="plus" class="w-4 h-4"></i>
-                            Create First Job
+                            <span data-i18n="dashboard.createFirst">Create First Job</span>
                         </a>
                     </div>
 
@@ -233,7 +241,7 @@
                 if (healthData) {
                     document.getElementById('stat-system').innerHTML = `
                         <div class="${healthData.gpu_available ? 'text-emerald-500' : 'text-slate-400'}">
-                            ${healthData.gpu_available ? '✅ GPU' : '⚪ CPU only'}
+                            ${healthData.gpu_available ? '✅ GPU' : StudioI18n.html('common.cpuOnly')}
                         </div>
                         <div class="${healthData.ffmpeg_available ? 'text-emerald-500' : 'text-red-500'}">
                             ${healthData.ffmpeg_available ? '✅ FFmpeg' : '❌ FFmpeg'}
@@ -253,7 +261,7 @@
                     grid.classList.remove('hidden');
 
                     grid.innerHTML = jobs.map(job => {
-                        let title = 'Upload';
+                        let title = '';
                         if (job.url) {
                             try { title = new URL(job.url).hostname.replace('www.', ''); }
                             catch { title = job.url; }
@@ -261,8 +269,6 @@
                             title = job.upload_filename;
                         }
 
-                        const statusLabel = job.cancel_requested && !['completed', 'failed', 'cancelled'].includes(job.status)
-                            ? 'Cancellation requested' : STATUS_LABELS[job.status] || job.status;
                         const clipsCount = job.clips?.length || 0;
                         const progressMsg = job.progress?.message || '';
                         const isTerminal = ['completed', 'failed', 'cancelled'].includes(job.status);
@@ -271,17 +277,17 @@
                             <a href="job.html?id=${encodeURIComponent(job.id)}" class="job-card">
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center gap-2 mb-1">
-                                        <h3 class="font-semibold text-sm text-slate-900 dark:text-white truncate">${escapeHtml(title)}</h3>
+                                        <h3 class="font-semibold text-sm text-slate-900 dark:text-white truncate">${title ? escapeHtml(title) : StudioI18n.html('dashboard.upload')}</h3>
                                         <span class="text-xs text-slate-400 font-mono">#${escapeHtml(job.id)}</span>
                                     </div>
                                     <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-                                        <span>${formatDate(job.created_at)}</span>
-                                        ${clipsCount > 0 ? `<span>🎞️ ${clipsCount} clips</span>` : ''}
+                                        <span data-i18n-date="${escapeHtml(job.created_at || '')}">${formatDate(job.created_at)}</span>
+                                        ${clipsCount > 0 ? `<span>🎞️ ${StudioI18n.html('dashboard.clips', { count: clipsCount })}</span>` : ''}
                                         ${!isTerminal && progressMsg ? `<span class="text-brand-500 dark:text-brand-400">${escapeHtml(progressMsg)}</span>` : ''}
-                                        ${job.error ? '<span class="text-red-500">⚠ Error</span>' : ''}
+                                        ${job.error ? `<span class="text-red-500">⚠ ${StudioI18n.html('common.error')}</span>` : ''}
                                     </div>
                                 </div>
-                                <span class="badge badge-${escapeHtml(job.status)}">${escapeHtml(statusLabel)}</span>
+                                <span class="badge badge-${escapeHtml(job.status)}">${StudioI18n.html(statusKey(job.status, job.cancel_requested), { message: job.status })}</span>
                             </a>
                         `;
                     }).join('');
@@ -293,10 +299,10 @@
                 document.getElementById('job-grid').innerHTML = `
                     <div class="text-center py-12">
                         <div class="text-3xl mb-3">⚠️</div>
-                        <h3 class="font-semibold text-sm text-red-500 mb-1">Connection Error</h3>
-                        <p class="text-xs text-slate-500">${escapeHtml(err.message)}</p>
+                        <h3 class="font-semibold text-sm text-red-500 mb-1">${StudioI18n.html('dashboard.connectionError')}</h3>
+                        <p class="text-xs text-slate-500">${StudioI18n.html('common.message', { message: StudioI18n.errorMessage(err) })}</p>
                         <button onclick="showConnectModal()" class="mt-4 px-4 py-2 text-xs rounded-lg bg-brand-600 text-white font-medium hover:bg-brand-700 transition-colors">
-                            Reconnect
+                            ${StudioI18n.html('common.reconnect')}
                         </button>
                     </div>
                 `;

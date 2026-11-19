@@ -3,9 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
+    <script src="i18n.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings — OSC Studio</title>
-    <meta name="description" content="Configure API keys and settings — OpenSource Clipping Studio">
+    <title data-i18n="settings.title">Settings — OSC Studio</title>
+    <meta name="description" content="Configure API keys and default settings — OpenSource Clipping Studio" data-i18n-content="settings.description">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -46,30 +47,37 @@
                     </span>
                 </a>
                 <h2 class="font-display font-bold text-lg text-slate-900 dark:text-white">🎬 Studio</h2>
-                <p class="text-xs text-slate-400 dark:text-slate-500">AI Auto-Clipper · Remote GPU</p>
+                <p class="text-xs text-slate-400 dark:text-slate-500"><span data-i18n="nav.tagline">AI Auto-Clipper · Remote GPU</span></p>
             </div>
             <nav class="sidebar-nav">
-                <a href="index.html" class="sidebar-link"><i data-lucide="layout-dashboard" class="nav-icon"></i> Dashboard</a>
-                <a href="new-job.html" class="sidebar-link"><i data-lucide="plus-circle" class="nav-icon"></i> New Job</a>
-                <a href="settings.html" class="sidebar-link active"><i data-lucide="settings" class="nav-icon"></i> Settings</a>
+                <a href="index.html" class="sidebar-link"><i data-lucide="layout-dashboard" class="nav-icon"></i> <span data-i18n="nav.dashboard">Dashboard</span></a>
+                <a href="new-job.html" class="sidebar-link"><i data-lucide="plus-circle" class="nav-icon"></i> <span data-i18n="nav.newJob">New Job</span></a>
+                <a href="settings.html" class="sidebar-link active"><i data-lucide="settings" class="nav-icon"></i> <span data-i18n="nav.settings">Settings</span></a>
             </nav>
             <div class="connect-panel">
+                <div class="language-picker">
+                    <label for="studio-language" data-i18n="language">Language</label>
+                    <select id="studio-language" data-language-select onchange="StudioI18n.setLanguage(this.value)">
+                        <option value="en" lang="en">EN · English</option>
+                        <option value="id" lang="id">ID · Bahasa Indonesia</option>
+                    </select>
+                </div>
                 <div class="flex items-center gap-2 mb-2">
                     <span id="connect-dot" class="connect-dot offline"></span>
-                    <span id="connect-label" class="text-xs text-slate-500 dark:text-slate-400 truncate flex-1">Not connected</span>
+                    <span id="connect-label" class="text-xs text-slate-500 dark:text-slate-400 truncate flex-1"><span data-i18n="connection.offline">Not connected</span></span>
                 </div>
                 <div class="flex gap-2 w-full">
                     <button id="connect-btn" onclick="showConnectModal()" class="flex-1 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
-                        Connect
+                        <span data-i18n="common.connect">Connect</span>
                     </button>
-                    <button id="sidebar-stop-btn" onclick="stopBackendServer()" class="hidden w-10 flex items-center justify-center text-xs font-medium rounded-lg border border-red-500 bg-red-600 hover:bg-red-700 text-white transition-colors" title="Stop Kaggle Server">
+                    <button id="sidebar-stop-btn" onclick="stopBackendServer()" class="hidden w-10 flex items-center justify-center text-xs font-medium rounded-lg border border-red-500 bg-red-600 hover:bg-red-700 text-white transition-colors" title="Stop Kaggle Server" data-i18n-title="connection.stopKaggle">
                         <i data-lucide="power" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
                 <button onclick="toggleTheme()" class="w-full mt-2 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300 flex items-center justify-center gap-2">
                     <span class="dark:hidden"><i data-lucide="moon" class="w-3.5 h-3.5"></i></span>
                     <span class="hidden dark:inline"><i data-lucide="sun" class="w-3.5 h-3.5"></i></span>
-                    <span class="dark:hidden">Dark Mode</span><span class="hidden dark:inline">Light Mode</span>
+                    <span class="dark:hidden"><span data-i18n="theme.dark">Dark Mode</span></span><span class="hidden dark:inline"><span data-i18n="theme.light">Light Mode</span></span>
                 </button>
             </div>
         </aside>
@@ -77,21 +85,21 @@
         <!-- Main Content -->
         <main class="studio-main">
             <div class="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80">
-                <button onclick="toggleSidebar()" class="mobile-toggle p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="menu" class="w-5 h-5"></i></button>
-                <span class="font-display font-bold text-sm">⚙️ Settings</span>
+                <button onclick="toggleSidebar()" class="mobile-toggle p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Open navigation" data-i18n-aria-label="nav.menu"><i data-lucide="menu" class="w-5 h-5"></i></button>
+                <span class="font-display font-bold text-sm"><span data-i18n="settings.mobileTitle">⚙️ Settings</span></span>
             </div>
 
             <div class="max-w-3xl mx-auto px-4 sm:px-6 py-8 fade-in">
                 <!-- Page Header -->
                 <div class="mb-8">
-                    <h1 class="font-display font-bold text-2xl sm:text-3xl text-slate-900 dark:text-white">Settings</h1>
-                    <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Konfigurasi API keys dan default settings</p>
+                    <h1 class="font-display font-bold text-2xl sm:text-3xl text-slate-900 dark:text-white"><span data-i18n="nav.settings">Settings</span></h1>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm mt-1"><span data-i18n="settings.subtitle">Configure API keys and default settings</span></p>
                 </div>
 
                 <!-- Loading -->
                 <div id="settings-loading" class="text-center py-16">
                     <div class="spinner spinner-dark mx-auto mb-3"></div>
-                    <p class="text-sm text-slate-400">Loading settings...</p>
+                    <p class="text-sm text-slate-400"><span data-i18n="settings.loading">Loading settings...</span></p>
                 </div>
 
                 <!-- Settings Form -->
@@ -101,74 +109,74 @@
                         <!-- API Keys -->
                         <div class="glass-card p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
                             <h3 class="font-display font-semibold text-base text-slate-900 dark:text-white mb-5 flex items-center gap-2">
-                                <i data-lucide="key-round" class="w-5 h-5 text-brand-500"></i> API Keys
+                                <i data-lucide="key-round" class="w-5 h-5 text-brand-500"></i> <span data-i18n="settings.apiKeys">API Keys</span>
                             </h3>
 
                             <div class="space-y-5">
                                 <!-- Google Gemini -->
                                 <div>
                                     <label class="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
-                                        Google Gemini API Key
-                                        <span id="google-badge" class="hidden text-emerald-500 text-[10px] font-bold">✅ SET</span>
+                                        <span data-i18n="settings.googleKey">Google Gemini API Key</span>
+                                        <span id="google-badge" class="hidden text-emerald-500 text-[10px] font-bold"><span data-i18n="settings.set">✅ SET</span></span>
                                     </label>
                                     <div class="relative">
-                                        <input id="input-google-key" type="password" placeholder="Paste your Gemini API key"
+                                        <input id="input-google-key" type="password" placeholder="Paste your Gemini API key" data-i18n-placeholder="settings.googlePlaceholder"
                                             class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 placeholder-slate-400 text-slate-900 dark:text-white pr-10">
                                         <button type="button" onclick="togglePasswordVisibility('input-google-key', this)"
-                                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-1" title="Toggle visibility">
+                                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-1" title="Toggle visibility" data-i18n-title="settings.visibility">
                                             👁️
                                         </button>
                                     </div>
                                     <p class="text-xs text-slate-400 mt-1">
-                                        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-brand-500 hover:text-brand-600 dark:text-brand-400">Get free key →</a>
+                                        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="text-brand-500 hover:text-brand-600 dark:text-brand-400"><span data-i18n="settings.freeKey">Get free key →</span></a>
                                     </p>
                                 </div>
 
                                 <!-- Pexels -->
                                 <div>
                                     <label class="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
-                                        Pexels API Key
-                                        <span id="pexels-badge" class="hidden text-emerald-500 text-[10px] font-bold">✅ SET</span>
+                                        <span data-i18n="settings.pexelsKey">Pexels API Key</span>
+                                        <span id="pexels-badge" class="hidden text-emerald-500 text-[10px] font-bold"><span data-i18n="settings.set">✅ SET</span></span>
                                     </label>
                                     <div class="relative">
-                                        <input id="input-pexels-key" type="password" placeholder="For B-roll footage (optional)"
+                                        <input id="input-pexels-key" type="password" placeholder="For B-roll footage (optional)" data-i18n-placeholder="settings.pexelsPlaceholder"
                                             class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 placeholder-slate-400 text-slate-900 dark:text-white pr-10">
                                         <button type="button" onclick="togglePasswordVisibility('input-pexels-key', this)"
-                                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-1" title="Toggle visibility">
+                                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-1" title="Toggle visibility" data-i18n-title="settings.visibility">
                                             👁️
                                         </button>
                                     </div>
-                                    <p class="text-xs text-slate-400 mt-1">Required for B-roll stock footage</p>
+                                    <p class="text-xs text-slate-400 mt-1"><span data-i18n="settings.pexelsHelp">Required for B-roll stock footage</span></p>
                                 </div>
 
                                 <!-- HuggingFace -->
                                 <div>
                                     <label class="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
-                                        HuggingFace Token
-                                        <span id="hf-badge" class="hidden text-emerald-500 text-[10px] font-bold">✅ SET</span>
+                                        <span data-i18n="settings.hfToken">HuggingFace Token</span>
+                                        <span id="hf-badge" class="hidden text-emerald-500 text-[10px] font-bold"><span data-i18n="settings.set">✅ SET</span></span>
                                     </label>
                                     <div class="relative">
-                                        <input id="input-hf-token" type="password" placeholder="For split-screen mode (optional)"
+                                        <input id="input-hf-token" type="password" placeholder="For split-screen mode (optional)" data-i18n-placeholder="settings.hfPlaceholder"
                                             class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 placeholder-slate-400 text-slate-900 dark:text-white pr-10">
                                         <button type="button" onclick="togglePasswordVisibility('input-hf-token', this)"
-                                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-1" title="Toggle visibility">
+                                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-1" title="Toggle visibility" data-i18n-title="settings.visibility">
                                             👁️
                                         </button>
                                     </div>
-                                    <p class="text-xs text-slate-400 mt-1">Required for speaker diarization</p>
+                                    <p class="text-xs text-slate-400 mt-1"><span data-i18n="settings.hfHelp">Required for speaker diarization</span></p>
                                 </div>
 
                                 <!-- NVIDIA -->
                                 <div>
                                     <label class="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
-                                        NVIDIA API Key
-                                        <span id="nvidia-badge" class="hidden text-emerald-500 text-[10px] font-bold">✅ SET</span>
+                                        <span data-i18n="settings.nvidiaKey">NVIDIA API Key</span>
+                                        <span id="nvidia-badge" class="hidden text-emerald-500 text-[10px] font-bold"><span data-i18n="settings.set">✅ SET</span></span>
                                     </label>
                                     <div class="relative">
-                                        <input id="input-nvidia-key" type="password" placeholder="For NVIDIA NIM provider (optional)"
+                                        <input id="input-nvidia-key" type="password" placeholder="For NVIDIA NIM provider (optional)" data-i18n-placeholder="settings.nvidiaPlaceholder"
                                             class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 placeholder-slate-400 text-slate-900 dark:text-white pr-10">
                                         <button type="button" onclick="togglePasswordVisibility('input-nvidia-key', this)"
-                                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-1" title="Toggle visibility">
+                                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-1" title="Toggle visibility" data-i18n-title="settings.visibility">
                                             👁️
                                         </button>
                                     </div>
@@ -179,7 +187,7 @@
                         <!-- System Info -->
                         <div class="glass-card p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
                             <h3 class="font-display font-semibold text-base text-slate-900 dark:text-white mb-5 flex items-center gap-2">
-                                <i data-lucide="monitor" class="w-5 h-5 text-brand-500"></i> System Info
+                                <i data-lucide="monitor" class="w-5 h-5 text-brand-500"></i> <span data-i18n="settings.systemInfo">System Info</span>
                             </h3>
 
                             <div class="space-y-4" id="system-info">
@@ -188,46 +196,46 @@
                                     <span id="sys-gpu" class="text-slate-400">—</span>
                                 </div>
                                 <div class="flex justify-between text-sm">
-                                    <span class="text-slate-500 dark:text-slate-400">Default Whisper</span>
+                                    <span class="text-slate-500 dark:text-slate-400"><span data-i18n="settings.defaultWhisper">Default Whisper</span></span>
                                     <span id="sys-whisper" class="text-slate-900 dark:text-white">—</span>
                                 </div>
                                 <div class="flex justify-between text-sm">
-                                    <span class="text-slate-500 dark:text-slate-400">Default AI</span>
-                                    <select id="sys-ai" aria-label="Default AI Provider" class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white">
+                                    <span class="text-slate-500 dark:text-slate-400"><span data-i18n="settings.defaultAi">Default AI</span></span>
+                                    <select id="sys-ai" aria-label="Default AI Provider" data-i18n-aria-label="settings.defaultProvider" class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white">
                                         <option value="gemini">Google Gemini</option>
                                         <option value="nvidia">NVIDIA NIM</option>
-                                        <option value="vllm">vLLM (Self-hosted)</option>
+                                        <option value="vllm" data-i18n="new.selfHosted">vLLM (Self-hosted)</option>
                                     </select>
                                 </div>
                                 <div class="flex justify-between text-sm">
-                                    <span class="text-slate-500 dark:text-slate-400">Default Ratio</span>
+                                    <span class="text-slate-500 dark:text-slate-400"><span data-i18n="settings.defaultRatio">Default Ratio</span></span>
                                     <span id="sys-ratio" class="text-slate-900 dark:text-white">—</span>
                                 </div>
                             </div>
 
                             <!-- Connection Info -->
                             <div class="mt-5 space-y-2 text-xs text-slate-500 dark:text-slate-400">
-                                <p>Model default vLLM: <span id="sys-vllm-model" class="break-all">—</span></p>
-                                <p>Key vLLM: <span id="sys-vllm-key">—</span></p>
-                                <p>Endpoint dan key vLLM dikonfigurasi di notebook/server. Status di sini tidak memeriksa koneksi ke model. Default AI disimpan selama backend berjalan.</p>
+                                <p><span data-i18n="settings.vllmModel">Default vLLM model:</span> <span id="sys-vllm-model" class="break-all">—</span></p>
+                                <p><span data-i18n="settings.vllmKey">vLLM key:</span> <span id="sys-vllm-key">—</span></p>
+                                <p><span data-i18n="settings.vllmHelp">The vLLM endpoint and key are configured in the notebook/server. This status does not check the model connection. The default AI is saved while the backend is running.</span></p>
                             </div>
                             <div class="mt-6 pt-5 border-t border-slate-200/80 dark:border-slate-800/80">
                                 <h4 class="font-semibold text-sm text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                                    <i data-lucide="link" class="w-4 h-4 text-brand-500"></i> Connection
+                                    <i data-lucide="link" class="w-4 h-4 text-brand-500"></i> <span data-i18n="settings.connection">Connection</span>
                                 </h4>
                                 <div class="space-y-3">
                                     <div class="flex justify-between text-sm">
-                                        <span class="text-slate-500 dark:text-slate-400">Backend URL</span>
+                                        <span class="text-slate-500 dark:text-slate-400"><span data-i18n="connection.url">Backend URL</span></span>
                                         <span id="sys-backend-url" class="text-xs font-mono text-slate-500 dark:text-slate-400 truncate max-w-[200px]">—</span>
                                     </div>
                                     <div class="flex justify-between text-sm">
-                                        <span class="text-slate-500 dark:text-slate-400">Status</span>
+                                        <span class="text-slate-500 dark:text-slate-400"><span data-i18n="settings.status">Status</span></span>
                                         <span id="sys-status" class="text-slate-400">—</span>
                                     </div>
                                 </div>
-                                <button onclick="showConnectModal()" class="mt-4 w-full text-xs font-medium px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300 flex items-center justify-center gap-2">
+                                <button type="button" onclick="showConnectModal()" class="mt-4 w-full text-xs font-medium px-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300 flex items-center justify-center gap-2">
                                     <i data-lucide="plug" class="w-3.5 h-3.5"></i>
-                                    Change Connection
+                                    <span data-i18n="settings.changeConnection">Change Connection</span>
                                 </button>
                             </div>
                         </div>
@@ -239,18 +247,18 @@
                     <!-- Save Button -->
                     <button id="save-btn" type="submit" class="px-6 py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm hover:bg-brand-700 dark:bg-brand-500 dark:hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/20 hover:-translate-y-0.5 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none">
                         <i data-lucide="save" class="w-4 h-4"></i>
-                        Save Settings
+                        <span data-i18n="settings.save">Save Settings</span>
                     </button>
                 </form>
 
                 <!-- Not Connected State -->
                 <div id="no-connection-state" class="hidden text-center py-16">
                     <div class="text-5xl mb-4">🔌</div>
-                    <h3 class="font-display font-semibold text-lg text-slate-900 dark:text-white mb-2">Not Connected</h3>
-                    <p class="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-sm mx-auto">Connect to your Kaggle/Colab backend to configure settings.</p>
+                    <h3 class="font-display font-semibold text-lg text-slate-900 dark:text-white mb-2"><span data-i18n="settings.notConnected">Not Connected</span></h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-sm mx-auto"><span data-i18n="settings.connectHelp">Connect to your Kaggle/Colab backend to configure settings.</span></p>
                     <button onclick="showConnectModal()" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 text-white font-medium text-sm hover:bg-brand-700 transition-colors shadow-lg shadow-brand-500/20">
                         <i data-lucide="plug" class="w-4 h-4"></i>
-                        Connect
+                        <span data-i18n="common.connect">Connect</span>
                     </button>
                 </div>
             </div>
@@ -300,23 +308,25 @@
 
                 // System info
                 document.getElementById('sys-gpu').innerHTML = settings.gpu_available
-                    ? '<span class="text-emerald-500">✅ Available</span>'
-                    : '<span class="text-slate-400">⚪ Not available</span>';
+                    ? `<span class="text-emerald-500">${StudioI18n.html('settings.gpuAvailable')}</span>`
+                    : `<span class="text-slate-400">${StudioI18n.html('settings.gpuUnavailable')}</span>`;
                 document.getElementById('sys-whisper').textContent = settings.default_whisper_model || '—';
                 loadedDefaultAiProvider = settings.default_ai_provider || 'gemini';
                 document.getElementById('sys-ai').value = loadedDefaultAiProvider;
-                document.getElementById('sys-vllm-model').textContent = settings.vllm_model || 'Gunakan konfigurasi server';
-                document.getElementById('sys-vllm-key').textContent = settings.vllm_api_key_set ? 'tersedia' : 'tidak disetel (opsional)';
+                const modelLabel = document.getElementById('sys-vllm-model');
+                if (settings.vllm_model) StudioI18n.literal(modelLabel, settings.vllm_model);
+                else StudioI18n.text(modelLabel, 'settings.serverConfig');
+                StudioI18n.text(document.getElementById('sys-vllm-key'), settings.vllm_api_key_set ? 'settings.keyAvailable' : 'settings.keyOptional');
                 document.getElementById('sys-ratio').textContent = settings.default_ratio || '—';
 
                 // Connection info
                 document.getElementById('sys-backend-url').textContent = StudioAPI.getBackendUrl() || '—';
-                document.getElementById('sys-status').innerHTML = '<span class="text-emerald-500">🟢 Connected</span>';
+                document.getElementById('sys-status').innerHTML = `<span class="text-emerald-500">${StudioI18n.html('settings.connected')}</span>`;
             } catch (err) {
                 if (generation !== loadGeneration) return;
                 document.getElementById('settings-loading').classList.add('hidden');
                 document.getElementById('settings-form').classList.remove('hidden');
-                document.getElementById('sys-status').innerHTML = `<span class="text-red-500">🔴 Error</span>`;
+                document.getElementById('sys-status').innerHTML = `<span class="text-red-500">${StudioI18n.html('settings.error')}</span>`;
             }
         }
 
@@ -327,7 +337,7 @@
             const msg = document.getElementById('save-msg');
 
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Saving...';
+            btn.innerHTML = `<span class="spinner"></span> ${StudioI18n.html('settings.saving')}`;
             msg.classList.add('hidden');
 
             try {
@@ -346,7 +356,7 @@
 
                 if (Object.keys(payload).length === 0) {
                     msg.className = 'text-sm mb-4 text-amber-500';
-                    msg.textContent = 'Tidak ada perubahan';
+                    StudioI18n.text(msg, 'settings.noChanges');
                     msg.classList.remove('hidden');
                     return;
                 }
@@ -360,18 +370,18 @@
                 document.getElementById('input-nvidia-key').value = '';
 
                 msg.className = 'text-sm mb-4 text-emerald-500';
-                msg.textContent = '✅ Settings berhasil diperbarui!';
+                StudioI18n.text(msg, 'settings.saved');
                 msg.classList.remove('hidden');
 
                 // Reload to show updated badges
                 setTimeout(() => loadSettings(), 500);
             } catch (err) {
                 msg.className = 'text-sm mb-4 text-red-500';
-                msg.textContent = '❌ Gagal menyimpan: ' + err.message;
+                StudioI18n.text(msg, 'settings.saveFailed', { message: StudioI18n.errorMessage(err) });
                 msg.classList.remove('hidden');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Save Settings';
+                btn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> ${StudioI18n.html('settings.save')}`;
                 lucide.createIcons();
             }
         }

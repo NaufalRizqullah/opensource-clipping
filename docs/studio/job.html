@@ -3,9 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
+    <script src="i18n.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Job Detail — OSC Studio</title>
-    <meta name="description" content="View job progress and results — OpenSource Clipping Studio">
+    <title data-i18n="job.title">Job Detail — OSC Studio</title>
+    <meta name="description" content="Monitor your clipping job progress and download generated clips — OpenSource Clipping Studio" data-i18n-content="job.description">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -46,30 +47,37 @@
                     </span>
                 </a>
                 <h2 class="font-display font-bold text-lg text-slate-900 dark:text-white">🎬 Studio</h2>
-                <p class="text-xs text-slate-400 dark:text-slate-500">AI Auto-Clipper · Remote GPU</p>
+                <p class="text-xs text-slate-400 dark:text-slate-500"><span data-i18n="nav.tagline">AI Auto-Clipper · Remote GPU</span></p>
             </div>
             <nav class="sidebar-nav">
-                <a href="index.html" class="sidebar-link"><i data-lucide="layout-dashboard" class="nav-icon"></i> Dashboard</a>
-                <a href="new-job.html" class="sidebar-link"><i data-lucide="plus-circle" class="nav-icon"></i> New Job</a>
-                <a href="settings.html" class="sidebar-link"><i data-lucide="settings" class="nav-icon"></i> Settings</a>
+                <a href="index.html" class="sidebar-link"><i data-lucide="layout-dashboard" class="nav-icon"></i> <span data-i18n="nav.dashboard">Dashboard</span></a>
+                <a href="new-job.html" class="sidebar-link"><i data-lucide="plus-circle" class="nav-icon"></i> <span data-i18n="nav.newJob">New Job</span></a>
+                <a href="settings.html" class="sidebar-link"><i data-lucide="settings" class="nav-icon"></i> <span data-i18n="nav.settings">Settings</span></a>
             </nav>
             <div class="connect-panel">
+                <div class="language-picker">
+                    <label for="studio-language" data-i18n="language">Language</label>
+                    <select id="studio-language" data-language-select onchange="StudioI18n.setLanguage(this.value)">
+                        <option value="en" lang="en">EN · English</option>
+                        <option value="id" lang="id">ID · Bahasa Indonesia</option>
+                    </select>
+                </div>
                 <div class="flex items-center gap-2 mb-2">
                     <span id="connect-dot" class="connect-dot offline"></span>
-                    <span id="connect-label" class="text-xs text-slate-500 dark:text-slate-400 truncate flex-1">Not connected</span>
+                    <span id="connect-label" class="text-xs text-slate-500 dark:text-slate-400 truncate flex-1"><span data-i18n="connection.offline">Not connected</span></span>
                 </div>
                 <div class="flex gap-2 w-full">
                     <button id="connect-btn" onclick="showConnectModal()" class="flex-1 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
-                        Connect
+                        <span data-i18n="common.connect">Connect</span>
                     </button>
-                    <button id="sidebar-stop-btn" onclick="stopBackendServer()" class="hidden w-10 flex items-center justify-center text-xs font-medium rounded-lg border border-red-500 bg-red-600 hover:bg-red-700 text-white transition-colors" title="Stop Kaggle Server">
+                    <button id="sidebar-stop-btn" onclick="stopBackendServer()" class="hidden w-10 flex items-center justify-center text-xs font-medium rounded-lg border border-red-500 bg-red-600 hover:bg-red-700 text-white transition-colors" title="Stop Kaggle Server" data-i18n-title="connection.stopKaggle">
                         <i data-lucide="power" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
                 <button onclick="toggleTheme()" class="w-full mt-2 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300 flex items-center justify-center gap-2">
                     <span class="dark:hidden"><i data-lucide="moon" class="w-3.5 h-3.5"></i></span>
                     <span class="hidden dark:inline"><i data-lucide="sun" class="w-3.5 h-3.5"></i></span>
-                    <span class="dark:hidden">Dark Mode</span><span class="hidden dark:inline">Light Mode</span>
+                    <span class="dark:hidden"><span data-i18n="theme.dark">Dark Mode</span></span><span class="hidden dark:inline"><span data-i18n="theme.light">Light Mode</span></span>
                 </button>
             </div>
         </aside>
@@ -77,8 +85,8 @@
         <!-- Main Content -->
         <main class="studio-main">
             <div class="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80">
-                <button onclick="toggleSidebar()" class="mobile-toggle p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="menu" class="w-5 h-5"></i></button>
-                <span class="font-display font-bold text-sm">🎬 Job Detail</span>
+                <button onclick="toggleSidebar()" class="mobile-toggle p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Open navigation" data-i18n-aria-label="nav.menu"><i data-lucide="menu" class="w-5 h-5"></i></button>
+                <span class="font-display font-bold text-sm"><span data-i18n="job.mobileTitle">🎬 Job Detail</span></span>
             </div>
 
             <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 fade-in">
@@ -86,14 +94,14 @@
                 <!-- Loading State -->
                 <div id="page-loading" class="text-center py-20">
                     <div class="spinner spinner-dark mx-auto mb-3"></div>
-                    <p class="text-sm text-slate-400">Loading job...</p>
+                    <p class="text-sm text-slate-400"><span data-i18n="job.loading">Loading job...</span></p>
                 </div>
 
                 <!-- Not Found -->
                 <div id="page-not-found" class="hidden text-center py-20">
                     <div class="text-5xl mb-4">🔍</div>
-                    <h3 class="font-display font-semibold text-lg text-slate-900 dark:text-white mb-2">Job not found</h3>
-                    <a href="index.html" class="text-sm text-brand-600 dark:text-brand-400 hover:underline">← Back to Dashboard</a>
+                    <h3 class="font-display font-semibold text-lg text-slate-900 dark:text-white mb-2"><span data-i18n="job.notFound">Job not found</span></h3>
+                    <a href="index.html" class="text-sm text-brand-600 dark:text-brand-400 hover:underline"><span data-i18n="job.backDashboard">← Back to Dashboard</span></a>
                 </div>
 
                 <!-- Job Content -->
@@ -109,9 +117,9 @@
                         </div>
                         <div class="flex items-center gap-2">
                             <span id="job-badge" class="badge"></span>
-                            <button id="cancel-job-btn" onclick="cancelJob()" class="hidden px-3 py-2 rounded-lg text-xs font-medium border border-red-300 text-red-500 disabled:opacity-50">Cancel Job</button>
+                            <button id="cancel-job-btn" onclick="cancelJob()" class="hidden px-3 py-2 rounded-lg text-xs font-medium border border-red-300 text-red-500 disabled:opacity-50"><span data-i18n="job.cancel">Cancel Job</span></button>
                             <a href="index.html" class="px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1">
-                                <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back
+                                <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> <span data-i18n="common.back">Back</span>
                             </a>
                         </div>
                     </div>
@@ -119,7 +127,7 @@
                     <!-- Progress Section -->
                     <div id="progress-section" class="hidden glass-card p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm mb-6">
                         <div class="flex justify-between items-center mb-3">
-                            <span class="text-sm font-semibold text-slate-900 dark:text-white">Progress</span>
+                            <span class="text-sm font-semibold text-slate-900 dark:text-white"><span data-i18n="job.progress">Progress</span></span>
                             <span id="progress-percent" class="text-sm font-semibold text-brand-600 dark:text-brand-400">0%</span>
                         </div>
                         <div class="progress-bar-bg">
@@ -132,7 +140,7 @@
                     <!-- Error Section -->
                     <div id="error-section" class="hidden glass-card p-5 rounded-2xl border border-red-200 dark:border-red-900/40 shadow-sm mb-6">
                         <h3 class="text-sm font-semibold text-red-500 mb-2 flex items-center gap-2">
-                            <i data-lucide="alert-circle" class="w-4 h-4"></i> Error
+                            <i data-lucide="alert-circle" class="w-4 h-4"></i> <span data-i18n="common.error">Error</span>
                         </h3>
                         <p id="error-message" class="text-xs text-slate-600 dark:text-slate-300"></p>
                     </div>
@@ -140,7 +148,7 @@
                     <!-- Clips Section -->
                     <div id="clips-section" class="hidden mb-8">
                         <h3 class="font-display font-semibold text-base text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                            🎞️ Generated Clips (<span id="clips-count">0</span>)
+                            <span data-i18n="job.generated">🎞️ Generated Clips (</span><span id="clips-count">0</span>)
                         </h3>
                         <div id="clips-grid" class="clip-grid"></div>
                     </div>
@@ -148,7 +156,7 @@
                     <!-- Activity Log -->
                     <div id="log-section" class="hidden">
                         <h3 class="font-semibold text-sm text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                            <i data-lucide="scroll-text" class="w-4 h-4 text-brand-500"></i> Activity Log
+                            <i data-lucide="scroll-text" class="w-4 h-4 text-brand-500"></i> <span data-i18n="job.log">Activity Log</span>
                         </h3>
                         <div id="log-viewer" class="log-viewer"></div>
                     </div>
@@ -162,12 +170,12 @@
         lucide.createIcons();
 
         const STEPS = [
-            { key: 'download', label: 'Download' },
-            { key: 'transcribe', label: 'Transcribe' },
-            { key: 'analyze', label: 'AI Analysis' },
-            { key: 'metadata', label: 'Metadata' },
-            { key: 'render', label: 'Render' },
-            { key: 'done', label: 'Done' },
+            { key: 'download' },
+            { key: 'transcribe' },
+            { key: 'analyze' },
+            { key: 'metadata' },
+            { key: 'render' },
+            { key: 'done' },
         ];
 
         // Get job ID from URL params
@@ -196,21 +204,21 @@
 
             // Header
             document.getElementById('job-id').textContent = `#${job.id}`;
-            document.getElementById('job-source').textContent = job.url || job.upload_filename || 'Unknown source';
-            document.title = `Job #${job.id} — OSC Studio`;
+            const sourceLabel = document.getElementById('job-source');
+            if (job.url || job.upload_filename) StudioI18n.literal(sourceLabel, job.url || job.upload_filename);
+            else StudioI18n.text(sourceLabel, 'job.unknownSource');
+            StudioI18n.text(document.querySelector('title'), 'job.titleId', { id: job.id });
 
             // Badge
             const badge = document.getElementById('job-badge');
-            const statusLabel = job.cancel_requested && !['completed', 'failed', 'cancelled'].includes(job.status)
-                ? 'Cancellation requested' : STATUS_LABELS[job.status] || job.status;
             badge.className = `badge badge-${job.status}`;
-            badge.textContent = statusLabel;
+            StudioI18n.text(badge, statusKey(job.status, job.cancel_requested), { message: job.status });
 
             const isTerminal = ['completed', 'failed', 'cancelled'].includes(job.status);
             const cancelBtn = document.getElementById('cancel-job-btn');
             cancelBtn.classList.toggle('hidden', isTerminal);
             cancelBtn.disabled = !!job.cancel_requested;
-            cancelBtn.textContent = job.cancel_requested ? 'Stopping after current operation…' : 'Cancel Job';
+            StudioI18n.text(cancelBtn, job.cancel_requested ? 'job.stopping' : 'job.cancel');
 
             // Progress
             const progressSection = document.getElementById('progress-section');
@@ -219,9 +227,9 @@
                 const percent = job.progress?.percent || 0;
                 document.getElementById('progress-percent').textContent = `${Math.round(percent)}%`;
                 document.getElementById('progress-bar').style.width = `${percent}%`;
-                document.getElementById('progress-message').textContent = job.cancel_requested && !isTerminal
-                    ? 'Cancellation requested. The current download, AI request, or render may finish before stopping.'
-                    : job.progress?.message || '';
+                const progressMessage = document.getElementById('progress-message');
+                if (job.cancel_requested && !isTerminal) StudioI18n.text(progressMessage, 'job.cancelHelp');
+                else StudioI18n.literal(progressMessage, job.progress?.message || '');
 
                 const currentStep = job.progress?.step || '';
                 document.getElementById('progress-steps').innerHTML = STEPS.map(s => {
@@ -230,7 +238,7 @@
                     let cls = '';
                     if (stepIdx < currentIdx) cls = 'done';
                     else if (stepIdx === currentIdx) cls = 'active';
-                    return `<div class="progress-step ${cls}"><span class="step-dot"></span>${s.label}</div>`;
+                    return `<div class="progress-step ${cls}"><span class="step-dot"></span>${StudioI18n.html(`step.${s.key}`)}</div>`;
                 }).join('');
             } else {
                 progressSection.classList.add('hidden');
@@ -240,7 +248,7 @@
             const errorSection = document.getElementById('error-section');
             if (job.error) {
                 errorSection.classList.remove('hidden');
-                document.getElementById('error-message').textContent = job.error;
+                StudioI18n.literal(document.getElementById('error-message'), job.error);
             } else {
                 errorSection.classList.add('hidden');
             }
@@ -257,22 +265,22 @@
                 clipsSignature = signature;
                 document.getElementById('clips-grid').innerHTML = job.clips.map((clip, i) => {
                     const downloadUrl = clip.download_url?.startsWith('/api/outputs/') ? escapeHtml(`${baseUrl}${clip.download_url}`) : '';
-                    const title = escapeHtml(clip.title || clip.title_en || `Clip ${clip.rank || i + 1}`);
+                    const title = clip.title || clip.title_en;
                     return `
                         <div class="clip-card">
-                            ${downloadUrl ? `<video class="clip-video" controls preload="none" src="${downloadUrl}" onerror="this.nextElementSibling.classList.remove('hidden')"></video><p class="hidden p-3 text-xs text-amber-500">Preview unavailable. Use Open video below; if the tunnel shows a warning, continue there and retry playback.</p>` : ''}
+                            ${downloadUrl ? `<video class="clip-video" controls preload="none" src="${downloadUrl}" onerror="this.nextElementSibling.classList.remove('hidden')"></video><p class="hidden p-3 text-xs text-amber-500">${StudioI18n.html('job.previewUnavailable')}</p>` : ''}
                             <div class="p-4">
-                                <div class="font-semibold text-sm text-slate-900 dark:text-white mb-2 line-clamp-2">${title}</div>
+                                <div class="font-semibold text-sm text-slate-900 dark:text-white mb-2 line-clamp-2">${title ? escapeHtml(title) : StudioI18n.html('job.clipTitle', { rank: clip.rank || i + 1 })}</div>
                                 <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mb-3">
                                     ${clip.viral_score ? `<span class="font-semibold text-amber-500">🔥 ${escapeHtml(clip.viral_score)}</span>` : ''}
-                                    ${clip.duration ? `<span>${Math.round(clip.duration)}s</span>` : ''}
-                                    ${clip.rank ? `<span>Rank #${escapeHtml(clip.rank)}</span>` : ''}
+                                    ${clip.duration ? StudioI18n.html('job.duration', { seconds: Math.round(clip.duration) }) : ''}
+                                    ${clip.rank ? StudioI18n.html('job.rank', { rank: clip.rank }) : ''}
                                 </div>
                                 ${downloadUrl ? `
                                     <a href="${downloadUrl}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Open video
+                                        <i data-lucide="external-link" class="w-3.5 h-3.5"></i> ${StudioI18n.html('job.openVideo')}
                                     </a>
-                                    <a href="${downloadUrl}" download target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-500">Download</a>
+                                    <a href="${downloadUrl}" download target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-500">${StudioI18n.html('job.download')}</a>
                                 ` : ''}
                             </div>
                         </div>
@@ -302,7 +310,7 @@
         }
 
         async function cancelJob() {
-            if (!currentJob || !confirm('Cancel this job after its current operation finishes?')) return;
+            if (!currentJob || !confirm(tr('job.cancelConfirm'))) return;
             const btn = document.getElementById('cancel-job-btn');
             btn.disabled = true;
             try {
@@ -311,7 +319,7 @@
             } catch (error) {
                 btn.disabled = false;
                 document.getElementById('error-section').classList.remove('hidden');
-                document.getElementById('error-message').textContent = error.message;
+                StudioI18n.text(document.getElementById('error-message'), 'common.message', { message: StudioI18n.errorMessage(error) });
             }
         }
 
@@ -328,7 +336,7 @@
                 document.getElementById('page-content').classList.add('hidden');
                 document.getElementById('page-loading').classList.add('hidden');
                 document.getElementById('page-not-found').classList.remove('hidden');
-                document.querySelector('#page-not-found h3').textContent = 'Backend not connected';
+                StudioI18n.text(document.querySelector('#page-not-found h3'), 'job.disconnected');
                 return;
             }
 
@@ -345,7 +353,7 @@
                             if (generation === loadGeneration) renderJob(data);
                         } catch (error) {
                             if (generation === loadGeneration) {
-                                document.getElementById('progress-message').textContent = `Connection interrupted; retrying. ${error.message}`;
+                                StudioI18n.text(document.getElementById('progress-message'), 'job.retrying', { message: StudioI18n.errorMessage(error) });
                             }
                         }
                     };
@@ -375,7 +383,7 @@
                 if (generation !== loadGeneration) return;
                 document.getElementById('page-loading').classList.add('hidden');
                 document.getElementById('page-not-found').classList.remove('hidden');
-                document.querySelector('#page-not-found h3').textContent = err.message;
+                StudioI18n.text(document.querySelector('#page-not-found h3'), 'common.message', { message: StudioI18n.errorMessage(err) });
             }
         }
 

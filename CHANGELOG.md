@@ -8,6 +8,11 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.4]
+
+### Added
+- **GitHub Pages Studio languages**: English (`en`, default) and Indonesian (`id`) across the Dashboard, New Job, Job Detail, Settings, and connection dialogs. The sidebar language selector remembers an explicit browser preference and updates labels, validation, statuses, and dates immediately while preserving form values, progress subscriptions, and video elements. Backend payloads, generated content, and raw server diagnostics retain their existing behavior. Added localization regression tests and usage/contributor documentation.
+
 ## [v1.16.3]
 
 ### Fixed

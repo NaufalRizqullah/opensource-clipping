@@ -134,6 +134,8 @@ WHISPER_COMPUTE_TYPE = "float32"
         GRATIS                                         GRATIS (GPU)
 ```
 
+**Bahasa antarmuka:** Studio menggunakan **Inggris (EN)** secara default. Pilih **ID · Bahasa Indonesia** pada menu **Language** di sidebar (buka menu pada ponsel) untuk langsung beralih bahasa. Pilihan diingat saat berpindah halaman atau memuat ulang Studio tanpa menghapus isian formulir. Pengaturan ini mengubah bahasa antarmuka; konten video dan log backend tetap menggunakan bahasa aslinya. Lihat [panduan terjemahan Studio](docs/STUDIO_I18N.md) untuk kontributor.
+
 ### Cara Pakai
 
 1. **Jalankan backend** — Buka versi terbaru [`notebooks/kaggle-studio-server.ipynb`](notebooks/kaggle-studio-server.ipynb) di Kaggle (atau Colab), aktifkan Internet dan GPU, tambahkan API key ke Secrets, lalu jalankan cell berurutan. **Prepare Python 3.12** menyiapkan interpreter terpisah sehingga kernel notebook Python 3.13 tetap dapat dipakai tanpa diganti. Biarkan `START_LOCAL_VLLM=False` untuk Gemini/NVIDIA, atau aktifkan untuk menyiapkan Gemma 4 Q4 dalam environment server terpisah beserta evaluasi singkatnya. **Public URL** baru muncul setelah pemeriksaan kesiapan backend berhasil. Lihat [panduan setup dan troubleshooting](docs/KAGGLE_STUDIO.md).

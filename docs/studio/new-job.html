@@ -3,9 +3,10 @@
 
 <head>
     <meta charset="UTF-8">
+    <script src="i18n.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Job — OSC Studio</title>
-    <meta name="description" content="Create a new AI auto-clipping job — OpenSource Clipping Studio">
+    <title data-i18n="new.title">New Job — OSC Studio</title>
+    <meta name="description" content="Create a new AI auto-clipping job — OpenSource Clipping Studio" data-i18n-content="new.description">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -46,30 +47,37 @@
                     </span>
                 </a>
                 <h2 class="font-display font-bold text-lg text-slate-900 dark:text-white">🎬 Studio</h2>
-                <p class="text-xs text-slate-400 dark:text-slate-500">AI Auto-Clipper · Remote GPU</p>
+                <p class="text-xs text-slate-400 dark:text-slate-500"><span data-i18n="nav.tagline">AI Auto-Clipper · Remote GPU</span></p>
             </div>
             <nav class="sidebar-nav">
-                <a href="index.html" class="sidebar-link"><i data-lucide="layout-dashboard" class="nav-icon"></i> Dashboard</a>
-                <a href="new-job.html" class="sidebar-link active"><i data-lucide="plus-circle" class="nav-icon"></i> New Job</a>
-                <a href="settings.html" class="sidebar-link"><i data-lucide="settings" class="nav-icon"></i> Settings</a>
+                <a href="index.html" class="sidebar-link"><i data-lucide="layout-dashboard" class="nav-icon"></i> <span data-i18n="nav.dashboard">Dashboard</span></a>
+                <a href="new-job.html" class="sidebar-link active"><i data-lucide="plus-circle" class="nav-icon"></i> <span data-i18n="nav.newJob">New Job</span></a>
+                <a href="settings.html" class="sidebar-link"><i data-lucide="settings" class="nav-icon"></i> <span data-i18n="nav.settings">Settings</span></a>
             </nav>
             <div class="connect-panel">
+                <div class="language-picker">
+                    <label for="studio-language" data-i18n="language">Language</label>
+                    <select id="studio-language" data-language-select onchange="StudioI18n.setLanguage(this.value)">
+                        <option value="en" lang="en">EN · English</option>
+                        <option value="id" lang="id">ID · Bahasa Indonesia</option>
+                    </select>
+                </div>
                 <div class="flex items-center gap-2 mb-2">
                     <span id="connect-dot" class="connect-dot offline"></span>
-                    <span id="connect-label" class="text-xs text-slate-500 dark:text-slate-400 truncate flex-1">Not connected</span>
+                    <span id="connect-label" class="text-xs text-slate-500 dark:text-slate-400 truncate flex-1"><span data-i18n="connection.offline">Not connected</span></span>
                 </div>
                 <div class="flex gap-2 w-full">
                     <button id="connect-btn" onclick="showConnectModal()" class="flex-1 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
-                        Connect
+                        <span data-i18n="common.connect">Connect</span>
                     </button>
-                    <button id="sidebar-stop-btn" onclick="stopBackendServer()" class="hidden w-10 flex items-center justify-center text-xs font-medium rounded-lg border border-red-500 bg-red-600 hover:bg-red-700 text-white transition-colors" title="Stop Kaggle Server">
+                    <button id="sidebar-stop-btn" onclick="stopBackendServer()" class="hidden w-10 flex items-center justify-center text-xs font-medium rounded-lg border border-red-500 bg-red-600 hover:bg-red-700 text-white transition-colors" title="Stop Kaggle Server" data-i18n-title="connection.stopKaggle">
                         <i data-lucide="power" class="w-3.5 h-3.5"></i>
                     </button>
                 </div>
                 <button onclick="toggleTheme()" class="w-full mt-2 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300 flex items-center justify-center gap-2">
                     <span class="dark:hidden"><i data-lucide="moon" class="w-3.5 h-3.5"></i></span>
                     <span class="hidden dark:inline"><i data-lucide="sun" class="w-3.5 h-3.5"></i></span>
-                    <span class="dark:hidden">Dark Mode</span><span class="hidden dark:inline">Light Mode</span>
+                    <span class="dark:hidden"><span data-i18n="theme.dark">Dark Mode</span></span><span class="hidden dark:inline"><span data-i18n="theme.light">Light Mode</span></span>
                 </button>
             </div>
         </aside>
@@ -77,15 +85,15 @@
         <!-- Main Content -->
         <main class="studio-main">
             <div class="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80">
-                <button onclick="toggleSidebar()" class="mobile-toggle p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"><i data-lucide="menu" class="w-5 h-5"></i></button>
-                <span class="font-display font-bold text-sm">🎬 New Job</span>
+                <button onclick="toggleSidebar()" class="mobile-toggle p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Open navigation" data-i18n-aria-label="nav.menu"><i data-lucide="menu" class="w-5 h-5"></i></button>
+                <span class="font-display font-bold text-sm"><span data-i18n="new.mobileTitle">🎬 New Job</span></span>
             </div>
 
             <div class="max-w-3xl mx-auto px-4 sm:px-6 py-8 fade-in">
                 <!-- Page Header -->
                 <div class="mb-8">
-                    <h1 class="font-display font-bold text-2xl sm:text-3xl text-slate-900 dark:text-white">New Clipping Job</h1>
-                    <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Generate viral short clips dari video panjang</p>
+                    <h1 class="font-display font-bold text-2xl sm:text-3xl text-slate-900 dark:text-white"><span data-i18n="new.heading">New Clipping Job</span></h1>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm mt-1"><span data-i18n="new.subtitle">Generate viral short clips from long videos</span></p>
                 </div>
 
                 <form id="new-job-form" onsubmit="handleSubmit(event)">
@@ -94,25 +102,25 @@
                     <div class="glass-card p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm mb-6">
                         <h3 class="font-display font-semibold text-base text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                             <i data-lucide="download" class="w-5 h-5 text-brand-500"></i>
-                            Video Source
+                            <span data-i18n="new.source">Video Source</span>
                         </h3>
 
                         <!-- Mode Toggle -->
                         <div class="flex gap-2 mb-5">
-                            <button type="button" onclick="setMode('url')" id="mode-url-btn" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all bg-brand-600 text-white shadow-md">🔗 From URL</button>
-                            <button type="button" onclick="setMode('reuse')" id="mode-reuse-btn" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">🔁 Reuse Job</button>
+                            <button type="button" onclick="setMode('url')" id="mode-url-btn" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all bg-brand-600 text-white shadow-md"><span data-i18n="new.fromUrl">🔗 From URL</span></button>
+                            <button type="button" onclick="setMode('reuse')" id="mode-reuse-btn" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"><span data-i18n="new.reuse">🔁 Reuse Job</span></button>
                         </div>
 
                         <!-- URL Mode -->
                         <div id="mode-url-panel">
                             <div class="mb-4">
-                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Video URL</label>
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.url">Video URL</span></label>
                                 <input id="input-url" type="url" placeholder="https://www.youtube.com/watch?v=..."
                                     class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 placeholder-slate-400 text-slate-900 dark:text-white">
-                                <p class="text-xs text-slate-400 mt-1.5">Mendukung YouTube, TikTok, Instagram, Google Drive</p>
+                                <p class="text-xs text-slate-400 mt-1.5"><span data-i18n="new.supported">Supports YouTube, TikTok, Instagram, Google Drive</span></p>
                             </div>
                             <div class="max-w-[200px]">
-                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Platform</label>
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.platform">Platform</span></label>
                                 <select id="input-source" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-900 dark:text-white">
                                     <option value="youtube">YouTube</option>
                                     <option value="tiktok">TikTok</option>
@@ -125,10 +133,10 @@
                         <!-- Reuse Mode -->
                         <div id="mode-reuse-panel" class="hidden">
                             <div>
-                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Reuse Job ID</label>
-                                <input id="input-reuse-id" type="text" placeholder="Contoh: d20b47341e08"
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.reuseId">Reuse Job ID</span></label>
+                                <input id="input-reuse-id" type="text" placeholder="Example: d20b47341e08" data-i18n-placeholder="new.reuseExample"
                                     class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 placeholder-slate-400 text-slate-900 dark:text-white">
-                                <p class="text-xs text-slate-400 mt-1.5">Bypass download dengan job ID lama.</p>
+                                <p class="text-xs text-slate-400 mt-1.5"><span data-i18n="new.reuseHelp">Skip the download by reusing an existing job ID.</span></p>
                             </div>
                         </div>
                     </div>
@@ -139,31 +147,31 @@
                         <!-- Basic Settings -->
                         <div class="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
                             <h4 class="font-semibold text-sm text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                                <i data-lucide="target" class="w-4 h-4 text-brand-500"></i> Basic Settings
+                                <i data-lucide="target" class="w-4 h-4 text-brand-500"></i> <span data-i18n="new.basic">Basic Settings</span>
                             </h4>
                             <div class="space-y-4">
                                 <div>
-                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Number of Clips</label>
+                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.clips">Number of Clips</span></label>
                                     <input id="input-clips" type="number" min="1" max="30" value="7"
                                         class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-900 dark:text-white">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Aspect Ratio</label>
+                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.ratio">Aspect Ratio</span></label>
                                     <select id="input-ratio" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-900 dark:text-white">
-                                        <option value="9:16">9:16 (Vertical — Reels)</option>
-                                        <option value="16:9">16:9 (Horizontal)</option>
-                                        <option value="1:1">1:1 (Square)</option>
+                                        <option value="9:16" data-i18n="new.vertical">9:16 (Vertical — Reels)</option>
+                                        <option value="16:9" data-i18n="new.horizontal">16:9 (Horizontal)</option>
+                                        <option value="1:1" data-i18n="new.square">1:1 (Square)</option>
                                         <option value="3:4">3:4</option>
                                         <option value="4:5">4:5</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Font Style</label>
+                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.font">Font Style</span></label>
                                     <select id="input-font" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-900 dark:text-white">
-                                        <option value="HORMOZI">Hormozi (Bold)</option>
-                                        <option value="DEFAULT">Default (Montserrat)</option>
+                                        <option value="HORMOZI" data-i18n="new.hormozi">Hormozi (Bold)</option>
+                                        <option value="DEFAULT" data-i18n="new.defaultFont">Default (Montserrat)</option>
                                         <option value="STORYTELLER">Storyteller (Inter)</option>
-                                        <option value="CINEMATIC">Cinematic (Bebas Neue)</option>
+                                        <option value="CINEMATIC" data-i18n="new.cinematic">Cinematic (Bebas Neue)</option>
                                     </select>
                                 </div>
                             </div>
@@ -176,40 +184,40 @@
                             </h4>
                             <div class="space-y-4">
                                 <div>
-                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">AI Provider</label>
+                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.aiProvider">AI Provider</span></label>
                                     <select id="input-ai" onchange="updateProviderFields(true)" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-900 dark:text-white">
                                         <option value="gemini">Google Gemini</option>
                                         <option value="nvidia">NVIDIA NIM</option>
-                                        <option value="vllm">vLLM (Self-hosted)</option>
+                                        <option value="vllm" data-i18n="new.selfHosted">vLLM (Self-hosted)</option>
                                     </select>
                                 </div>
                                 <div id="vllm-fields" class="hidden space-y-4">
                                     <div>
-                                        <label for="input-vllm-model" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Model vLLM</label>
-                                        <input id="input-vllm-model" maxlength="256" placeholder="Gunakan model default server" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm text-slate-900 dark:text-white">
-                                        <p class="text-xs text-slate-500 mt-1">Kosongkan untuk default server, atau isi nama model/alias yang sudah dijalankan di Kaggle.</p>
+                                        <label for="input-vllm-model" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.vllmModel">vLLM Model</span></label>
+                                        <input id="input-vllm-model" maxlength="256" placeholder="Use the server default model" data-i18n-placeholder="new.serverModel" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm text-slate-900 dark:text-white">
+                                        <p class="text-xs text-slate-500 mt-1"><span data-i18n="new.vllmHelp">Leave blank for the server default, or enter the model name/alias already running on Kaggle.</span></p>
                                     </div>
                                     <div>
-                                        <label for="input-vllm-tokens" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Batas token output</label>
+                                        <label for="input-vllm-tokens" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.tokens">Output token limit</span></label>
                                         <input id="input-vllm-tokens" type="number" min="1" max="131072" step="1" placeholder="4096" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm text-slate-900 dark:text-white">
                                     </div>
-                                    <p class="text-xs text-slate-500">Mulai dengan 1–2 klip. Pada satu GPU 16 GB, pilih Whisper CPU atau YouTube Subs agar memori cukup. vLLM tidak otomatis beralih ke cloud.</p>
+                                    <p class="text-xs text-slate-500"><span data-i18n="new.vllmAdvice">Start with 1–2 clips. On a single 16 GB GPU, choose Whisper CPU or YouTube Subs to conserve memory. vLLM does not automatically fall back to cloud providers.</span></p>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Whisper Model</label>
+                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.whisper">Whisper Model</span></label>
                                     <select id="input-whisper" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-900 dark:text-white">
-                                        <option value="large-v3">large-v3 (Best quality)</option>
-                                        <option value="medium">medium (Balanced)</option>
-                                        <option value="small">small (Fast)</option>
-                                        <option value="base">base (Fastest)</option>
+                                        <option value="large-v3" data-i18n="new.large">large-v3 (Best quality)</option>
+                                        <option value="medium" data-i18n="new.medium">medium (Balanced)</option>
+                                        <option value="small" data-i18n="new.small">small (Fast)</option>
+                                        <option value="base" data-i18n="new.base">base (Fastest)</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Device</label>
+                                    <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.device">Device</span></label>
                                     <select id="input-device" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/50 text-slate-900 dark:text-white">
                                         <option value="cuda">CUDA (GPU)</option>
                                         <option value="cpu">CPU</option>
-                                        <option value="auto">Auto</option>
+                                        <option value="auto" data-i18n="new.auto">Auto</option>
                                     </select>
                                 </div>
                             </div>
@@ -218,7 +226,7 @@
                         <!-- Feature Toggles -->
                         <div class="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
                             <h4 class="font-semibold text-sm text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                                <i data-lucide="sparkles" class="w-4 h-4 text-brand-500"></i> Features
+                                <i data-lucide="sparkles" class="w-4 h-4 text-brand-500"></i> <span data-i18n="new.features">Features</span>
                             </h4>
                             <div id="toggles-container"></div>
                         </div>
@@ -233,7 +241,7 @@
                     <!-- Submit -->
                     <button id="submit-btn" type="submit" class="px-7 py-3 rounded-xl bg-brand-600 text-white font-semibold text-sm hover:bg-brand-700 dark:bg-brand-500 dark:hover:bg-brand-600 transition-all shadow-lg shadow-brand-500/20 hover:-translate-y-0.5 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none">
                         <i data-lucide="rocket" class="w-4 h-4"></i>
-                        Start Clipping
+                        <span data-i18n="new.start">Start Clipping</span>
                     </button>
                 </form>
             </div>
@@ -248,15 +256,15 @@
 
         // Feature toggles config
         const TOGGLES = [
-            { id: 'use_broll', label: 'B-Roll Footage', desc: 'Insert stock footage', default: true },
-            { id: 'use_hook_glitch', label: 'Hook Glitch', desc: 'Glitch transition intro', default: true },
-            { id: 'use_auto_bgm', label: 'Background Music', desc: 'Auto BGM matching', default: true },
-            { id: 'use_karaoke_effect', label: 'Karaoke Effect', desc: 'Word-by-word highlight', default: true },
-            { id: 'hook_v2', label: 'Hook V2', desc: 'Multi-hook intro clips', default: false },
-            { id: 'silence_trim', label: 'Silence Trim', desc: 'Remove dead air', default: false },
-            { id: 'use_dlp_subs', label: 'YouTube Subs', desc: 'Skip Whisper if available', default: false },
-            { id: 'no_subs', label: 'No Subtitles', desc: 'Render without text', default: false },
-            { id: 'load_gemini_json', label: 'Bypass AI', desc: 'Reuse gemini JSON', default: false },
+            { id: 'use_broll', default: true },
+            { id: 'use_hook_glitch', default: true },
+            { id: 'use_auto_bgm', default: true },
+            { id: 'use_karaoke_effect', default: true },
+            { id: 'hook_v2', default: false },
+            { id: 'silence_trim', default: false },
+            { id: 'use_dlp_subs', default: false },
+            { id: 'no_subs', default: false },
+            { id: 'load_gemini_json', default: false },
         ];
 
         // Render toggles
@@ -264,11 +272,11 @@
         togglesContainer.innerHTML = TOGGLES.map(t => `
             <div class="toggle-row">
                 <div>
-                    <div class="toggle-label">${t.label}</div>
-                    <div class="toggle-desc">${t.desc}</div>
+                    <div class="toggle-label" id="toggle-label-${t.id}">${StudioI18n.html(`feature.${t.id}.label`)}</div>
+                    <div class="toggle-desc">${StudioI18n.html(`feature.${t.id}.desc`)}</div>
                 </div>
                 <label class="toggle-switch">
-                    <input type="checkbox" id="toggle-${t.id}" ${t.default ? 'checked' : ''}>
+                    <input type="checkbox" id="toggle-${t.id}" aria-labelledby="toggle-label-${t.id}" ${t.default ? 'checked' : ''}>
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -288,7 +296,14 @@
             try {
                 const settings = await StudioAPI.fetchSettings();
                 if (generation !== providerDefaultsGeneration) return;
-                document.getElementById('input-vllm-model').placeholder = settings.vllm_model || 'Gunakan model default server';
+                const modelInput = document.getElementById('input-vllm-model');
+                if (settings.vllm_model) {
+                    modelInput.removeAttribute('data-i18n-placeholder');
+                    modelInput.placeholder = settings.vllm_model;
+                } else {
+                    modelInput.setAttribute('data-i18n-placeholder', 'new.serverModel');
+                    modelInput.placeholder = tr('new.serverModel');
+                }
                 document.getElementById('input-vllm-tokens').placeholder = String(settings.local_max_tokens || 4096);
                 if (!providerTouched && ['gemini', 'nvidia', 'vllm'].includes(settings.default_ai_provider)) {
                     document.getElementById('input-ai').value = settings.default_ai_provider;
@@ -326,19 +341,19 @@
             errorEl.classList.add('hidden');
 
             if (!StudioAPI.isConfigured()) {
-                errorText.textContent = 'Backend not connected. Click "Connect" in the sidebar first.';
+                StudioI18n.text(errorText, 'new.notConnected');
                 errorEl.classList.remove('hidden');
                 return;
             }
 
             // Validation
             if (currentMode === 'url' && !document.getElementById('input-url').value.trim()) {
-                errorText.textContent = 'URL tidak boleh kosong';
+                StudioI18n.text(errorText, 'new.urlRequired');
                 errorEl.classList.remove('hidden');
                 return;
             }
             if (currentMode === 'reuse' && !document.getElementById('input-reuse-id').value.trim()) {
-                errorText.textContent = 'Job ID tidak boleh kosong';
+                StudioI18n.text(errorText, 'new.idRequired');
                 errorEl.classList.remove('hidden');
                 return;
             }
@@ -347,19 +362,19 @@
             const vllmTokens = document.getElementById('input-vllm-tokens').value;
             if (document.getElementById('input-ai').value === 'vllm') {
                 if (vllmModel && !/^[A-Za-z0-9._:/@+-]{1,256}$/.test(vllmModel)) {
-                    errorText.textContent = 'Nama model vLLM tidak valid';
+                    StudioI18n.text(errorText, 'new.invalidModel');
                     errorEl.classList.remove('hidden');
                     return;
                 }
                 if (vllmTokens !== '' && (!Number.isInteger(Number(vllmTokens)) || Number(vllmTokens) < 1 || Number(vllmTokens) > 131072)) {
-                    errorText.textContent = 'Batas token output harus berupa angka bulat antara 1 dan 131072';
+                    StudioI18n.text(errorText, 'new.invalidTokens');
                     errorEl.classList.remove('hidden');
                     return;
                 }
             }
 
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Processing...';
+            btn.innerHTML = `<span class="spinner"></span> ${StudioI18n.html('new.processing')}`;
 
             try {
                 await StudioAPI.checkConnection();
@@ -392,11 +407,11 @@
                 const job = await StudioAPI.createJob(payload);
                 window.location.href = `job.html?id=${job.id}`;
             } catch (err) {
-                errorText.textContent = err.message;
+                StudioI18n.text(errorText, 'common.message', { message: StudioI18n.errorMessage(err) });
                 errorEl.classList.remove('hidden');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i data-lucide="rocket" class="w-4 h-4"></i> Start Clipping';
+                btn.innerHTML = `<i data-lucide="rocket" class="w-4 h-4"></i> ${StudioI18n.html('new.start')}`;
                 lucide.createIcons();
             }
         }
