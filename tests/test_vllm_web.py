@@ -22,7 +22,27 @@ def isolated_environment(monkeypatch):
     def forbidden(*args, **kwargs):
         pytest.fail("Web contract tests must not connect to an inference server")
 
-    monkeypatch.setattr(socket.socket, "connect", forbidden)
+    real_connect = socket.socket.connect
+    real_socketpair = socket.socketpair
+    in_socketpair = False
+
+    def guarded_connect(sock, *args, **kwargs):
+        if not in_socketpair:
+            forbidden()
+        return real_connect(sock, *args, **kwargs)
+
+    def socketpair(*args, **kwargs):
+        # On Windows, socket.socketpair() (used by asyncio's event loop) is built
+        # from a loopback connect; that local self-pipe is not an inference call.
+        nonlocal in_socketpair
+        in_socketpair = True
+        try:
+            return real_socketpair(*args, **kwargs)
+        finally:
+            in_socketpair = False
+
+    monkeypatch.setattr(socket.socket, "connect", guarded_connect)
+    monkeypatch.setattr(socket, "socketpair", socketpair)
     monkeypatch.setattr(socket, "create_connection", forbidden)
 
 
