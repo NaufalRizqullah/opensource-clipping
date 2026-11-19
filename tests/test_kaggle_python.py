@@ -191,9 +191,23 @@ def test_control_commands_do_not_need_runtime_python(monkeypatch, tmp_path):
         assert helper.main([command, "--state", str(tmp_path / "state.json")]) == 0
 
 
-def test_notebook_uses_selected_python_for_both_setup_helpers():
-    notebook = json.loads((bootstrap.ROOT / "notebooks/kaggle-vllm-gemma4.ipynb").read_text(encoding="utf-8"))
+@pytest.mark.parametrize("filename", ["kaggle-vllm-gemma4.ipynb", "kaggle-studio-server.ipynb"])
+def test_notebook_uses_selected_python_for_both_setup_helpers(filename):
+    notebook = json.loads((bootstrap.ROOT / "notebooks" / filename).read_text(encoding="utf-8"))
     calls = []
+
+    def script_name(node):
+        if isinstance(node, ast.Constant):
+            return node.value
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == "str" and len(node.args) == 1):
+            path = node.args[0]
+            if (isinstance(path, ast.BinOp) and isinstance(path.op, ast.Div)
+                    and isinstance(path.left, ast.Name) and path.left.id == "PROJECT_DIR"
+                    and isinstance(path.right, ast.Constant)):
+                return path.right.value
+        return None
+
     for cell in notebook["cells"]:
         if cell["cell_type"] != "code":
             continue
@@ -203,11 +217,12 @@ def test_notebook_uses_selected_python_for_both_setup_helpers():
             if not isinstance(node, ast.Call) or not node.args or not isinstance(node.args[0], ast.List):
                 continue
             args = node.args[0].elts
-            if len(args) < 3 or not isinstance(args[1], ast.Constant) or not isinstance(args[2], ast.Constant):
+            if len(args) < 3 or not isinstance(args[2], ast.Constant):
                 continue
-            if args[1].value not in {"scripts/kaggle_studio.py", "scripts/kaggle_vllm.py"} or args[2].value != "setup":
+            helper_script = script_name(args[1])
+            if helper_script not in {"scripts/kaggle_studio.py", "scripts/kaggle_vllm.py"} or args[2].value != "setup":
                 continue
             assert ast.unparse(args[0]) == "str(BOOTSTRAP_PYTHON)"
             assert any(keyword.arg == "env" and ast.unparse(keyword.value) == "bootstrap_environment(PYTHON_CACHE)" for keyword in node.keywords)
-            calls.append(args[1].value)
+            calls.append(helper_script)
     assert sorted(calls) == ["scripts/kaggle_studio.py", "scripts/kaggle_vllm.py"]

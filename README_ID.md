@@ -48,7 +48,7 @@
 
 ## 📋 Prasyarat
 
-**Setup vLLM Kaggle eksperimental:** [notebook Gemma 4 Q4](notebooks/kaggle-vllm-gemma4.ipynb) dan [panduan](docs/KAGGLE_VLLM.md) menyiapkan server terpisah untuk satu GPU 16 GB yang didukung. Validasi Kaggle masih menunggu; P100 tidak didukung preset ini. Provider default tetap Gemini.
+**Setup vLLM Kaggle eksperimental:** [notebook Gemma 4 Q4](notebooks/kaggle-vllm-gemma4.ipynb) dan [panduan](docs/KAGGLE_VLLM.md) menyiapkan server terpisah untuk satu GPU 16 GB yang didukung. Log T4 yang diberikan mengonfirmasi satu evaluasi transkrip pendek berhasil setelah workaround attention; validasi video/Studio lengkap masih menunggu. P100 tidak didukung preset ini. Provider default tetap Gemini.
 
 - **Python** 3.10+
 - **FFmpeg** terinstall dan tersedia di PATH
@@ -136,7 +136,7 @@ WHISPER_COMPUTE_TYPE = "float32"
 
 ### Cara Pakai
 
-1. **Jalankan backend** — Buka [`notebooks/kaggle-studio-server.ipynb`](notebooks/kaggle-studio-server.ipynb) di Kaggle (atau Colab), aktifkan Internet dan GPU, tambahkan API key ke Secrets, lalu run semua cell. Setup menggunakan environment Python terpisah; **Public URL** baru muncul setelah pemeriksaan dependency dan kesiapan renderer berhasil. Lihat [panduan setup dan troubleshooting](docs/KAGGLE_STUDIO.md).
+1. **Jalankan backend** — Buka versi terbaru [`notebooks/kaggle-studio-server.ipynb`](notebooks/kaggle-studio-server.ipynb) di Kaggle (atau Colab), aktifkan Internet dan GPU, tambahkan API key ke Secrets, lalu jalankan cell berurutan. **Prepare Python 3.12** menyiapkan interpreter terpisah sehingga kernel notebook Python 3.13 tetap dapat dipakai tanpa diganti. Biarkan `START_LOCAL_VLLM=False` untuk Gemini/NVIDIA, atau aktifkan untuk menyiapkan Gemma 4 Q4 dalam environment server terpisah beserta evaluasi singkatnya. **Public URL** baru muncul setelah pemeriksaan kesiapan backend berhasil. Lihat [panduan setup dan troubleshooting](docs/KAGGLE_STUDIO.md).
 
 2. **Buka Studio** — Kunjungi [halaman Studio](https://naufalrizqullah.github.io/opensource-clipping/studio/) di browser.
 

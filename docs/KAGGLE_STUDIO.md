@@ -4,14 +4,33 @@ Use [`notebooks/kaggle-studio-server.ipynb`](../notebooks/kaggle-studio-server.i
 
 ## Setup and startup
 
-For self-hosted **vLLM + Gemma 4 Q4 in the same Kaggle session**, use the separate [vLLM notebook and guide](KAGGLE_VLLM.md). It creates a second environment and uses port 8001 for inference; Studio stays on port 8000. The experimental single-GPU preset keeps Whisper on CPU/int8 and requires a supported GPU (a 16 GB P100 is not supported). End-to-end Kaggle validation is still pending.
+The regular Studio notebook supports Gemini/NVIDIA and an optional **vLLM + Gemma 4 Q4** server in the same session. Leave `START_LOCAL_VLLM=False` for the normal cloud-provider setup or an existing vLLM endpoint. Set it to `True` to prepare a separate vLLM environment, start the pinned model and evaluate one short transcript before opening Studio. The dedicated [vLLM notebook and guide](KAGGLE_VLLM.md) remain available for model experiments.
 
-1. Select a Linux x86_64 runtime with Python 3.10–3.12 (prefer 3.12), enable Internet, and select a GPU for CUDA transcription/rendering.
+1. Select a Linux x86_64 runtime, enable Internet, and select a GPU for CUDA transcription/rendering. A **Python 3.13 notebook kernel is supported**: the notebook prepares a separate Python 3.12 for the application. Do not replace or downgrade the system/kernel Python.
 2. Run the clone/setup cells. The repository is cloned into a named directory without deleting the working directory. Existing checkouts and outputs are retained; an existing checkout is not automatically pulled or reset.
-3. Setup creates `.cache/kaggle-studio/venv` without access to the notebook's installed packages or reliance on distro `ensurepip`. It checks the target interpreter, bootstraps missing pip into that venv, then installs `requirements-kaggle.txt` with `constraints-kaggle.txt`, runs `pip check`, and installs a checksum-verified Deno runtime for yt-dlp's YouTube JavaScript challenges. Installer errors stop the cell and remain visible.
+3. Run **Prepare Python 3.12**, then application setup. The shared `scripts/kaggle_python.py` helper reuses an available CPython 3.12 or downloads it under `.cache/kaggle-python` through checksum-pinned uv. Setup uses the resulting `BOOTSTRAP_PYTHON` and creates `.cache/kaggle-studio/venv` without access to the notebook's installed packages or reliance on distro `ensurepip`. It checks the target interpreter, bootstraps missing pip into that venv, then installs `requirements-kaggle.txt` with `constraints-kaggle.txt`, runs `pip check`, and installs a checksum-verified Deno runtime for yt-dlp's YouTube JavaScript challenges. Installer errors stop the cell and remain visible.
 4. Supply secrets through Kaggle Secrets, Colab userdata, or the environment. `NGROK_AUTHTOKEN` is needed for the tunnel; Google or NVIDIA credentials depend on the selected AI provider. The notebook passes them through the process environment, without writing a `.env` file or printing their values. Existing `.env` files are ignored by this managed server.
-5. Run the server cell and keep it running. It launches Uvicorn in a **fresh Python subprocess**, checks `/api/ready`, and only then opens the tunnel and prints **BACKEND SERVER READY** with its Public URL.
-6. In [Studio](https://naufalrizqullah.github.io/opensource-clipping/studio/), choose **Connect**, paste the URL, and select **Test & Connect**. Pages refresh after a successful connection. A failed attempt preserves the previously saved URL.
+5. Configure the optional vLLM section as described below. With `START_LOCAL_VLLM=False`, its setup/start/eval operations are skipped; no LLM server or model is installed by that section.
+6. Run the backend server cell and keep it running. It launches Uvicorn in a **fresh Python subprocess** using `STUDIO_PYTHON`, checks `/api/ready`, and only then opens the tunnel and prints **BACKEND SERVER READY** with its Public URL.
+7. In [Studio](https://naufalrizqullah.github.io/opensource-clipping/studio/), choose **Connect**, paste the URL, and select **Test & Connect**. Pages refresh after a successful connection. A failed attempt preserves the previously saved URL.
+
+### Choosing an AI provider
+
+In **New Job → AI & Whisper → AI Provider**, select Google Gemini, NVIDIA NIM or vLLM. Settings also provides a default provider selection for the running backend.
+
+| Provider setup | Notebook configuration |
+| --- | --- |
+| Gemini or NVIDIA NIM | Keep `START_LOCAL_VLLM=False`; supply the selected provider's API key. |
+| An existing vLLM server | Keep `START_LOCAL_VLLM=False`; configure `VLLM_BASE_URL`, `VLLM_MODEL` and the server's `VLLM_API_KEY` if authentication is enabled. The notebook passes these values to Studio but does not start or stop that server. |
+| Gemma 4 Q4 in this Kaggle session | Set `START_LOCAL_VLLM=True` and run the optional section before Start Backend Server. It performs GPU preflight, installs into `.cache/kaggle-vllm/venv`, starts the managed server and evaluates one clip with the Studio interpreter. A failure stops that cell and retains the report/log for diagnosis. |
+
+The local preset uses GPU index 0, port 8001 for inference and port 8000 for Studio. It applies the existing T4 attention workaround through `scripts/kaggle_vllm.py`; see the [vLLM guide](KAGGLE_VLLM.md) for the pinned model and hardware limits. P100 and CPU-only runtimes are not supported by this local-server preset. In Studio, use **Whisper Device: CPU**, compute type `int8`, or YouTube subtitles while the single-GPU LLM is loaded. A second T4 is not automatically used or combined into one memory pool.
+
+The optional section uses an existing `VLLM_API_KEY` or generates one in memory when starting its own server. Keep that key unchanged while the server runs. After restarting the kernel, stop the old managed server and configure/start it again so client and server share the same key. Once Studio is stopped, run the notebook's conditional **Stop local vLLM** cell to release GPU memory; stopping the Studio backend alone does not stop vLLM. An externally managed server is left running.
+
+Before rerunning the combined local vLLM setup/start/eval cell, stop its previous managed server first. The setup helper deliberately refuses to change an environment while its server is running. Keep `START_LOCAL_VLLM=True` when using the notebook's conditional stop cell; alternatively run `scripts/kaggle_vllm.py stop` with the notebook interpreter. Preserve the eval report and log before restarting a failed run.
+
+The supplied Kaggle T4 log confirms the dedicated vLLM notebook completed the short-transcript evaluation after the attention workaround (`success: true`, one returned clip, zero metadata warnings). This verifies that reported inference run, not video rendering or the new combined Studio notebook. Its full video workflow and the new notebook wiring still need validation in Kaggle. No test, package installation or model execution was performed on the user's PC for this change.
 
 The first import/readiness check can take a few minutes. Stop Server requests graceful shutdown; an active native operation may delay process exit. Stopping the notebook cell also applies the supervisor's shutdown timeout and closes the managed backend and tunnel. A busy port is reported instead of connecting the notebook to an unrelated older process. API jobs are serialized even if `MAX_CONCURRENT_JOBS` requests a higher value: renderer temporary files and some settings are shared within the process. Use one Uvicorn process per checkout.
 
@@ -57,7 +76,9 @@ The managed process uses `MPLBACKEND=Agg`. MediaPipe imports Matplotlib, but thi
 | AI analysis appears slow | Providers may retry transient errors such as Gemini 503. Follow notebook logs and the job's analysis progress; this is distinct from renderer readiness. Cancellation waits for the current AI operation to return. |
 | SSE fails | Studio sends the ngrok bypass header on its fetch-based event stream and retries it. Polling continues as a fallback. |
 | Video preview fails but API calls work | Native video/link requests cannot set the ngrok bypass header. Use **Open video / Download**, continue through the tunnel warning if shown, and retry. Media remains streamed rather than copied entirely into browser RAM. |
-| Python 3.13+ notebook kernel | The vLLM notebook has a **Prepare Python 3.12** cell that creates/reuses a separate interpreter and passes it to both setup helpers. The regular Studio notebook still requires invoking setup with a compatible Python 3.10–3.12 interpreter. Do not remove the application dependency guard or replace the system Python. See [vLLM bootstrap](KAGGLE_VLLM.md). |
+| Python 3.13 kernel / setup asks for Python 3.10–3.12 | Both Studio notebooks now include **Prepare Python 3.12**. Open the updated notebook and run that cell before setup; setup must use `BOOTSTRAP_PYTHON`, not the kernel's `sys.executable`. The kernel remains unchanged. Updating the repository alone does not replace cells in a notebook already open in Kaggle/Colab. Keep the application dependency guard in place. |
+| Python/uv download fails | Enable Internet and inspect the first download/checksum error. Rerun Prepare Python before application setup. The helper keeps interpreter downloads under the checkout cache; it does not install application packages into the kernel or replace system Python. |
+| Local vLLM eval fails before Studio starts | Read the displayed server-log tail and save `vllm-eval-short.json` plus `logs/kaggle-vllm.log`. Follow the [vLLM troubleshooting guide](KAGGLE_VLLM.md); `/api/ready` for Studio does not establish LLM inference health. |
 
 For a local diagnostic in the managed environment, run `python -m web.api.readiness --check` with that environment's Python. It exits nonzero if a required import or FFmpeg fails and does not start a tunnel.
 
@@ -79,7 +100,7 @@ result = subprocess.run(
 print("Readiness exit code:", result.returncode)
 ```
 
-The preserved checkout is not updated by rerunning the clone cell. After updating its files, restart the notebook kernel (and rerun the configuration cells) or reload the imported bootstrap module before starting again. Otherwise Python can retain the older `runtime_environment` function.
+The preserved checkout is not updated by rerunning the clone cell. Pull the intended branch/commit into that checkout and open the matching updated notebook: a Git update does not replace cells already loaded in the Kaggle/Colab editor. After updating imported helper files, restart the notebook kernel and rerun Prepare Python/configuration, or reload those modules before starting again. Otherwise Python can retain the older `runtime_environment` function. Existing outputs and model caches are retained.
 
 ## Saved flow logs
 

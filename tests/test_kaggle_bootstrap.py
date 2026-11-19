@@ -76,6 +76,16 @@ def test_setup_stops_on_install_failure_before_deno_or_pip_check(monkeypatch, tm
     assert not any(command[-1] == "check" for command in calls)
 
 
+def test_python_313_setup_stops_before_install_with_bootstrap_guidance(monkeypatch, tmp_path):
+    monkeypatch.setattr(bootstrap.sys, "version_info", (3, 13, 0))
+    monkeypatch.setattr(bootstrap.venv, "EnvBuilder", lambda **kwargs: pytest.fail("No environment creation"))
+    monkeypatch.setattr(bootstrap.subprocess, "run", lambda *a, **kw: pytest.fail("No subprocess"))
+    monkeypatch.setattr(bootstrap, "install_deno", lambda *a: pytest.fail("No download"))
+    with pytest.raises(RuntimeError, match="BOOTSTRAP_PYTHON"):
+        bootstrap.setup_environment(tmp_path / "venv", tmp_path)
+    assert not (tmp_path / "venv").exists()
+
+
 def test_readiness_reports_safe_failure_without_opening_tunnel(monkeypatch):
     body = json.dumps({"checks": {"renderer": {
         "ok": False, "error": "ValueError", "message": "private-value-must-not-appear",
@@ -343,7 +353,12 @@ def _secret_cell(monkeypatch, reader):
     monkeypatch.setitem(sys.modules, "google", google)
     monkeypatch.setitem(sys.modules, "google.colab", SimpleNamespace(userdata=SimpleNamespace(get=lambda name: "")))
     notebook = json.loads((bootstrap.PROJECT_ROOT / "notebooks/kaggle-studio-server.ipynb").read_text(encoding="utf-8"))
-    source = notebook["cells"][6]["source"]
+    sources = [cell["source"] if isinstance(cell["source"], str) else "".join(cell["source"])
+               for cell in notebook["cells"] if cell["cell_type"] == "code"]
+    candidates = [source for source in sources if "secret_readers = []" in source
+                  and "NGROK_AUTHTOKEN" in source]
+    assert len(candidates) == 1, "Locate the secrets cell independently of notebook cell numbering"
+    source = candidates[0]
     exec(compile(source, "notebook-secret-cell", "exec"), {})
 
 

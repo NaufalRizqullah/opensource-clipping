@@ -8,6 +8,14 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.3]
+
+### Fixed
+- **Regular Studio notebook on Python 3.13 kernels (#12)**: Reuse the shared Prepare Python 3.12 bootstrap before application setup, passing the selected interpreter and isolated bootstrap environment instead of the notebook kernel's Python. The application dependency guard remains unchanged; unsupported direct setup now points to the preparation cell. Updated Studio setup documentation and notebook regression coverage. No tests or runtime installs were executed on the user's PC; the revised notebook still needs validation in Kaggle/Colab.
+
+### Added
+- **Optional local vLLM in the regular Studio notebook**: `START_LOCAL_VLLM=True` prepares the existing separate Gemma 4 Q4 server environment, performs GPU preflight/startup and a short-transcript evaluation, and provides a managed-server stop cell. The default remains off for Gemini/NVIDIA or an existing vLLM endpoint. The supplied Kaggle T4 log confirms one successful short evaluation with the prior dedicated vLLM notebook and T4 workaround; full video/Studio validation remains pending.
+
 ## [v1.16.2]
 
 ### Fixed

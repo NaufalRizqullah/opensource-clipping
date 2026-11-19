@@ -1,7 +1,7 @@
 """Isolated Kaggle/Colab setup and supervised Web Studio startup.
 
-This module uses only the standard library until the tunnel is opened. It can
-therefore run with the notebook's Python without importing its NumPy/ML stack.
+This module uses only the standard library until the tunnel is opened. Setup
+uses the selected bootstrap Python without importing the notebook's ML stack.
 """
 
 from __future__ import annotations
@@ -111,7 +111,11 @@ def runtime_environment(env_dir: Path) -> dict[str, str]:
 def validate_platform() -> None:
     """Reject unsupported Python/wheel platforms before any installation."""
     if not (3, 10) <= sys.version_info[:2] <= (3, 12):
-        raise RuntimeError("Kaggle Studio requires Python 3.10-3.12; select a Python 3.12 runtime.")
+        raise RuntimeError(
+            f"Studio setup is running under Python {sys.version_info[0]}.{sys.version_info[1]}. "
+            "Run the notebook's Prepare Python 3.12 cell and use BOOTSTRAP_PYTHON for setup. "
+            "The application requires Python 3.10-3.12; the notebook kernel may remain on 3.13+."
+        )
     if platform.system() != "Linux" or platform.machine() not in {"x86_64", "AMD64"}:
         raise RuntimeError("This bootstrap targets Linux x86_64 Kaggle/Colab runtimes.")
 

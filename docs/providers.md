@@ -2,7 +2,7 @@
 
 The application supports `gemini` (default), `nvidia`, and `vllm`. vLLM is a separate, self-hosted model server; installing the application installs its HTTP client, not the model server. Ollama is deferred.
 
-For the experimental single-GPU Kaggle setup, start with [Gemma 4 Q4 on Kaggle](KAGGLE_VLLM.md) and its [notebook](../notebooks/kaggle-vllm-gemma4.ipynb). The preset and regression tests have been authored but **have not been run in Kaggle**. No tests, dependency installation, or inference were run on the development PC, as requested.
+For the experimental single-GPU Kaggle setup, start with [Gemma 4 Q4 on Kaggle](KAGGLE_VLLM.md) and its [notebook](../notebooks/kaggle-vllm-gemma4.ipynb), or enable `START_LOCAL_VLLM=True` in the [regular Studio notebook](../notebooks/kaggle-studio-server.ipynb). Both notebooks prepare Python 3.12 separately when the kernel is Python 3.13. The supplied T4 log confirms the dedicated notebook completed one short-transcript evaluation after the attention workaround, with one returned clip and no metadata warnings. The new combined Studio flow, full video pipeline and regression suite still need validation in Kaggle. No tests, dependency installation, or inference were run on the development PC, as requested.
 
 ## Configuration
 

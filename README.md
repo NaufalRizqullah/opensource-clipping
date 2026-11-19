@@ -50,7 +50,7 @@
 
 ## 📋 Prerequisites
 
-**Experimental Kaggle vLLM setup:** the [Gemma 4 Q4 notebook](notebooks/kaggle-vllm-gemma4.ipynb) and [guide](docs/KAGGLE_VLLM.md) prepare an isolated server for a supported single 16 GB GPU. Kaggle validation is pending; P100 is unsupported by this preset. Gemini remains the default provider.
+**Experimental Kaggle vLLM setup:** the [Gemma 4 Q4 notebook](notebooks/kaggle-vllm-gemma4.ipynb) and [guide](docs/KAGGLE_VLLM.md) prepare an isolated server for a supported single 16 GB GPU. A supplied T4 log confirms one successful short-transcript evaluation after the attention workaround; full video/Studio validation remains pending. P100 is unsupported by this preset. Gemini remains the default provider.
 
 - **Python** 3.10+
 - **FFmpeg** installed and available in PATH
@@ -138,7 +138,7 @@ The **Clipping Studio** is a browser-based dashboard hosted for free on **GitHub
 
 ### Quick Start
 
-1. **Start the backend** — Open [`notebooks/kaggle-studio-server.ipynb`](notebooks/kaggle-studio-server.ipynb) in Kaggle (or Colab), enable Internet and a GPU, add your API keys to Secrets, and run all cells. Setup uses an isolated Python environment; the **Public URL** appears only after the backend passes its dependency and renderer readiness checks. See the [setup and troubleshooting guide](docs/KAGGLE_STUDIO.md).
+1. **Start the backend** — Open the latest [`notebooks/kaggle-studio-server.ipynb`](notebooks/kaggle-studio-server.ipynb) in Kaggle (or Colab), enable Internet and a GPU, add your API keys to Secrets, and run the cells in order. **Prepare Python 3.12** supports a Python 3.13 notebook kernel by preparing a separate interpreter; the kernel stays unchanged. Keep `START_LOCAL_VLLM=False` for Gemini/NVIDIA, or enable it to prepare Gemma 4 Q4 in a separate server environment and run its short evaluation. The **Public URL** appears only after the backend passes readiness checks. See the [setup and troubleshooting guide](docs/KAGGLE_STUDIO.md).
 
 2. **Open the Studio** — Visit [the Studio page](https://naufalrizqullah.github.io/opensource-clipping/studio/) in your browser.
 

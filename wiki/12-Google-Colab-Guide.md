@@ -6,6 +6,8 @@ If you don't have a local GPU, Google Colab provides free access to NVIDIA T4 GP
 
 ## Quick Start (3 Cells)
 
+For the browser-based **Studio** on a Python 3.13 kernel, use the latest [Studio server notebook](../notebooks/kaggle-studio-server.ipynb). Its **Prepare Python 3.12** cell creates/reuses a separate interpreter before installing the application, without changing the kernel. It also includes optional local vLLM startup through `START_LOCAL_VLLM=True`; leave that off for Gemini/NVIDIA or an existing vLLM endpoint. See the [Studio guide](../docs/KAGGLE_STUDIO.md). The CLI examples below and other CLI notebooks do not include this bootstrap and still require a compatible application Python environment.
+
 Open a new [Google Colab](https://colab.research.google.com/) notebook and set the Runtime to **T4 GPU**.
 
 ### Cell 1: Setup & Clone

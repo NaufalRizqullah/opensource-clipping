@@ -1,6 +1,8 @@
 # vLLM + Gemma 4 Q4 di Kaggle
 
-Gunakan [notebook Kaggle vLLM](../notebooks/kaggle-vllm-gemma4.ipynb) untuk menjalankan analisis transkrip dengan server milik sendiri. Log dari sesi Kaggle T4 menunjukkan model berhasil dimuat, lalu inference pertama gagal karena batas shared memory Triton. **Workaround T4 di bawah masih menunggu validasi inference di Kaggle**. Tidak ada instalasi, test, atau pemuatan model yang dilakukan di PC lokal selama pengerjaan.
+Gunakan [notebook Kaggle vLLM](../notebooks/kaggle-vllm-gemma4.ipynb) untuk menjalankan analisis transkrip dengan server milik sendiri. Log Kaggle T4 terbaru menunjukkan workaround attention diterapkan dan evaluasi transkrip pendek berhasil (`success: true`, satu klip, nol peringatan metadata). **Kualitas narasi, transkrip panjang, dan pipeline video/Studio lengkap masih perlu diuji**. Tidak ada instalasi, test, atau pemuatan model yang dilakukan di PC lokal selama pengerjaan.
+
+[Notebook Studio biasa](../notebooks/kaggle-studio-server.ipynb) kini juga menyediakan **Prepare Python 3.12** dan opsi `START_LOCAL_VLLM=True` untuk memakai helper serta preset yang sama sebelum membuka Studio. Kedua notebook mempertahankan kernel Python 3.13 dan memasang dependency ke environment terpisah. Pilih satu notebook untuk mengelola server dalam satu checkout; lihat [panduan Studio](KAGGLE_STUDIO.md) untuk alur gabungan yang masih perlu divalidasi di Kaggle.
 
 ## Preset awal
 
@@ -83,7 +85,7 @@ Analisis vLLM tidak fallback ke cloud. Jika voiceover CLI diaktifkan, pembuatan 
 
 ### T4: shared memory Triton 96 KiB melebihi batas 64 KiB
 
-Pada log sesi Kaggle yang dilaporkan, `/v1/models` dan `/tokenize` berhasil, kemudian kernel `triton_unified_attention.py` gagal dengan `Required: 98304, Hardware limit: 65536`. `EngineDeadError`, HTTP 500 dan koneksi yang terputus adalah akibat engine berhenti. Bobot sudah dimuat (sekitar 7,12 GiB); exception ini mengacu pada shared memory kernel, bukan total VRAM 16 GB. Dua T4 juga tidak menggabungkan shared memory per blok.
+Pada log sesi Kaggle sebelum patch, `/v1/models` dan `/tokenize` berhasil, kemudian kernel `triton_unified_attention.py` gagal dengan `Required: 98304, Hardware limit: 65536`. `EngineDeadError`, HTTP 500 dan koneksi yang terputus adalah akibat engine berhenti. Bobot sudah dimuat (sekitar 7,12 GiB); exception ini mengacu pada shared memory kernel, bukan total VRAM 16 GB. Dua T4 juga tidak menggabungkan shared memory per blok. Log sesudah patch mengonfirmasi satu evaluasi pendek berhasil pada T4; hasil itu tidak menjamin semua panjang transkrip atau konfigurasi GPU.
 
 [PR vLLM #39018](https://github.com/vllm-project/vllm/pull/39018) mengusulkan tile lebih kecil untuk attention head besar pada GPU dengan shared memory terbatas. Helper `scripts/kaggle_vllm_compat.py` mengadaptasi guard tersebut untuk preset ini: tile 16 pada CUDA dengan padded head dimension ≥512, elemen minimal 2 byte, dan shared memory <96 KiB. Ukuran head kecil, syarat tile FP8, dan perangkat dengan shared memory cukup mempertahankan perilaku sebelumnya. Ini workaround terbatas, bukan klaim bahwa PR sudah masuk rilis vLLM 0.32.0; performa dan hasilnya tetap perlu dievaluasi.
 
@@ -123,9 +125,9 @@ Server hanya bind ke loopback. Tunnel notebook membuka Studio, bukan endpoint vL
 
 ## Validasi yang masih diperlukan
 
-- Inference dengan workaround T4 pada GPU/driver Kaggle aktual; log sebelum patch baru membuktikan model termuat dan endpoint tokenisasi merespons.
-- Schema JSON lengkap, timestamp, jumlah klip, kualitas bahasa Indonesia/Inggris, dan pemilihan momen pada transkrip pendek, sedang, dan panjang.
+- Pengulangan inference pada sesi/GPU/driver lain dan alur vLLM opsional di notebook Studio biasa; bukti yang ada baru satu evaluasi pendek pada T4 di notebook khusus vLLM.
+- Kualitas bahasa Indonesia/Inggris dan pemilihan momen, serta schema, timestamp dan jumlah klip pada transkrip sedang/panjang. Evaluasi pendek yang dilaporkan sudah lolos validasi schema/timing dan tidak menghasilkan peringatan metadata.
 - Latensi dan penggunaan VRAM/RAM selama analisis, lalu pipeline video dengan Whisper CPU dan rendering.
 - Regression suite cloud dan web; test yang ditambahkan belum dijalankan pada PC lokal sesuai permintaan pengguna.
 
-Preset ini adalah titik awal pembelajaran vLLM. Tidak ada angka benchmark atau klaim kualitas/kapasitas yang dianggap terbukti sebelum hasil Kaggle tersedia.
+Preset ini adalah titik awal pembelajaran vLLM. Satu evaluasi yang berhasil belum menjadi benchmark kualitas, latensi, atau kapasitas untuk seluruh pipeline.
