@@ -1,0 +1,7 @@
+# Install the CPU Torch family in the same resolution as Studio dependencies.
+# The existing Kaggle constraints select the matching public release versions.
+--extra-index-url https://download.pytorch.org/whl/cpu
+-r requirements-kaggle.txt
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
+torchaudio==2.5.1+cpu

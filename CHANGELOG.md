@@ -8,6 +8,11 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.6]
+
+### Changed
+- The Studio and vLLM notebooks place managed Python and package installations in temporary session storage by default and report free space before Studio starts. Users can select the previous checkout locations or a smaller Studio installation with CPU Torch. GPU Torch remains the default.
+
 ## [v1.16.5]
 
 ### Fixed

@@ -223,6 +223,7 @@ def test_notebook_uses_selected_python_for_both_setup_helpers(filename):
             if helper_script not in {"scripts/kaggle_studio.py", "scripts/kaggle_vllm.py"} or args[2].value != "setup":
                 continue
             assert ast.unparse(args[0]) == "str(BOOTSTRAP_PYTHON)"
-            assert any(keyword.arg == "env" and ast.unparse(keyword.value) == "bootstrap_environment(PYTHON_CACHE)" for keyword in node.keywords)
+            assert any(keyword.arg == "env" and ast.unparse(keyword.value) ==
+                       "bootstrap_environment(PYTHON_CACHE) | cache_env" for keyword in node.keywords)
             calls.append(helper_script)
     assert sorted(calls) == ["scripts/kaggle_studio.py", "scripts/kaggle_vllm.py"]

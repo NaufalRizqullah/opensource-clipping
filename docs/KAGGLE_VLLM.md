@@ -4,6 +4,8 @@ Gunakan [notebook Kaggle vLLM](../notebooks/kaggle-vllm-gemma4.ipynb) untuk menj
 
 [Notebook Studio biasa](../notebooks/kaggle-studio-server.ipynb) kini juga menyediakan **Prepare Python 3.12** dan opsi `START_LOCAL_VLLM=True` untuk memakai helper serta preset yang sama sebelum membuka Studio. Kedua notebook mempertahankan kernel Python 3.13 dan memasang dependency ke environment terpisah. Pilih satu notebook untuk mengelola server dalam satu checkout; lihat [panduan Studio](KAGGLE_STUDIO.md) untuk alur gabungan yang masih perlu divalidasi di Kaggle.
 
+Kedua notebook memakai `STORAGE_MODE = "temporary"` untuk menyimpan environment di luar Output. Profil `STUDIO_TORCH_PROFILE = "cpu"` menghemat disk bila Studio cukup memakai Whisper CPU/int8 atau subtitle. vLLM tetap memakai GPU. Mode `"checkout"` menggunakan lokasi environment lama. Lihat [panduan ruang disk](KAGGLE_STUDIO.md#disk-space-for-video-jobs) untuk memeriksa kuota atau memulihkan sesi lama.
+
 ## Preset awal
 
 | Komponen | Nilai |
@@ -29,9 +31,9 @@ Pilihan model mengikuti [resep resmi Gemma 4 untuk vLLM](https://docs.vllm.ai/pr
 
 1. Unggah/buka notebook di Kaggle. Pilih GPU dan aktifkan Internet. Pastikan `REPO_REF` menunjuk branch/commit yang sudah memuat perubahan ini. Checkout lama tidak dihapus, ditarik ulang, atau di-reset otomatis.
 2. Jalankan preflight GPU sebelum setup. Jika mendapat P100 atau CPU saja, ganti accelerator yang sesuai; helper ini tidak memasang backend CPU.
-   Setelah preflight, jalankan **Prepare Python 3.12**. Notebook memakai interpreter 3.12 yang tersedia atau mengunduhnya ke `.cache/kaggle-python` memakai uv 0.13.9 dengan SHA-256 terverifikasi. Tidak ada paket yang dipasang ke kernel, symlink Python sistem yang diganti, atau environment lama yang dihapus. Semua setup berikutnya memakai `BOOTSTRAP_PYTHON`, bukan `sys.executable` kernel. Python dikelola menggunakan [mekanisme instalasi uv](https://docs.astral.sh/uv/guides/install-python/).
+   Setelah preflight, jalankan **Prepare Python 3.12**. Notebook memakai interpreter 3.12 yang tersedia atau mengunduhnya ke `PYTHON_CACHE` di lokasi runtime yang dipilih memakai uv 0.13.9 dengan SHA-256 terverifikasi. Tidak ada paket yang dipasang ke kernel, symlink Python sistem yang diganti, atau environment lama yang dihapus. Semua setup berikutnya memakai `BOOTSTRAP_PYTHON`, bukan `sys.executable` kernel. Python dikelola menggunakan [mekanisme instalasi uv](https://docs.astral.sh/uv/guides/install-python/).
 3. `HF_TOKEN` dapat dipasang di Kaggle Secrets untuk download terautentikasi, dengan akses notebook diaktifkan. Checkpoint publik tidak mewajibkan token; model alternatif yang gated memerlukan akses akun yang sesuai. `NGROK_AUTHTOKEN` hanya untuk Studio, `PEXELS_API_KEY` opsional untuk B-roll. Provider vLLM tidak memerlukan Google/NVIDIA API key.
-4. Jalankan setup dua lingkungan: `.cache/kaggle-studio/venv` untuk aplikasi, `.cache/kaggle-vllm/venv` untuk server. Jangan memasang `requirements-vllm-kaggle.txt` ke kernel notebook atau lingkungan aplikasi. Setelah instalasi dan `pip check`, setup menjalankan `vllm serve --help` melalui interpreter server untuk memeriksa import library native, tanpa memulai server atau memuat model. Kegagalan pada salah satu tahap menghentikan setup; hasil pemeriksaan import tersimpan di `logs/kaggle-vllm-import.log`.
+4. Jalankan setup dua lingkungan: `STUDIO_ENV` untuk aplikasi, `VLLM_ENV` untuk server. Jangan memasang `requirements-vllm-kaggle.txt` ke kernel notebook atau lingkungan aplikasi. Setelah instalasi dan `pip check`, setup menjalankan `vllm serve --help` melalui interpreter server untuk memeriksa import library native, tanpa memulai server atau memuat model. Kegagalan pada salah satu tahap menghentikan setup; hasil pemeriksaan import tersimpan di `logs/kaggle-vllm-import.log`.
 5. Jalankan Start vLLM. Pada T4, helper memeriksa/menerapkan workaround attention dalam environment server sebelum memuat model, termasuk pada environment yang sudah terpasang. Unduhan pertama dapat lama; helper menunggu model yang tepat muncul pada `/v1/models`. Respons ini belum membuktikan inference berhasil; lanjutkan ke eval.
 6. Jalankan eval fixture pendek, satu klip. Hasil disimpan ke `/kaggle/working/vllm-eval-short.json`. Evaluasi ini tidak memuat Whisper atau merender video.
 7. Opsional: jalankan regression tests, lalu smoke test nyata melalui switch di notebook. Setelah itu jalankan Studio dan uji video pendek untuk menilai transkripsi, hasil kurasi, serta rendering.
@@ -45,9 +47,9 @@ Perintah berikut dijalankan dari root checkout di terminal Kaggle, setelah setup
 
 ```sh
 python scripts/kaggle_vllm.py preflight
-# Untuk setup/start gunakan path BOOTSTRAP_PYTHON dari notebook, misalnya:
-/path/to/python3.12 scripts/kaggle_vllm.py setup
-/path/to/python3.12 scripts/kaggle_vllm.py start
+# Isi variabel shell BOOTSTRAP_PYTHON, VLLM_ENV, dan STUDIO_PYTHON dengan path dari notebook.
+"$BOOTSTRAP_PYTHON" scripts/kaggle_vllm.py setup --venv "$VLLM_ENV"
+"$BOOTSTRAP_PYTHON" scripts/kaggle_vllm.py start --venv "$VLLM_ENV"
 python scripts/kaggle_vllm.py status
 python scripts/kaggle_vllm.py stop
 ```
@@ -55,7 +57,7 @@ python scripts/kaggle_vllm.py stop
 Contoh analisis pipeline dengan GPU yang dipakai vLLM:
 
 ```sh
-.cache/kaggle-studio/venv/bin/python main.py \
+"$STUDIO_PYTHON" main.py \
   --url "VIDEO_URL" --ai-provider vllm --clips 1 \
   --whisper-model small --whisper-device cpu --whisper-compute-type int8
 ```

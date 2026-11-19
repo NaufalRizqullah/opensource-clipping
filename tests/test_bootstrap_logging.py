@@ -30,7 +30,7 @@ def read_events(log_dir):
 def test_installer_failure_saved_with_stage_exit_code_and_traceback(monkeypatch, log_dir, capsys):
     private = "synthetic-password-must-not-be-saved"
 
-    def install_failure(*args):
+    def install_failure(*args, **kwargs):
         with bootstrap.logged_stage("dependencies"):
             raise subprocess.CalledProcessError(7, ["pip", "--password", private], output=private, stderr=private)
 

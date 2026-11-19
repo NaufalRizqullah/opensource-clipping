@@ -140,7 +140,7 @@ The **Clipping Studio** is a browser-based dashboard hosted for free on **GitHub
 
 ### Quick Start
 
-1. **Start the backend** — Open the latest [`notebooks/kaggle-studio-server.ipynb`](notebooks/kaggle-studio-server.ipynb) in Kaggle (or Colab), enable Internet and a GPU, add your API keys to Secrets, and run the cells in order. **Prepare Python 3.12** supports a Python 3.13 notebook kernel by preparing a separate interpreter; the kernel stays unchanged. Keep `START_LOCAL_VLLM=False` for Gemini/NVIDIA, or enable it to prepare Gemma 4 Q4 in a separate server environment and run its short evaluation. The **Public URL** appears only after the backend passes readiness checks. See the [setup and troubleshooting guide](docs/KAGGLE_STUDIO.md).
+1. **Start the backend** — Open the latest [`notebooks/kaggle-studio-server.ipynb`](notebooks/kaggle-studio-server.ipynb) in Kaggle (or Colab), enable Internet and a GPU, add your API keys to Secrets, and run the cells in order. **Prepare Python 3.12** supports a Python 3.13 notebook kernel by preparing a separate interpreter; the kernel stays unchanged. The notebook uses temporary storage for installed environments. Select the CPU Torch profile to further reduce Studio's disk usage. Keep `START_LOCAL_VLLM=False` for Gemini/NVIDIA, or enable it to prepare Gemma 4 Q4 in a separate server environment and run its short evaluation. The **Public URL** appears only after the backend passes readiness checks. See the [setup and troubleshooting guide](docs/KAGGLE_STUDIO.md).
 
 2. **Open the Studio** — Visit [the Studio page](https://naufalrizqullah.github.io/opensource-clipping/studio/) in your browser.
 

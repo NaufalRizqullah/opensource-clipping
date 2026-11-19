@@ -138,7 +138,7 @@ WHISPER_COMPUTE_TYPE = "float32"
 
 ### Cara Pakai
 
-1. **Jalankan backend** — Buka versi terbaru [`notebooks/kaggle-studio-server.ipynb`](notebooks/kaggle-studio-server.ipynb) di Kaggle (atau Colab), aktifkan Internet dan GPU, tambahkan API key ke Secrets, lalu jalankan cell berurutan. **Prepare Python 3.12** menyiapkan interpreter terpisah sehingga kernel notebook Python 3.13 tetap dapat dipakai tanpa diganti. Biarkan `START_LOCAL_VLLM=False` untuk Gemini/NVIDIA, atau aktifkan untuk menyiapkan Gemma 4 Q4 dalam environment server terpisah beserta evaluasi singkatnya. **Public URL** baru muncul setelah pemeriksaan kesiapan backend berhasil. Lihat [panduan setup dan troubleshooting](docs/KAGGLE_STUDIO.md).
+1. **Jalankan backend** — Buka versi terbaru [`notebooks/kaggle-studio-server.ipynb`](notebooks/kaggle-studio-server.ipynb) di Kaggle (atau Colab), aktifkan Internet dan GPU, tambahkan API key ke Secrets, lalu jalankan cell berurutan. **Prepare Python 3.12** menyiapkan interpreter terpisah sehingga kernel notebook Python 3.13 tetap dapat dipakai tanpa diganti. Notebook menyimpan environment di luar Output secara default. Pilih profil Torch CPU bila ingin memperkecil instalasi Studio. Biarkan `START_LOCAL_VLLM=False` untuk Gemini/NVIDIA, atau aktifkan untuk menyiapkan Gemma 4 Q4 dalam environment server terpisah beserta evaluasi singkatnya. **Public URL** baru muncul setelah pemeriksaan kesiapan backend berhasil. Lihat [panduan setup dan troubleshooting](docs/KAGGLE_STUDIO.md).
 
 2. **Buka Studio** — Kunjungi [halaman Studio](https://naufalrizqullah.github.io/opensource-clipping/studio/) di browser.
 

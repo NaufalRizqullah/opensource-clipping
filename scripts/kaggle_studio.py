@@ -36,6 +36,7 @@ else:
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_VENV = PROJECT_ROOT / ".cache" / "kaggle-studio" / "venv"
+DEFAULT_CPU_VENV = PROJECT_ROOT / ".cache" / "kaggle-studio-cpu" / "venv"
 _IMPORT_ERROR_TYPES = {"ValueError", "ImportError", "ModuleNotFoundError", "RuntimeError",
                        "OSError", "AttributeError", "TypeError", "SyntaxError", "SystemError"}
 GET_PIP_URL = "https://bootstrap.pypa.io/get-pip.py"
@@ -96,6 +97,7 @@ def runtime_environment(env_dir: Path) -> dict[str, str]:
         "KAGGLE_DISABLE_GOOGLE_GENERATIVE_AI_INTEGRATION": "1",
         "PIP_CONFIG_FILE": os.devnull,
         "PIP_REQUIRE_VIRTUALENV": "true",
+        "PIP_NO_CACHE_DIR": "1",
     })
     bin_dir = environment_python(env_dir).parent
     environment["PATH"] = str(bin_dir) + os.pathsep + environment.get("PATH", "")
@@ -219,22 +221,33 @@ def ensure_pip(env_dir: Path, root: Path = PROJECT_ROOT) -> None:
     subprocess.run(command, cwd=root, env=environment, timeout=30, check=True)
 
 
-def setup_environment(env_dir: Path, root: Path = PROJECT_ROOT) -> None:
+def setup_environment(env_dir: Path, root: Path = PROJECT_ROOT, *, torch_profile: str = "cuda") -> None:
     """Install only into an isolated venv; any failed command stops setup."""
     with logged_stage("platform_validation"):
         validate_platform()
+        if torch_profile not in {"cuda", "cpu"}:
+            raise ValueError("torch_profile must be 'cuda' or 'cpu'")
     with logged_stage("venv"):
-        if not env_dir.exists():
+        new_environment = not env_dir.exists()
+        if new_environment:
             print("Creating isolated Kaggle Studio environment...", flush=True)
             venv.EnvBuilder(with_pip=False, system_site_packages=False).create(env_dir)
         validate_environment(env_dir)
+        # Existing Studio venvs predate CPU mode. In-place switches can leave
+        # gigabytes of superseded CUDA libraries behind after pip finishes.
+        cpu_marker = env_dir / ".osc-studio-cpu"
+        if new_environment and torch_profile == "cpu":
+            cpu_marker.touch()
+        elif cpu_marker.is_file() != (torch_profile == "cpu"):
+            raise RuntimeError("This environment uses a different Torch profile. Select a separate --venv directory.")
     with logged_stage("pip_bootstrap"):
         ensure_pip(env_dir, root)
     python = str(environment_python(env_dir))
     environment = runtime_environment(env_dir)
+    requirements = "requirements-kaggle-cpu.txt" if torch_profile == "cpu" else "requirements-kaggle.txt"
     for stage, command in zip(("pip_upgrade", "dependencies", "pip_check"), (
         [python, "-m", "pip", "install", "--upgrade", "pip", "--index-url", "https://pypi.org/simple"],
-        [python, "-m", "pip", "install", "--upgrade", "-r", str(root / "requirements-kaggle.txt"),
+        [python, "-m", "pip", "install", "--upgrade", "-r", str(root / requirements),
          "--index-url", "https://pypi.org/simple"],
         [python, "-m", "pip", "check"],
     )):
@@ -468,11 +481,14 @@ def start_server(env_dir: Path, root: Path = PROJECT_ROOT, port: int = 8000,
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("setup", "start"))
-    parser.add_argument("--venv", type=Path, default=DEFAULT_VENV)
+    parser.add_argument("--venv", type=Path)
+    parser.add_argument("--torch-profile", choices=("cuda", "cpu"), default="cuda",
+                        help="Studio Torch build. CPU saves disk and uses a separate environment.")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--readiness-timeout", type=float, default=300)
     args = parser.parse_args(argv)
-    env_dir = args.venv.resolve()
+    default_env = DEFAULT_CPU_VENV if args.torch_profile == "cpu" else DEFAULT_VENV
+    env_dir = (args.venv or default_env).resolve()
     log_path = configure_logging("bootstrap")
     print(f"Diagnostic log: {log_path}", flush=True)
     log_event("session.started", component="bootstrap", stage=args.command)
@@ -482,7 +498,7 @@ def main(argv: list[str] | None = None) -> int:
     signal.signal(signal.SIGTERM, interrupted)
     try:
         if args.command == "setup":
-            setup_environment(env_dir)
+            setup_environment(env_dir, torch_profile=args.torch_profile)
         else:
             start_server(env_dir, port=args.port, readiness_timeout=args.readiness_timeout)
     except KeyboardInterrupt:

@@ -14,6 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from scripts import kaggle_python
+from scripts import kaggle_storage
 from scripts import kaggle_studio
 
 
@@ -36,16 +37,23 @@ def notebook_context(monkeypatch, tmp_path):
     monkeypatch.setattr(kaggle_python, "urlopen", forbidden)
     monkeypatch.setattr(kaggle_studio, "urlopen", forbidden)
     monkeypatch.setattr(kaggle_python.os, "environ", {})
+    workspace = tmp_path / "working"
+    project = workspace / "checkout"
+    project.mkdir(parents=True)
+    storage = kaggle_storage.prepare_storage(project, workspace, runtime_root=tmp_path / "scratch")
+    monkeypatch.setattr(kaggle_storage, "prepare_storage", lambda *args, **kwargs: storage)
+    monkeypatch.setattr(kaggle_storage, "check_storage", lambda *args: None)
     return {
-        "PROJECT_DIR": tmp_path / "checkout", "workspace": tmp_path,
+        "PROJECT_DIR": project, "workspace": workspace,
         "Path": Path, "os": kaggle_python.os,
         "sys": SimpleNamespace(executable="/kernel/python3.13",
                                version_info=SimpleNamespace(major=3, minor=13)),
         "subprocess": subprocess,
         "BOOTSTRAP_PYTHON": tmp_path / "python3.12",
-        "PYTHON_CACHE": tmp_path / "checkout/.cache/kaggle-python",
-        "STUDIO_ENV": tmp_path / "checkout/.cache/kaggle-studio/venv",
-        "STUDIO_PYTHON": tmp_path / "checkout/.cache/kaggle-studio/venv/bin/python",
+        "storage": storage, "MIN_OUTPUT_GIB": 1.0, "STUDIO_TORCH_PROFILE": "cuda",
+        "cache_env": storage.cache_environment(), "check_storage": kaggle_storage.check_storage,
+        "PYTHON_CACHE": storage.python_cache, "STUDIO_ENV": storage.studio_env,
+        "STUDIO_PYTHON": storage.studio_env / "bin/python",
         "bootstrap_environment": kaggle_python.bootstrap_environment,
         "runtime_environment": kaggle_studio.runtime_environment,
     }
@@ -74,8 +82,10 @@ def test_prepare_python_reuses_shared_bootstrap_and_preserves_kernel(monkeypatch
     assert context["sys"].executable == "/kernel/python3.13"
 
 
-def test_studio_setup_uses_selected_python_with_fresh_isolated_environment(monkeypatch, notebook_context):
+@pytest.mark.parametrize("profile", ["cuda", "cpu"])
+def test_studio_setup_uses_selected_python_with_fresh_isolated_environment(monkeypatch, notebook_context, profile):
     context = notebook_context
+    context["STUDIO_TORCH_PROFILE"] = profile
     monkeypatch.setenv("NGROK_AUTHTOKEN", "late-secret-value")
     monkeypatch.setenv("PYTHONPATH", "/kernel/packages")
     calls = []
@@ -86,6 +96,10 @@ def test_studio_setup_uses_selected_python_with_fresh_isolated_environment(monke
         assert str(command[1]).replace("\\", "/").endswith("scripts/kaggle_studio.py")
         assert command[2] == "setup"
         assert command[command.index("--venv") + 1] == str(context["STUDIO_ENV"])
+        assert command[command.index("--torch-profile") + 1] == profile
+        assert context["STUDIO_ENV"].is_relative_to(context["storage"].root)
+        assert context["STUDIO_ENV"].parent.name == ("kaggle-studio-cpu" if profile == "cpu" else "kaggle-studio")
+        assert kwargs["env"]["TMPDIR"] == str(context["storage"].root / "tmp")
         assert kwargs["env"]["NGROK_AUTHTOKEN"] == "late-secret-value"
         assert "PYTHONPATH" not in kwargs["env"]
         assert kwargs["check"] is True
@@ -94,6 +108,15 @@ def test_studio_setup_uses_selected_python_with_fresh_isolated_environment(monke
     monkeypatch.setattr(subprocess, "run", run)
     exec(compile(cell_source("kaggle_studio.py", '"setup"'), "studio-install", "exec"), context)
     assert len(calls) == 1
+
+
+def test_insufficient_space_prevents_backend_start(monkeypatch, notebook_context):
+    def insufficient(layout, reserve):
+        raise RuntimeError("Insufficient output space")
+
+    notebook_context["check_storage"] = insufficient
+    with pytest.raises(RuntimeError, match="Insufficient output space"):
+        exec(compile(cell_source("supervisor = subprocess.Popen"), "studio-start", "exec"), notebook_context)
 
 
 def configured_source(local):

@@ -1,7 +1,7 @@
 """Select a Python 3.12 bootstrap without modifying the Kaggle kernel.
 
 Only ensure_python() may download/install anything. It reuses an available
-CPython 3.12 or asks a checksum-pinned uv binary to install one under .cache.
+CPython 3.12 or asks a checksum-pinned uv binary to install one in the chosen cache.
 The application and vLLM helpers still create their own separate virtualenvs.
 """
 
@@ -97,7 +97,7 @@ def _install_uv(cache: Path) -> Path:
 
 
 def ensure_python(cache: Path = DEFAULT_CACHE) -> Path:
-    """Return CPython 3.12; downloads stay in this checkout's bootstrap cache."""
+    """Return CPython 3.12 using the specified bootstrap cache for downloads."""
     if platform.system() != "Linux" or platform.machine() not in {"x86_64", "AMD64"}:
         raise RuntimeError("Python bootstrap targets Linux x86_64 Kaggle/Colab only.")
     cache = Path(cache).resolve()

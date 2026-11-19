@@ -35,6 +35,7 @@ def test_runtime_removes_notebook_python_and_pip_overrides(monkeypatch, tmp_path
     assert env["PYTHONNOUSERSITE"] == "1"
     assert env["KAGGLE_DISABLE_GOOGLE_GENERATIVE_AI_INTEGRATION"] == "1"
     assert env["NGROK_AUTHTOKEN"] == "dummy-test-value"
+    assert env["PIP_NO_CACHE_DIR"] == "1"
 
 
 @pytest.mark.parametrize("backend", [None, "module://matplotlib_inline.backend_inline", "QtAgg"])
@@ -53,6 +54,28 @@ def test_refuses_environment_with_system_packages(tmp_path):
     (env_dir / "pyvenv.cfg").write_text("include-system-site-packages = true\n")
     with pytest.raises(RuntimeError, match="not isolated"):
         bootstrap.validate_environment(env_dir)
+
+
+def test_cpu_profile_installs_matching_triplet_and_keeps_it_on_reruns(monkeypatch, tmp_path):
+    env_dir = tmp_path / "venv"
+    monkeypatch.setattr(bootstrap, "validate_platform", lambda: None)
+    monkeypatch.setattr(bootstrap.venv, "EnvBuilder", lambda **kwargs: SimpleNamespace(
+        create=lambda path: make_environment(tmp_path)))
+    monkeypatch.setattr(bootstrap, "ensure_pip", lambda *args: None)
+    monkeypatch.setattr(bootstrap, "install_deno", lambda *args: None)
+    installs = []
+    def run(command, **kwargs):
+        if "-r" in command:
+            installs.append(Path(command[command.index("-r") + 1]))
+    monkeypatch.setattr(bootstrap.subprocess, "run", run)
+    for _ in range(2):
+        bootstrap.setup_environment(env_dir, torch_profile="cpu")
+    assert installs == [bootstrap.PROJECT_ROOT / "requirements-kaggle-cpu.txt"] * 2
+    wheel_pins = installs[0].read_text().splitlines()
+    assert {"torch==2.5.1+cpu", "torchvision==0.20.1+cpu", "torchaudio==2.5.1+cpu",
+            "-r requirements-kaggle.txt"}.issubset(wheel_pins)
+    with pytest.raises(RuntimeError, match="different Torch profile"):
+        bootstrap.setup_environment(env_dir, torch_profile="cuda")
 
 
 def test_setup_stops_on_install_failure_before_deno_or_pip_check(monkeypatch, tmp_path):
