@@ -156,12 +156,19 @@ class VllmProvider:
         if not limits:
             raise ProviderConfigError("Limit konteks server tidak tersedia; set VLLM_CONTEXT_LIMIT sesuai konfigurasi server.")
         limit = min(limits)
+        self.run_meta.update(prompt_tokens=count, context_limit=limit, max_tokens=max_tokens)
         if count + max_tokens > limit:
+            remaining = limit - count
+            if remaining > 0:
+                advice = (f"Prompt ini menyisakan {remaining} token untuk jawaban. "
+                          "Kurangi batas output jika sisa itu cukup, atau gunakan input yang lebih pendek.")
+            else:
+                advice = "Prompt sudah memenuhi batas konteks. Gunakan input yang lebih pendek, misalnya satu bagian video."
             raise ContextOverflowError(
                 f"Konteks vLLM tidak cukup: prompt {count} + output {max_tokens} > {limit} token. "
-                "Gunakan transkrip lebih pendek, kurangi budget output, atau naikkan kapasitas server jika memori cukup."
+                f"{advice} Untuk permintaan lengkap ini, model dan server perlu mendukung "
+                f"konteks minimal {count + max_tokens} token."
             )
-        self.run_meta.update(prompt_tokens=count, context_limit=limit, max_tokens=max_tokens)
 
     def _completion(self, messages, *, max_tokens, temperature, top_p, schema=None):
         import openai

@@ -68,6 +68,19 @@ export async function fetchHealth() {
   return res.json()
 }
 
+export async function changeYoutubeCookies(file) {
+  const options = file ? {
+    method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: file,
+  } : { method: 'DELETE' }
+  const res = await fetch(`${API_BASE}/settings/youtube-cookies`, { ...options, redirect: 'error' })
+  if (!res.ok) {
+    const error = new Error('YouTube cookies request failed')
+    error.status = res.status
+    throw error
+  }
+  return res.json()
+}
+
 export function createSSEConnection(jobId, onMessage) {
   const eventSource = new EventSource(`${API_BASE}/jobs/${jobId}/status`)
 

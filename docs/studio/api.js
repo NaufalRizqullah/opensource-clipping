@@ -188,6 +188,17 @@ const StudioAPI = (() => {
     });
   }
 
+  function uploadYoutubeCookies(file) {
+    return request('/api/settings/youtube-cookies', {
+      method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' },
+      body: file, redirect: 'error',
+    });
+  }
+
+  function removeYoutubeCookies() {
+    return request('/api/settings/youtube-cookies', { method: 'DELETE', redirect: 'error' });
+  }
+
   // ---- SSE for real-time job status ----
   function createSSE(jobId, onMessage, onError = () => {}) {
     const base = getBackendUrl();
@@ -266,6 +277,8 @@ const StudioAPI = (() => {
     deleteJob,
     fetchSettings,
     updateSettings,
+    uploadYoutubeCookies,
+    removeYoutubeCookies,
     createSSE,
     shutdownServer,
   };

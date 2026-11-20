@@ -85,11 +85,15 @@ def pipeline(monkeypatch, tmp_path):
     return SimpleNamespace(root=tmp_path, calls=calls, state=state, run=run, payload=payload)
 
 
-def test_passes_detected_cookie_file_to_downloader(pipeline):
-    (pipeline.root / "youtube_cookies.txt").touch()  # No cookie content is read.
-    job = pipeline.run()
+def test_passes_detected_cookie_file_to_downloader(pipeline, monkeypatch):
+    monkeypatch.delenv("OSC_YOUTUBE_COOKIES_FILE", raising=False)
+    monkeypatch.setattr(worker.youtube_cookies, "_uploaded", None)
+    data = b"# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\tTEST\tsynthetic\n"
+    (pipeline.root / "youtube_cookies.txt").write_bytes(data)
+    job = pipeline.run(url="https://www.youtube.com/watch?v=fake")
     assert job["status"] == "completed"
-    assert pipeline.calls.download[0]["yt_cookies"] == str(pipeline.root / "youtube_cookies.txt")
+    assert pipeline.calls.download[0]["yt_cookies"] == data
+    assert "synthetic" not in (pipeline.root / "jobs.json").read_text()
     assert job["clips"][0].download_url.endswith("clip%20%231.mp4")
 
 

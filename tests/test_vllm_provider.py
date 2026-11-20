@@ -194,10 +194,21 @@ def test_unknown_context_requires_operator_limit(provider_factory, schema):
 
 def test_context_checks_prompt_plus_output_against_smallest_limit(provider_factory, schema):
     state = provider_factory([], count=600, model_limit=4096, token_limit=1024, context=900)
-    with pytest.raises(ContextOverflowError, match=r"600 \+ output 512 > 900"):
+    with pytest.raises(ContextOverflowError, match=r"600 \+ output 512 > 900.*menyisakan 300 token"):
         generate(state, schema)
     assert not state.completions
     assert state.cfg.ai_run_meta["attempts"] == 0
+
+
+@pytest.mark.parametrize("count", [8192, 53459])
+def test_prompt_exhausting_context_reports_required_capacity_before_inference(provider_factory, schema, count):
+    state = provider_factory([], count=count, token_limit=8192, max_tokens=2048)
+    with pytest.raises(ContextOverflowError, match=rf"input yang lebih pendek.*minimal {count + 2048} token"):
+        generate(state, schema)
+    assert not state.completions
+    meta = state.cfg.ai_run_meta
+    assert (meta["prompt_tokens"], meta["context_limit"], meta["max_tokens"]) == (count, 8192, 2048)
+    assert meta["error_stage"] == "tokenize" and meta["attempts"] == 0
 
 
 def test_exact_context_budget_is_accepted(provider_factory, schema, clip):

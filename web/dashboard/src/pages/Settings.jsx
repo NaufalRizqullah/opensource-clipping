@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { fetchSettings, updateSettings } from '../api'
+import { useState, useEffect, useRef } from 'react'
+import { changeYoutubeCookies, fetchSettings, updateSettings } from '../api'
 
 const PasswordInput = ({ value, onChange, placeholder, isSet }) => {
   const [show, setShow] = useState(false)
@@ -32,6 +32,58 @@ const PasswordInput = ({ value, onChange, placeholder, isSet }) => {
       >
         {show ? '👀' : '👁️'}
       </button>
+    </div>
+  )
+}
+
+function YoutubeCookies({ settings, onStatus }) {
+  const fileInput = useRef(null)
+  const [hasSelection, setHasSelection] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const supported = typeof settings?.youtube_cookies_uploaded === 'boolean'
+  const invalid = 'Pilih file cookies.txt format Netscape yang berisi cookies YouTube (maksimal 1 MiB).'
+
+  function selectFile() {
+    const file = fileInput.current.files[0]
+    if (file && (!file.size || file.size > 1024 * 1024)) {
+      fileInput.current.value = ''
+      setHasSelection(false)
+      setMessage(invalid)
+    } else {
+      setHasSelection(!!file)
+      setMessage('')
+    }
+  }
+
+  async function submit(remove) {
+    const file = fileInput.current.files[0]
+    if (busy || !supported || (!remove && !file)) return
+    setBusy(true)
+    setMessage('Memperbarui cookies…')
+    try {
+      const status = await changeYoutubeCookies(remove ? null : file)
+      onStatus(previous => ({ ...previous, ...status }))
+      fileInput.current.value = ''
+      setHasSelection(false)
+      setMessage(remove ? 'Cookies unggahan dihapus.' : 'Cookies siap dipakai untuk unduhan berikutnya.')
+    } catch (err) {
+      setMessage([413, 422].includes(err.status) ? invalid : 'Gagal memperbarui cookies. Periksa koneksi backend dan coba lagi.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="settings-section">
+      <h3>Cookies YouTube</h3>
+      <label className="form-label" htmlFor="cookies-file">File cookies YouTube (.txt)</label>
+      <p className="form-hint" id="cookies-help">Untuk unduhan yang memerlukan login, buka youtube.com dan ekspor cookies situs itu dengan Get cookies.txt LOCALLY. Unggah file .txt format Netscape (maksimal 1 MiB) hanya ke backend tepercaya. Backend menyimpannya selama sesi ini.</p>
+      <input id="cookies-file" className="form-input" type="file" accept=".txt,text/plain" aria-describedby="cookies-help" ref={fileInput} onChange={selectFile} disabled={!supported || busy} />
+      <p className="form-hint">{!supported ? 'Perbarui backend untuk mengunggah cookies dari Pengaturan.' : settings.youtube_cookies_uploaded ? 'Sesi backend ini memakai cookies yang Anda unggah.' : settings.youtube_cookies_set ? 'Memakai cookies dari konfigurasi backend.' : 'Cookies YouTube belum diatur.'}</p>
+      <button type="button" className="btn btn-primary" onClick={() => submit(false)} disabled={!supported || !hasSelection || busy}>Unggah file</button>
+      {settings?.youtube_cookies_uploaded && <button type="button" className="btn" onClick={() => submit(true)} disabled={busy}>Hapus file unggahan</button>}
+      <p className="form-hint" role="status">{message}</p>
     </div>
   )
 }
@@ -201,6 +253,8 @@ function Settings() {
             </div>
           </div>
         </div>
+
+        <YoutubeCookies settings={settings} onStatus={setSettings} />
 
         {msg && (
           <div style={{ marginTop: '16px', fontSize: '13px', color: msg.startsWith('✅') ? 'var(--success)' : 'var(--error)' }}>

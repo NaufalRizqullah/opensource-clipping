@@ -4,6 +4,7 @@ clipping.engine — Download, Transcription & Gemini AI Analysis
 Maps to Cell 2 (The Engine) of the notebook.
 """
 
+import io
 import json
 import os
 import re
@@ -121,11 +122,14 @@ def _ydl_progress_hook(d: dict) -> None:
         print(flush=True)  # tutup baris bar untuk stream ini
 
 
-def _apply_cookies(opts: dict, cookies: str | None) -> None:
+def _apply_cookies(opts: dict, cookies: str | bytes | None) -> None:
     """Apply cookies to yt-dlp options dictionary."""
     if not cookies:
         return
-    if cookies.endswith(".txt") or os.path.isfile(cookies):
+    if isinstance(cookies, bytes):
+        # yt-dlp reads and writes this stream. Each downloader gets a fresh copy.
+        opts["cookiefile"] = io.StringIO(cookies.decode("utf-8"))
+    elif cookies.endswith(".txt") or os.path.isfile(cookies):
         opts["cookiefile"] = cookies
     else:
         # Browser format: (browser, profile, keyring, container)
@@ -138,7 +142,7 @@ def download_video(
     use_dlp_subs: bool = False,
     download_source_height: str | int = "max",
     source_platform: str = "youtube",
-    yt_cookies: str | None = None,
+    yt_cookies: str | bytes | None = None,
 ) -> None:
     """
     Download a video to *output_path* with configurable source height.
@@ -192,8 +196,6 @@ def download_video(
             "progress_hooks": [_ydl_progress_hook],
         }
 
-    _apply_cookies(ydl_opts, yt_cookies)
-
     # --- Subtitle download — only supported for YouTube ---
     if use_dlp_subs and uses_youtube_format:
         print("      Mencoba mencari subtitle bahasa otomatis (en / id)...")
@@ -201,6 +203,7 @@ def download_video(
 
         for lang in ["en", "id"]:
             ydl_opts_subs = ydl_opts.copy()
+            _apply_cookies(ydl_opts_subs, yt_cookies)
             ydl_opts_subs.update({
                 "writesubtitles": True,
                 "writeautomaticsub": True,
@@ -223,6 +226,7 @@ def download_video(
         print(f"      ℹ️ {platform_label} tidak menyediakan subtitle otomatis. Whisper akan digunakan.")
 
     # Jalankan download video terpisah dari urusan subtitle
+    _apply_cookies(ydl_opts, yt_cookies)
     with YoutubeDL(ydl_opts) as ydl:
         # Extra step to verify resolution before downloading
         try:

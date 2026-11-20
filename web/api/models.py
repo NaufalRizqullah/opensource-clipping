@@ -220,6 +220,8 @@ class SettingsRequest(BaseModel):
 
 class SettingsResponse(BaseModel):
     """Current settings (keys are masked)."""
+    youtube_cookies_set: bool = False
+    youtube_cookies_uploaded: bool = False
     google_api_key_set: bool = False
     pexels_api_key_set: bool = False
     hf_token_set: bool = False

@@ -200,6 +200,7 @@
                                     <div>
                                         <label for="input-vllm-tokens" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5"><span data-i18n="new.tokens">Output token limit</span></label>
                                         <input id="input-vllm-tokens" type="number" min="1" max="131072" step="1" placeholder="4096" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 text-sm text-slate-900 dark:text-white">
+                                        <p class="text-xs text-slate-500 mt-1" data-i18n="new.contextHelp">The prompt and the reserved output must fit in the model’s context window. You can change the context limit when starting the vLLM server.</p>
                                     </div>
                                     <p class="text-xs text-slate-500"><span data-i18n="new.vllmAdvice">Start with 1–2 clips. On a single 16 GB GPU, choose Whisper CPU or YouTube Subs to conserve memory. vLLM does not automatically fall back to cloud providers.</span></p>
                                 </div>

@@ -10,12 +10,12 @@ from functools import lru_cache
 import shutil
 import subprocess
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from ..models import SettingsRequest, SettingsResponse, SystemHealthResponse
 from .. import store as job_store
-from .. import worker
+from .. import config_adapter, worker, youtube_cookies
 from ..readiness import get_readiness
 
 router = APIRouter(tags=["settings"])
@@ -68,6 +68,7 @@ async def get_settings() -> SettingsResponse:
         local_max_tokens = DEFAULT_LOCAL_MAX_TOKENS
 
     return SettingsResponse(
+        **youtube_cookies.status(config_adapter.PROJECT_ROOT),
         google_api_key_set=bool(google_key),
         pexels_api_key_set=bool(pexels_key),
         hf_token_set=bool(hf_token),
@@ -83,6 +84,30 @@ async def get_settings() -> SettingsResponse:
         default_ai_provider=env.get("DEFAULT_AI_PROVIDER", "gemini"),
         gpu_available=await asyncio.to_thread(_check_gpu),
     )
+
+
+@router.put("/api/settings/youtube-cookies")
+async def upload_youtube_cookies(request: Request) -> dict[str, bool]:
+    """Receive a raw Netscape .txt file with a size limit while reading."""
+    if request.headers.get("content-type", "").split(";", 1)[0].lower() != "application/octet-stream":
+        raise HTTPException(415, "Send the cookies.txt file as application/octet-stream.")
+    data = bytearray()
+    async for chunk in request.stream():
+        if len(data) + len(chunk) > youtube_cookies.MAX_BYTES:
+            raise HTTPException(413, "The YouTube cookies file exceeds 1 MiB.")
+        data.extend(chunk)
+    try:
+        youtube_cookies.replace(bytes(data))
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from None
+    return youtube_cookies.status(config_adapter.PROJECT_ROOT)
+
+
+@router.delete("/api/settings/youtube-cookies")
+async def remove_youtube_cookies() -> dict[str, bool]:
+    """Clear the session upload and reveal whether an operator file is available."""
+    youtube_cookies.clear()
+    return youtube_cookies.status(config_adapter.PROJECT_ROOT)
 
 
 @router.put("/api/settings")

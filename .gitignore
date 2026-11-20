@@ -25,6 +25,7 @@ metadata_preview.json
 .env
 credentials.json
 youtube_token.json
+youtube_cookies.txt
 .credentials/
 
 # User Local Caches & Workspaces

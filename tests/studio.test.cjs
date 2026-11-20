@@ -208,6 +208,59 @@ test('job and settings pages reload when connected after their initial empty sta
   }
 });
 
+test('Settings uploads only on explicit action and can restore backend-provided cookies', async () => {
+  const calls = [];
+  const h = createHarness(async (url, options) => {
+    calls.push([url, options]);
+    return json({ youtube_cookies_set: true, youtube_cookies_uploaded: options.method === 'PUT' });
+  });
+  h.api.setBackendUrl('https://backend.example');
+  h.runPage('settings.html');
+  await flush();
+  const input = h.element('cookies-file');
+  const file = new Blob(['# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\tsynthetic\tfake\n']);
+  input.files = [file];
+  vm.runInContext('selectCookies()', h.context);
+  assert.equal(calls.length, 1);
+  assert.equal(h.element('cookies-status').getAttribute('data-i18n'), 'cookies.backend');
+  await vm.runInContext('changeCookies(false)', h.context);
+  const [url, options] = calls[1];
+  assert.equal(url, 'https://backend.example/api/settings/youtube-cookies');
+  assert.equal(options.method, 'PUT');
+  assert.equal(options.body, file);
+  assert.equal(options.headers['Content-Type'], 'application/octet-stream');
+  assert.equal(options.headers['ngrok-skip-browser-warning'], 'true');
+  assert.equal(options.redirect, 'error');
+  assert.equal(h.element('cookies-status').getAttribute('data-i18n'), 'cookies.uploaded');
+  assert.equal(h.element('cookies-remove').hidden, false);
+  await vm.runInContext('changeCookies(true)', h.context);
+  assert.equal(calls[2][1].method, 'DELETE');
+  assert.equal(h.element('cookies-status').getAttribute('data-i18n'), 'cookies.backend');
+  assert.equal(h.element('cookies-remove').hidden, true);
+  assert.deepEqual([...h.storage.keys()], ['osc_backend_url']);
+});
+
+test('Settings blocks oversize cookies and selections made for another backend', async () => {
+  let calls = 0;
+  const h = createHarness(async () => {
+    calls++;
+    return json({ youtube_cookies_set: false, youtube_cookies_uploaded: false });
+  });
+  h.api.setBackendUrl('https://backend.example');
+  h.runPage('settings.html');
+  await flush();
+  h.element('cookies-file').files = [{ size: 1048577 }];
+  vm.runInContext('selectCookies()', h.context);
+  await vm.runInContext('changeCookies(false)', h.context);
+  assert.equal(h.element('cookies-upload').disabled, true);
+  assert.equal(h.element('cookies-message').getAttribute('data-i18n'), 'cookies.invalid');
+  h.element('cookies-file').files = [{ size: 60 }];
+  vm.runInContext('selectCookies()', h.context);
+  h.api.setBackendUrl('https://another.example');
+  await vm.runInContext('changeCookies(false)', h.context);
+  assert.equal(calls, 1);
+});
+
 test('cancellation remains active until the backend reports a terminal state', async () => {
   const h = createHarness();
   h.api.setBackendUrl('https://tunnel.example');

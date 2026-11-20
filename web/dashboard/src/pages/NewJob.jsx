@@ -324,6 +324,7 @@ function NewJob() {
               <div className="form-group">
                 <label className="form-label" htmlFor="vllm-tokens">Batas token output</label>
                 <input id="vllm-tokens" className="form-input" type="number" min="1" max="131072" step="1" value={localMaxTokens} onChange={(e) => setLocalMaxTokens(e.target.value)} placeholder={String(vllmDefaults.tokens)} />
+                <p className="form-hint">Prompt dan jatah token output harus muat dalam kapasitas konteks model. Anda dapat mengubah kapasitas konteks saat menjalankan server vLLM.</p>
                 <p className="form-hint">Mulai dengan 1–2 klip. Pada satu GPU 16 GB, pilih Whisper CPU atau YouTube Subs agar memori cukup. vLLM tidak otomatis beralih ke cloud.</p>
               </div>
             </>}

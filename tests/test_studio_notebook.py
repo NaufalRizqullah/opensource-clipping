@@ -131,6 +131,19 @@ def configured_source(local):
     return compile(ast.fix_missing_locations(tree), "studio-provider-configuration", "exec")
 
 
+def test_attached_cookie_file_is_referenced_in_place(monkeypatch, tmp_path, notebook_context, capsys):
+    source = tmp_path / "private-input" / "cookies.txt"
+    source.parent.mkdir()
+    source.write_text("# synthetic notebook fixture")
+    project = notebook_context["PROJECT_DIR"]
+    monkeypatch.chdir(project)
+    monkeypatch.setenv("OSC_YOUTUBE_COOKIES_FILE", str(source))
+    exec(compile(cell_source("cookie_candidates ="), "studio-cookie-input", "exec"), notebook_context)
+    assert notebook_context["os"].environ["OSC_YOUTUBE_COOKIES_FILE"] == str(source)
+    assert not (project / "youtube_cookies.txt").exists()
+    assert "synthetic notebook fixture" not in capsys.readouterr().out
+
+
 def run_local_server_cell(context):
     source = cell_source("kaggle_vllm_compat.py", '"setup"', '"preflight"')
     exec(compile(source, "studio-local-vllm", "exec"), context)

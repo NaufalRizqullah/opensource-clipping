@@ -241,6 +241,19 @@
                         </div>
                     </div>
 
+                    <section class="glass-card p-6 mb-6 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm" aria-labelledby="cookies-title">
+                        <h3 id="cookies-title" class="font-display font-semibold mb-2" data-i18n="cookies.title">YouTube cookies</h3>
+                        <p id="cookies-help" class="text-sm text-slate-500 dark:text-slate-400 mb-3" data-i18n="cookies.help">For downloads that require sign-in, open youtube.com and export cookies for that site with Get cookies.txt LOCALLY. Upload the Netscape .txt file (up to 1 MiB) only to a backend you trust. The backend keeps it for this session.</p>
+                        <label for="cookies-file" class="block text-xs font-semibold mb-1.5" data-i18n="cookies.file">YouTube cookies file (.txt)</label>
+                        <input type="file" id="cookies-file" accept=".txt,text/plain" aria-describedby="cookies-help" disabled onchange="selectCookies()" class="block w-full text-sm">
+                        <p id="cookies-status" class="text-xs my-3 text-slate-500 dark:text-slate-400"></p>
+                        <div class="flex gap-2">
+                            <button type="button" id="cookies-upload" disabled onclick="changeCookies(false)" class="px-3 py-2 rounded-lg bg-brand-600 text-white text-sm disabled:opacity-50" data-i18n="cookies.upload">Upload file</button>
+                            <button type="button" id="cookies-remove" hidden onclick="changeCookies(true)" class="px-3 py-2 rounded-lg border dark:border-slate-700 text-sm disabled:opacity-50" data-i18n="cookies.remove">Remove uploaded file</button>
+                        </div>
+                        <p id="cookies-message" role="status" class="text-xs mt-2"></p>
+                    </section>
+
                     <!-- Save message -->
                     <div id="save-msg" class="hidden text-sm mb-4"></div>
 
@@ -282,9 +295,77 @@
 
         let loadGeneration = 0;
         let loadedDefaultAiProvider = 'gemini';
+        let cookiesBackend = '';
+        let selectedCookieBackend = '';
+        let cookieAction = null;
+
+        function displayCookieStatus(settings) {
+            const supported = typeof settings.youtube_cookies_uploaded === 'boolean';
+            cookiesBackend = supported ? StudioAPI.getBackendUrl() : '';
+            const uploaded = settings.youtube_cookies_uploaded;
+            const status = !supported ? 'cookies.unavailable' : uploaded ? 'cookies.uploaded'
+                : settings.youtube_cookies_set ? 'cookies.backend' : 'cookies.empty';
+            StudioI18n.text(document.getElementById('cookies-status'), status);
+            document.getElementById('cookies-file').disabled = !supported || !!cookieAction;
+            document.getElementById('cookies-upload').disabled = !supported || !!cookieAction || !document.getElementById('cookies-file').files?.length;
+            document.getElementById('cookies-remove').hidden = !uploaded;
+            document.getElementById('cookies-remove').disabled = !!cookieAction;
+        }
+
+        function selectCookies() {
+            const input = document.getElementById('cookies-file');
+            const file = input.files?.[0];
+            const invalid = file && (!file.size || file.size > 1024 * 1024);
+            const message = document.getElementById('cookies-message');
+            if (invalid) {
+                input.value = '';
+                StudioI18n.text(message, 'cookies.invalid');
+            } else {
+                StudioI18n.literal(message, '');
+            }
+            selectedCookieBackend = file && !invalid ? cookiesBackend : '';
+            document.getElementById('cookies-upload').disabled = !file || !!invalid || !cookiesBackend;
+        }
+
+        async function changeCookies(remove) {
+            if (cookieAction || !cookiesBackend || cookiesBackend !== StudioAPI.getBackendUrl()) return;
+            const input = document.getElementById('cookies-file');
+            const file = input.files?.[0];
+            if (!remove && (selectedCookieBackend !== cookiesBackend || !file || !file.size || file.size > 1024 * 1024)) return;
+            const action = {};
+            cookieAction = action;
+            const message = document.getElementById('cookies-message');
+            input.disabled = document.getElementById('cookies-upload').disabled = document.getElementById('cookies-remove').disabled = true;
+            StudioI18n.text(message, 'cookies.updating');
+            try {
+                const status = remove ? await StudioAPI.removeYoutubeCookies() : await StudioAPI.uploadYoutubeCookies(file);
+                if (cookieAction !== action) return;
+                input.value = '';
+                selectedCookieBackend = '';
+                cookieAction = null;
+                displayCookieStatus(status);
+                StudioI18n.text(message, remove ? 'cookies.removed' : 'cookies.saved');
+            } catch (err) {
+                if (cookieAction !== action) return;
+                cookieAction = null;
+                input.disabled = document.getElementById('cookies-remove').disabled = false;
+                document.getElementById('cookies-upload').disabled = !file;
+                StudioI18n.text(message, [413, 422].includes(err.status) ? 'cookies.invalid' : 'cookies.failed');
+            }
+        }
 
         async function loadSettings() {
             const generation = ++loadGeneration;
+            const backend = StudioAPI.getBackendUrl();
+            if (cookiesBackend !== backend) {
+                cookieAction = null;
+                cookiesBackend = '';
+                selectedCookieBackend = '';
+                document.getElementById('cookies-file').value = '';
+                document.getElementById('cookies-file').disabled = document.getElementById('cookies-upload').disabled = true;
+                document.getElementById('cookies-remove').hidden = true;
+                StudioI18n.literal(document.getElementById('cookies-message'), '');
+            }
             if (!StudioAPI.isConfigured()) {
                 document.getElementById('settings-loading').classList.add('hidden');
                 document.getElementById('settings-form').classList.add('hidden');
@@ -294,13 +375,14 @@
 
             try {
                 const settings = await StudioAPI.fetchSettings();
-                if (generation !== loadGeneration) return;
+                if (generation !== loadGeneration || backend !== StudioAPI.getBackendUrl()) return;
 
                 document.getElementById('settings-loading').classList.add('hidden');
                 document.getElementById('settings-form').classList.remove('hidden');
                 document.getElementById('no-connection-state').classList.add('hidden');
 
                 // Key badges
+                displayCookieStatus(settings);
                 document.getElementById('google-badge').classList.toggle('hidden', !settings.google_api_key_set);
                 document.getElementById('pexels-badge').classList.toggle('hidden', !settings.pexels_api_key_set);
                 document.getElementById('hf-badge').classList.toggle('hidden', !settings.hf_token_set);

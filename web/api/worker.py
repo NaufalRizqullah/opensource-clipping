@@ -22,6 +22,7 @@ from scripts.studio_logging import job_context, log_event
 from .config_adapter import build_config_from_payload
 from .models import ClipDetail, JobStatus
 from . import store
+from . import youtube_cookies
 
 # The shared renderer uses process-wide FFmpeg scratch names and settings.
 # Keep API jobs serial until the renderer itself supports concurrent execution.
@@ -228,7 +229,9 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                     getattr(cfg, "use_dlp_subs", False),
                     getattr(cfg, "download_source_height", "max"),
                     source_platform=source_platform,
-                    yt_cookies=getattr(cfg, "yt_cookies", None),
+                    yt_cookies=youtube_cookies.for_download(
+                        source_platform, cfg.url_youtube, getattr(cfg, "yt_cookies", None)
+                    ),
                 )
                 store.update_progress(
                     job_id,

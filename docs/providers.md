@@ -42,6 +42,12 @@ Compose forwards the same variables to the backend and defaults its endpoint to 
 
 The raw result cache remains `outputs/<job>/gemini_response.json` for compatibility. `ai_run_meta.json` records local model, attempts, token usage, duration and cache reuse without transcript text. A content hash ties successful provenance to the saved cache; a failed rerun cannot claim an older result. Historical cloud runs have unknown actual model/provider where no instrumentation exists; the file does not guess the outcome of internal fallbacks. Bypass AI requires an existing cache and fails if it is missing.
 
+## When a transcript exceeds the context limit
+
+An 8,192-token server with **Output token limit** set to 2,048 has room for 6,144 input tokens, including the analysis instructions and chat template. For example, if Studio reports a 53,459-token prompt, the complete request needs 55,507 tokens. Reducing the output budget alone cannot fit that transcript.
+
+To keep using that local server, process a shorter source video or excerpt. To analyze the full video with a provider that supports the required context, open **New Job → Reuse Job**, enter the failed job ID, choose the provider, and leave **Bypass AI** off. This works while the original video is still present on the backend. Choosing a cloud provider sends the transcript to that provider. To increase a self-hosted server’s capacity, the model must support the new context length and the GPU must have enough memory. Restart vLLM with the new context size.
+
 ## Kaggle validation
 
 Use the app environment, not the vLLM server environment, for tests:

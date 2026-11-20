@@ -8,6 +8,14 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.7]
+
+### Added
+- Studio Settings accepts YouTube cookies exported in Netscape TXT format for downloads on the connected backend. Users can replace or remove the session upload. The Studio notebook can reference an attached cookie file in place.
+
+### Fixed
+- vLLM context errors now distinguish oversized prompts from requests that can fit with a smaller output budget and retain the measured counts in job diagnostics.
+
 ## [v1.16.6]
 
 ### Changed
