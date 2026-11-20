@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import socket
 import sys
 from types import ModuleType, SimpleNamespace
@@ -81,7 +82,7 @@ def provider_factory():
     def create(outcomes, *, base_url="http://inference.test:8001", key="synthetic-local-key",
                model_limit=8192, token_limit=8192, count=64, context=None,
                max_tokens=512, timeout=900, models_status=200, tokenize_status=200,
-               model_outcomes=None, token_outcomes=None):
+               model_outcomes=None, token_outcomes=None, on_completion=None):
         state = SimpleNamespace(requests=[], completions=[], tokens=[], remaining=deque(outcomes),
                                 time=0.0, delays=[], model_outcomes=deque(model_outcomes or []),
                                 token_outcomes=deque(token_outcomes or []))
@@ -105,9 +106,12 @@ def provider_factory():
                 state.tokens.append(json.loads(request.content))
                 if state.token_outcomes:
                     return response_for(state.token_outcomes.popleft())
-                return httpx.Response(tokenize_status, json={"count": count, "max_model_len": token_limit})
+                tokens = count(state.tokens[-1]["messages"]) if callable(count) else count
+                return httpx.Response(tokenize_status, json={"count": tokens, "max_model_len": token_limit})
             assert path.endswith("/v1/chat/completions"), str(request.url)
             state.completions.append(json.loads(request.content))
+            if on_completion is not None:
+                return response_for(on_completion(state.completions[-1], len(state.completions)))
             assert state.remaining, "Unexpected SDK retry or extra completion request"
             return response_for(state.remaining.popleft())
 
@@ -214,6 +218,91 @@ def test_prompt_exhausting_context_reports_required_capacity_before_inference(pr
 def test_exact_context_budget_is_accepted(provider_factory, schema, clip):
     state = provider_factory([completion(json.dumps({"clips": [clip]}))], count=512, token_limit=1024)
     assert generate(state, schema) == [clip]
+
+
+@pytest.mark.parametrize("fail_second_window", [False, True], ids=["whole-video", "partial-failure"])
+def test_long_source_uses_model_tokenizer_and_commits_only_complete_analysis(
+    provider_factory, schema, clip, fail_second_window,
+):
+    # Simulate the served model counting 1,000 tokens per caption and 512 for
+    # the instructions/template. Only the server knows the size of each caption.
+    def source_ids(messages):
+        return [
+            int(i) for message in messages
+            for i in re.findall(r"caption-(\d+)", message["content"])
+        ]
+
+    def token_count(messages):
+        return 512 + 1000 * len(source_ids(messages))
+
+    def answer(body, call_number):
+        if fail_second_window and call_number == 2:
+            return 401, {"error": {"message": "sensitive server response"}}
+        final_id = max(source_ids(body["messages"]))
+        start = 120 * final_id
+        candidate = dict(
+            clip, start_time=start, end_time=start + 30, hook_start_time=start,
+            hook_end_time=start + 3, keep_segments=[], viral_score=99 if final_id == 49 else 75,
+        )
+        return completion(json.dumps({"clips": [candidate]}))
+
+    state = provider_factory(
+        [], model_limit=16384, token_limit=16384, count=token_count, max_tokens=4096,
+        on_completion=answer,
+    )
+    state.cfg.vllm_chunk_transcript = True
+    transcript = "".join(f"[{120*i} - {120*(i+1)}] caption-{i}\n" for i in range(50))
+    args = (f"Select one highlight.\nTranskrip:\n{transcript}\n", schema)
+    kwargs = dict(transcript=transcript, requested_clips=1)
+    if fail_second_window:
+        with pytest.raises(ProviderConfigError, match="Autentikasi"):
+            state.provider.generate_clips(*args, **kwargs)
+    else:
+        winner, = state.provider.generate_clips(*args, **kwargs)
+        assert (winner["start_time"], winner["viral_score"], winner["rank"]) == (120 * 49, 99, 1)
+
+    covered = set()
+    for previous, current in zip(state.requests, state.requests[1:]):
+        if not current.url.path.endswith("/chat/completions"):
+            continue
+        sent, measured = json.loads(current.content), json.loads(previous.content)
+        assert previous.url.path.endswith("/tokenize")
+        assert measured["messages"] == sent["messages"]
+        assert measured["chat_template_kwargs"] == sent["chat_template_kwargs"]
+        assert token_count(measured["messages"]) + sent["max_tokens"] <= 16384
+        covered.update(source_ids(sent["messages"]))
+
+    meta = state.cfg.ai_run_meta
+    assert meta["mode"] == "chunked" and meta["full_prompt_tokens"] == 50512
+    assert meta["chunks_total"] > 1 and meta["attempts"] == len(state.completions)
+    assert len(meta["windows"]) == meta["chunks_completed"]
+    for record, request in zip(meta["windows"], state.completions):
+        ids = source_ids(request["messages"])
+        assert (record["start"], record["end"]) == (120 * min(ids), 120 * (max(ids) + 1))
+        assert record["prompt_tokens"] == token_count(request["messages"])
+    assert "caption-" not in json.dumps(meta)
+    if fail_second_window:
+        assert meta["status"] == "failed" and meta["failed_chunk"] == 2
+        assert meta["chunks_completed"] == 1 and meta["candidate_count"] == 1
+        assert "returned_clips" not in meta and len(state.completions) == 2
+    else:
+        assert covered == set(range(50))
+        assert meta["status"] == "completed" and meta["returned_clips"] == 1
+        assert meta["chunks_completed"] == meta["chunks_total"] == len(state.completions)
+        assert meta["candidate_count"] == len(meta["usage"]) == len(state.completions)
+
+
+@pytest.mark.parametrize("finish_reason", ["stop", "length"])
+def test_opt_in_fitting_prompt_stays_one_request(provider_factory, schema, clip, finish_reason):
+    state = provider_factory([completion(json.dumps({"clips": [clip]}), finish_reason=finish_reason)])
+    state.cfg.vllm_chunk_transcript = True
+    if finish_reason == "length":
+        with pytest.raises(ContextOverflowError, match="terpotong"):
+            generate(state, schema)
+    else:
+        assert generate(state, schema) == [clip]
+    assert state.cfg.ai_run_meta["mode"] == "single_pass"
+    assert len(state.tokens) == len(state.completions) == 1
 
 
 def test_schema_repair_does_not_echo_raw_model_output(provider_factory, schema, clip):

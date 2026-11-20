@@ -46,7 +46,9 @@ The raw result cache remains `outputs/<job>/gemini_response.json` for compatibil
 
 An 8,192-token server with **Output token limit** set to 2,048 has room for 6,144 input tokens, including the analysis instructions and chat template. For example, if Studio reports a 53,459-token prompt, the complete request needs 55,507 tokens. Reducing the output budget alone cannot fit that transcript.
 
-To keep using that local server, process a shorter source video or excerpt. To analyze the full video with a provider that supports the required context, open **New Job → Reuse Job**, enter the failed job ID, choose the provider, and leave **Bypass AI** off. This works while the original video is still present on the backend. Choosing a cloud provider sends the transcript to that provider. To increase a self-hosted server’s capacity, the model must support the new context length and the GPU must have enough memory. Restart vLLM with the new context size.
+To analyze the entire transcript with the same model, run the CLI with `--ai-provider vllm --vllm-chunk-transcript`. The Kaggle vLLM notebook enables this flag for its video test. A fitting prompt takes one request. When the initial prompt exceeds the limit, the client groups complete timestamped entries into overlapping windows and measures the actual model input for each. Each window proposes clips using absolute video timestamps. After all windows succeed, candidates are ordered by the model's viral score, with earlier timestamps breaking ties, and overlapping clips are excluded. The winner is the best **among the proposed candidates**. A failed window fails the run. The timeout covers the entire analysis, and the output budget applies separately to each request.
+
+For a CLI retry, start in a fresh working directory and pass the original URL with `--reuse-source-video /path/to/video_asli.mp4 --use-dlp-subs` to read the existing media and adjacent JSON3 captions. Studio's **Reuse Job** applies to its own job IDs. The CLI flag is enabled in notebook cell 6b and is opt-in for other CLI runs.
 
 ## Kaggle validation
 
@@ -56,13 +58,14 @@ Use the app environment, not the vLLM server environment, for tests:
 python -m pip install -r requirements-test.txt
 python -m pytest tests/test_provider_cloud_contracts.py tests/test_provider_metadata.py \
   tests/test_gemini_routing.py tests/test_worker.py tests/test_studio_logging.py \
-  tests/test_vllm_provider.py tests/test_vllm_validation.py tests/test_vllm_cli.py \
+  tests/test_vllm_provider.py tests/test_vllm_chunking.py tests/test_reuse_source_video.py \
+  tests/test_vllm_validation.py tests/test_vllm_cli.py \
   tests/test_vllm_web.py tests/test_kaggle_vllm.py tests/test_local_eval.py
 python scripts/eval_local_llm.py --transcript tests/fixtures/eval_transcript_short.txt \
   --clips 1 --output /kaggle/working/vllm-eval-short.json
 RUN_LOCAL_LLM_TESTS=1 python -m pytest -m local_llm tests/test_vllm_live.py
 ```
 
-The regular tests use fake modules or mock HTTP transports and no inference server. The live test skips unless explicitly opted in; after opt-in, an unreachable server fails the test. The evaluation writes generated clips, timing/schema success, metadata-warning count and usage to a JSON report. Review Indonesian/English quality and narrative coherence yourself; schema compliance is not a quality benchmark. Long-transcript evaluation, peak-memory measurements, chunking/staged generation and CPU serving presets remain future work.
+The regular tests use fake modules or mock HTTP transports. The live test skips unless explicitly opted in; after opt-in, an unreachable server fails the test. The evaluation writes generated clips, timing/schema success, metadata-warning count and usage to a JSON report. The long-transcript tests simulate a prompt above 50,000 tokens and a 16,384-token server. For actual model timing and highlight quality, run cell 6b on the full video in Kaggle and review the selected clip and `uji-satu-klip.json`.
 
 The Kaggle helper pins the official QAT W4A16 compressed-tensors checkpoint and its revision, plus vLLM 0.32.0. Q4 weights do not make the KV cache or all runtime allocations 4-bit. Source compatibility and quantized weight size do not prove the full model/pipeline fits 16 GB. See the official [Gemma 4 recipe](https://docs.vllm.ai/projects/recipes/en/latest/Google/Gemma4.html), [structured-output API](https://docs.vllm.ai/en/stable/features/structured_outputs/), and [CPU installation guide](https://docs.vllm.ai/en/stable/getting_started/installation/cpu/). CPU servers require a matching build and separately verified model/quantization settings; the Kaggle GPU helper deliberately rejects CPU-only hosts and unsupported GPUs.

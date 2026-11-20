@@ -5,8 +5,10 @@ Maps to Cell 4 (Execute) of the notebook.
 Orchestrates the full clip generation pipeline.
 """
 
+import glob
 import json
 import os
+import tempfile
 
 from . import diarization as diarization_mod
 from . import engine, metadata, studio, hook_manager, voiceover
@@ -41,25 +43,27 @@ def run_pipeline(cfg, whisper_model_instance=None) -> list[dict]:
 
     validate_analysis_config(cfg, probe=getattr(cfg, "ai_provider", "gemini") == "vllm")
 
-    # Step 1 — Download
+    # Step 1 — Acquire source
     source_platform = getattr(cfg, "source_platform", "youtube")
-    engine.download_video(
-        cfg.url_youtube,
-        cfg.file_video_asli,
-        getattr(cfg, "use_dlp_subs", False),
-        getattr(cfg, "download_source_height", "max"),
-        source_platform=source_platform,
-        yt_cookies=getattr(cfg, "yt_cookies", None),
-    )
+    if getattr(cfg, "reuse_source_video", None):
+        print(f"[1/3] Memakai video yang sudah diunduh: {cfg.file_video_asli}")
+    else:
+        engine.download_video(
+            cfg.url_youtube,
+            cfg.file_video_asli,
+            getattr(cfg, "use_dlp_subs", False),
+            getattr(cfg, "download_source_height", "max"),
+            source_platform=source_platform,
+            yt_cookies=getattr(cfg, "yt_cookies", None),
+        )
 
     # Step 2 — Transcribe
     transkrip_lengkap = ""
     data_segmen = []
 
-    import glob
-
     # Mencari file json3 apapun (karena bahasanya bisa .id.json3 atau .en.json3)
-    json3_files = glob.glob(cfg.file_video_asli.replace(".mp4", ".*.json3"))
+    source_stem = os.path.splitext(cfg.file_video_asli)[0]
+    json3_files = glob.glob(glob.escape(source_stem) + ".*.json3")
     file_json3 = json3_files[0] if json3_files else None
 
     # Only run YouTube JSON3 subtitle search for YouTube sources
@@ -133,8 +137,6 @@ def run_pipeline(cfg, whisper_model_instance=None) -> list[dict]:
                 else "Camera-Switch"
             )
             print(f"\n🎙️ [{mode_label}] Menjalankan speaker diarization...")
-            audio_path = cfg.file_video_asli.replace(".mp4", "_audio.wav")
-            diarization_mod.extract_audio(cfg.file_video_asli, audio_path)
             num_speakers_arg = getattr(cfg, "diarization_num_speakers", 2)
             min_spk = None
             max_spk = None
@@ -148,16 +150,16 @@ def run_pipeline(cfg, whisper_model_instance=None) -> list[dict]:
                 max_spk = min_spk + 2
                 print(f"   ℹ️ Instruksi Pyannote: {min_spk} hingga {max_spk} speaker.")
 
-            diarization_data = diarization_mod.run_diarization(
-                audio_path,
-                hf_token=cfg.hf_token,
-                num_speakers=num_speakers_arg,
-                min_speakers=min_spk,
-                max_speakers=max_spk,
-            )
-            # Clean up temp audio
-            if os.path.exists(audio_path):
-                os.remove(audio_path)
+            with tempfile.TemporaryDirectory(dir=cfg.outputs_dir) as audio_dir:
+                audio_path = os.path.join(audio_dir, "source.wav")
+                diarization_mod.extract_audio(cfg.file_video_asli, audio_path)
+                diarization_data = diarization_mod.run_diarization(
+                    audio_path,
+                    hf_token=cfg.hf_token,
+                    num_speakers=num_speakers_arg,
+                    min_speakers=min_spk,
+                    max_speakers=max_spk,
+                )
         except Exception as e:
             print(f"⚠️ Diarization gagal: {e}")
             print("   Fallback ke mode render biasa (tanpa split-screen).")
