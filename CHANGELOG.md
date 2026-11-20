@@ -8,6 +8,11 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [Unreleased]
+
+### Fixed
+- **Stale source video reused across runs**: `download_video` now removes the previous run's `video_asli.mp4`, its `.<lang>.json3` subtitles, `_audio.wav` and yt-dlp `.part`/`.ytdl` fragments before downloading. Previously, running the CLI on a new URL made yt-dlp skip the download ("already downloaded") and pick up the old subtitles, so clips were silently cut from the previous video. Studio job reuse and uploaded sources do not call `download_video` and are unchanged. Added regression tests.
+
 ## [v1.16.7]
 
 ### Added

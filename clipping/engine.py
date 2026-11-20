@@ -136,6 +136,26 @@ def _apply_cookies(opts: dict, cookies: str | bytes | None) -> None:
         opts["cookiesfrombrowser"] = (cookies, None, None, None)
 
 
+def _remove_stale_source_files(output_path: str) -> None:
+    """Delete a previous run's source video and its side files.
+
+    The CLI always downloads to the same path (``video_asli.mp4``). If that
+    file is left over, yt-dlp reports "already downloaded" and skips the new
+    URL, and an old ``.<lang>.json3`` subtitle is picked up instead of the new
+    one, so clips are silently cut from the previous video. yt-dlp ``.part``
+    fragments are also keyed only by this name and format ID, so a resumed
+    download could mix bytes from a different video.
+    """
+    import glob
+
+    stem, _ = os.path.splitext(output_path)
+    stale = {output_path, f"{stem}_audio.wav"}
+    stale.update(glob.glob(glob.escape(stem) + ".*"))
+    for path in sorted(stale):
+        if os.path.isfile(path):
+            os.remove(path)
+
+
 def download_video(
     url: str,
     output_path: str,
@@ -157,6 +177,7 @@ def download_video(
     uses_youtube_format = source_platform == "youtube"
 
     print(f"[1/3] Mendownload video dari {platform_label}...")
+    _remove_stale_source_files(output_path)
     if download_source_height == "max":
         print("      🎯 Source quality: highest available", flush=True)
     else:
