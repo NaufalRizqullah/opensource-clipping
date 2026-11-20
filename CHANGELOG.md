@@ -8,9 +8,10 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
-## [Unreleased]
+## [v1.16.8]
 
 - The Kaggle vLLM notebook includes an optional end-to-end test for one YouTube video. It checks fresh model inference, a vertical clip with audio, and its thumbnail in a separate output directory for each run.
+- The single-video test accepts a private Kaggle Input with YouTube cookies for authenticated subtitle and video downloads.
 
 ## [v1.16.7]
 
