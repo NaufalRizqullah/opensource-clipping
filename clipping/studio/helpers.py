@@ -2,6 +2,8 @@
 General helper utilities for Studio rendering workflow.
 """
 
+import os
+
 
 def format_seconds(seconds):
     """
@@ -30,5 +32,10 @@ def escape_ffmpeg_filter_value(value: str) -> str:
     Returns:
         Escaped value string for FFmpeg filter usage.
     """
-    return str(value).replace("\\", r"\\").replace(":", r"\:").replace("'", r"\'")
+    value = str(value)
+    if os.name == "nt":
+        # Windows: "E:\dir\file" breaks -vf parsing. Use forward slashes and
+        # escape ":" twice (filtergraph level + filter-option level).
+        return value.replace("\\", "/").replace(":", r"\\:").replace("'", r"\'")
+    return value.replace("\\", r"\\").replace(":", r"\:").replace("'", r"\'")
 
