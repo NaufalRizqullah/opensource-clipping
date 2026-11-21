@@ -8,6 +8,10 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.10]
+
+- In the Kaggle full-video test, vLLM can retry an invalid clip duration with a nearby subtitle start and a choice of valid subtitle endings. The retry regenerates clip metadata and records the rejected timestamps in `ai_run_meta.json`.
+
 ## [v1.16.9]
 
 - The Kaggle vLLM video test handles transcripts larger than the served context. Every section must finish before the CLI selects highlights. Cell 6b can retry with an existing MP4 and its captions, and records the model, coverage and chosen timestamps alongside the verified media.

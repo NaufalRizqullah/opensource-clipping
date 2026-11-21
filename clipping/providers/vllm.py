@@ -12,7 +12,7 @@ from .base import (
 )
 from .config import normalize_base_url, vllm_config_values
 from .parsing import clean_text, parse_clips
-from .validation import transcript_end, validate_clips
+from .validation import ClipDurationError, transcript_end, validate_clips
 
 
 MAX_ATTEMPTS = 3
@@ -208,10 +208,13 @@ class VllmProvider:
         }
         if "active_chunk" in self.run_meta:
             failure["chunk"] = self.run_meta["active_chunk"]
+        if isinstance(exc, ClipDurationError):
+            failure.update(proposed_start=exc.start, proposed_end=exc.end,
+                           duration_seconds=round(exc.end - exc.start, 6))
         self.run_meta["failures"].append(failure)
 
     def _generate(self, messages, *, max_tokens, temperature, top_p, schema=None, parse=None,
-                  _shared_run=False, _validated=False, repair_messages=None):
+                  _shared_run=False, _validated=False, repair_messages=None, duration_repair=None):
         started = self._clock()
         if not _shared_run:
             self._begin_run(started)
@@ -219,6 +222,7 @@ class VllmProvider:
 
         try:
             current = list(messages)
+            current_schema = schema
             validated = _validated
             for attempt in range(MAX_ATTEMPTS):
                 try:
@@ -227,12 +231,19 @@ class VllmProvider:
                         self.validate()
                         validated = True
                     stage = "tokenize"
-                    self._preflight_tokens(current, max_tokens)
+                    try:
+                        self._preflight_tokens(current, max_tokens)
+                    except ContextOverflowError:
+                        if current_schema is schema:
+                            raise
+                        # The generic window repair was measured during planning.
+                        current, current_schema = repair_messages, schema
+                        self._preflight_tokens(current, max_tokens)
                     stage = "inference"
                     self.run_meta["attempts"] += 1
                     response = self._completion(
                         current, max_tokens=max_tokens, temperature=temperature,
-                        top_p=top_p, schema=schema,
+                        top_p=top_p, schema=current_schema,
                     )
                     stage = "output_validation"
                     usage = getattr(response, "usage", None)
@@ -249,7 +260,7 @@ class VllmProvider:
                         raise ContextOverflowError("Output vLLM terpotong pada batas token. Kurangi jumlah klip atau naikkan budget output dan konteks yang tersedia.")
                     if choice.finish_reason != "stop":
                         raise InvalidOutputError("vLLM tidak menyelesaikan jawaban teks normal.")
-                    result = parse(choice.message.content) if parse else clean_text(choice.message.content)
+                    result = parse(choice.message.content, current_schema) if parse else clean_text(choice.message.content)
                     self._remaining()
                     if not _shared_run:
                         self.run_meta["status"] = "completed"
@@ -259,10 +270,15 @@ class VllmProvider:
                     if attempt == MAX_ATTEMPTS - 1:
                         raise
                     # Trusted diagnostic only; never echo model text into repair/logs.
-                    current = repair_messages or list(messages) + [{"role": "user", "content": (
-                        "Buat ulang jawaban secara lengkap. Perbaiki masalah berikut: " + str(exc)
-                        + " Ikuti schema dan batas timestamp sumber; jangan menambahkan penjelasan."
-                    )}]
+                    if current_schema is schema:
+                        current = repair_messages or list(messages) + [{"role": "user", "content": (
+                            "Buat ulang jawaban secara lengkap. Perbaiki masalah berikut: " + str(exc)
+                            + " Ikuti schema dan batas timestamp sumber; jangan menambahkan penjelasan."
+                        )}]
+                        if duration_repair and isinstance(exc, ClipDurationError):
+                            focused = duration_repair(exc)
+                            if focused is not None:
+                                current, current_schema = focused
                 except ProviderUnavailableError as exc:
                     self._record_failure(exc, attempt + 1, stage)
                     if not exc.retryable or attempt == MAX_ATTEMPTS - 1:
@@ -285,7 +301,7 @@ class VllmProvider:
 
     def _generate_chunked(self, prompt, wrapped, *, transcript, requested_clips,
                           min_duration, max_duration, source_end, system_message):
-        from .chunking import plan_windows, select_candidates
+        from .chunking import duration_repair_options, plan_windows, select_candidates
 
         self.run_meta.update(
             mode="chunked", full_prompt_tokens=self.run_meta.get("prompt_tokens"),
@@ -305,19 +321,30 @@ class VllmProvider:
                 )
             suffix = tail[len(transcript):]
 
-            def messages_for(window, *, repair=False):
+            def messages_for(window, *, repair=False, endings=None):
                 # Replace only the verified transcript suffix. Source text may
                 # itself contain the delimiter or instruction-like strings.
-                chunk_prompt = instruction + separator + window.text + suffix
+                # The template ends in a worked JSON example with times from a different clip.
+                rules = instruction
+                if endings:
+                    rules = rules.partition("\nSTRUKTUR JSON WAJIB (Ikuti nama field ini secara kaku):")[0]
+                chunk_prompt = rules + separator + window.text + suffix
                 bounds = (
                     f" Analyze only source interval [{window.start}, {window.end}] seconds."
                     " Every clip and its nested segments must stay inside this interval."
+                    f" Each clip must last {min_duration} to {max_duration} seconds (end_time minus start_time)."
                     " Keep the original absolute timestamps; do not restart them at zero."
                 )
                 if repair:
                     # A fixed, pre-budgeted correction fits even at the context boundary.
                     bounds += (" Regenerate the complete JSON. Verify its required fields, clip durations,"
                                " non-overlap, and every hook/segment bound before answering.")
+                if endings:
+                    bounds += (
+                        f" The previous clip duration was invalid. Use start_time={window.start}. "
+                        f"Choose end_time from {endings} to finish the thought. These are final absolute "
+                        "timestamps including any padding. Regenerate all metadata for the chosen interval only."
+                    )
                 return [
                     {"role": "system", "content": system_message + bounds},
                     {"role": "user", "content": _local_prompt(chunk_prompt)},
@@ -356,9 +383,9 @@ class VllmProvider:
                 print(f"[vLLM] Bagian {index}/{len(windows)}: "
                       f"{window.start:.1f}–{window.end:.1f} detik.", flush=True)
 
-                def parse_window(content):
+                def parse_window(content, response_schema):
                     clips = validate_clips(
-                        parse_clips(content, wrapped), source_end=window.end,
+                        parse_clips(content, response_schema), source_end=window.end,
                         requested_clips=requested_clips,
                         min_duration=min_duration, max_duration=max_duration,
                     )
@@ -368,10 +395,23 @@ class VllmProvider:
                         raise InvalidOutputError("Timestamp klip berada sebelum awal jendela transkrip.")
                     return clips
 
+                def repair_duration(error):
+                    options = duration_repair_options(window, error.start, error.end, min_duration, max_duration)
+                    if options is None:
+                        return None
+                    excerpt, ends = options
+                    repair_schema = deepcopy(wrapped)
+                    fields = repair_schema["properties"]["clips"]["items"]["properties"]
+                    fields["start_time"]["enum"] = [excerpt.start]
+                    fields["end_time"]["enum"] = ends
+                    print(f"[vLLM] Bagian {index}: {error} Mencoba ulang dengan pilihan akhir dari subtitle.", flush=True)
+                    return messages_for(excerpt, repair=True, endings=ends), repair_schema
+
                 clips = self._generate(
                     messages_for(window), max_tokens=self.max_tokens, temperature=0.5,
                     top_p=1, schema=wrapped, parse=parse_window,
                     _shared_run=True, _validated=True, repair_messages=messages_for(window, repair=True),
+                    duration_repair=repair_duration if requested_clips == 1 else None,
                 )
                 candidates.extend(clips)
                 self.run_meta["windows"].append({
@@ -405,9 +445,9 @@ class VllmProvider:
         array.update(minItems=1, maxItems=requested_clips)
         wrapped = {"type": "object", "properties": {"clips": array}, "required": ["clips"], "additionalProperties": False}
 
-        def parse(content):
+        def parse(content, response_schema):
             return validate_clips(
-                parse_clips(content, wrapped), source_end=end, requested_clips=requested_clips,
+                parse_clips(content, response_schema), source_end=end, requested_clips=requested_clips,
                 min_duration=min_duration, max_duration=max_duration,
             )
 
@@ -436,6 +476,9 @@ class VllmProvider:
                 if (not chunking or self.run_meta.get("error_stage") != "tokenize"
                         or self.run_meta.get("attempts") != 0):
                     raise
+                result = None
+            # Leave the expected initial overflow out of any later error traceback.
+            if result is None:
                 result = self._generate_chunked(
                     prompt, wrapped, transcript=transcript, requested_clips=requested_clips,
                     min_duration=min_duration, max_duration=max_duration, source_end=end,

@@ -305,6 +305,128 @@ def test_opt_in_fitting_prompt_stays_one_request(provider_factory, schema, clip,
     assert len(state.tokens) == len(state.completions) == 1
 
 
+def _window_captions(messages):
+    return [int(index) for message in messages
+            for index in re.findall(r"private-caption-(\d+)", message["content"])]
+
+
+def _clip_fields(body):
+    clips = body["response_format"]["json_schema"]["schema"]["properties"]["clips"]
+    return clips["items"]["properties"]
+
+
+def _window_reply(clip, start, end, *, score=75, **changes):
+    candidate = dict(clip, start_time=start, end_time=end, hook_start_time=start,
+                     hook_end_time=start + 2, keep_segments=[], viral_score=score)
+    candidate.update(changes)
+    return completion(json.dumps({"clips": [candidate]}))
+
+
+@pytest.fixture
+def chunk_duration_run(provider_factory, schema):
+    def prepare(answer, *, cue_seconds=60, requested=1):
+        # Six cues, four fit at once. Every initial window is long enough that
+        # a duration error can occur even when both endpoints are in bounds.
+        def count(messages):
+            return 100 + 1000 * len(_window_captions(messages))
+
+        state = provider_factory([], model_limit=5500, token_limit=5500, count=count,
+                                 max_tokens=512, on_completion=answer)
+        state.cfg.vllm_chunk_transcript = True
+        transcript = "".join(
+            f"[{i * cue_seconds} - {(i + 1) * cue_seconds}] private-caption-{i}\n"
+            for i in range(6)
+        )
+
+        def run():
+            return state.provider.generate_clips(
+                f"Select a highlight.\nTranskrip:\n{transcript}\n", schema,
+                transcript=transcript, requested_clips=requested,
+            )
+
+        return state, run
+
+    return prepare
+
+
+@pytest.mark.parametrize("bad_duration", [5, 200], ids=["too-short", "too-long"])
+def test_later_window_retries_with_legal_source_times(chunk_duration_run, clip, bad_duration):
+    def answer(body, call):
+        cues = _window_captions(body["messages"])
+        if call == 1:
+            return _window_reply(clip, 0, 30)
+        if call == 2:
+            start = 60 * min(cues) + 1
+            assert start > 0 and start + bad_duration <= 60 * (1 + max(cues))
+            return _window_reply(clip, start, start + bad_duration)
+        assert call == 3
+        properties = _clip_fields(body)
+        start, = properties["start_time"]["enum"]
+        ends = properties["end_time"]["enum"]
+        original = _window_captions(state.completions[1]["messages"])
+        assert start in [60 * cue for cue in original]
+        assert ends and all(end in [60 * (cue + 1) for cue in original] and
+                            20 <= end - start <= 179 for end in ends)
+        assert set(cues) and set(cues) < set(original)
+        return _window_reply(clip, start, ends[-1], score=99)
+
+    state, run = chunk_duration_run(answer)
+    winner, = run()
+    assert winner["viral_score"] == 99 and winner["start_time"] > 0
+    meta = state.cfg.ai_run_meta
+    assert meta["status"] == "completed"
+    assert meta["chunks_total"] == meta["chunks_completed"] == meta["candidate_count"] == 2
+    assert len(state.completions) == meta["attempts"] == 3
+    rejected = next(f for f in meta["failures"] if f.get("chunk") == 2)
+    assert rejected["duration_seconds"] == rejected["proposed_end"] - rejected["proposed_start"] == bad_duration
+    assert "private-caption-" not in json.dumps(meta)
+
+
+@pytest.mark.parametrize("invalid_repair", ["nested", "unoffered-end"])
+def test_duration_repair_checks_schema_and_nested_timestamps(chunk_duration_run, clip, invalid_repair):
+    def answer(body, call):
+        if call == 1:
+            return _window_reply(clip, 0, 30)
+        if call == 2:
+            start = 60 * min(_window_captions(body["messages"])) + 1
+            return _window_reply(clip, start, start + 5)
+        assert 3 <= call <= 4
+        properties = _clip_fields(body)
+        start, = properties["start_time"]["enum"]
+        end = properties["end_time"]["enum"][0]
+        if invalid_repair == "unoffered-end":
+            assert start + 30 not in properties["end_time"]["enum"]
+            return _window_reply(clip, start, start + 30)
+        return _window_reply(clip, start, end, hook_end_time=end + 1)
+
+    state, run = chunk_duration_run(answer)
+    with pytest.raises(InvalidOutputError):
+        run()
+    meta = state.cfg.ai_run_meta
+    assert meta["status"] == "failed" and meta["failed_chunk"] == 2
+    assert meta["chunks_completed"] == meta["candidate_count"] == 1
+    assert "returned_clips" not in meta and len(state.completions) == 4
+
+
+@pytest.mark.parametrize(("cue_seconds", "requested"), [(200, 1), (60, 2)],
+                         ids=["no-legal-cue-end", "multiple-clips-requested"])
+def test_non_applicable_duration_repair_preserves_full_window_retry(chunk_duration_run, clip, cue_seconds, requested):
+    def answer(body, call):
+        if call == 1:
+            return _window_reply(clip, 0, 30)
+        cues = _window_captions(body["messages"])
+        start = cue_seconds * min(cues) + 1
+        if call == 2:
+            return _window_reply(clip, start, start + 5)
+        assert call == 3 and cues == _window_captions(state.completions[1]["messages"])
+        assert body["response_format"] == state.completions[1]["response_format"]
+        return _window_reply(clip, start, start + 30, score=99)
+
+    state, run = chunk_duration_run(answer, cue_seconds=cue_seconds, requested=requested)
+    assert run()[0]["viral_score"] == 99
+    assert state.cfg.ai_run_meta["chunks_completed"] == state.cfg.ai_run_meta["chunks_total"] == 2
+
+
 def test_schema_repair_does_not_echo_raw_model_output(provider_factory, schema, clip):
     bad = dict(clip, secret_field="private-model-output")
     valid = "<think>internal reasoning</think>\n```json\n" + json.dumps({"clips": [clip]}) + "\n```"

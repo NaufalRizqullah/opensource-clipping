@@ -95,6 +95,30 @@ def plan_windows(transcript, fits, *, min_duration, overlap_seconds):
     return planned
 
 
+def duration_repair_options(window, proposed_start, proposed_end, min_duration, max_duration):
+    """Keep the model's chosen moment and offer endings from the surrounding captions."""
+    if not window.start <= proposed_start < proposed_end <= window.end:
+        return None
+    stamps = list(_STAMP.finditer(window.text))
+    starts = [float(stamp[1]) for stamp in stamps]
+    anchors = (i for i, start in enumerate(starts)
+               if start < proposed_end and window.end - start >= min_duration)
+    first = min(anchors, key=lambda i: abs(starts[i] - proposed_start), default=None)
+    if first is None:
+        return None
+    start = starts[first]
+    cue_ends = (float(stamp[2]) for stamp in stamps[first:])
+    ends = sorted({end for end in cue_ends if end > proposed_start and min_duration <= end - start <= max_duration})
+    if not ends:
+        return None
+    # Preserve both the shortest and longest legal ending without flooding the grammar.
+    if len(ends) > 12:
+        ends = [ends[i * (len(ends) - 1) // 11] for i in range(12)]
+    stop = bisect_left(starts, ends[-1], lo=first + 1)
+    offset = stamps[stop].start() if stop < len(stamps) else len(window.text)
+    return TranscriptWindow(window.text[stamps[first].start():offset], start, ends[-1]), ends
+
+
 def select_candidates(candidates, requested_clips):
     """Compare candidates on the same source timeline and renumber selected clips."""
     ordered = sorted(candidates, key=lambda clip: (-clip["viral_score"], clip["start_time"], clip["end_time"]))
