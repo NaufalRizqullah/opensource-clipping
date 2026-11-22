@@ -36,7 +36,10 @@ Pilihan model mengikuti [resep resmi Gemma 4 untuk vLLM](https://docs.vllm.ai/pr
 4. Jalankan setup dua lingkungan: `STUDIO_ENV` untuk aplikasi, `VLLM_ENV` untuk server. Jangan memasang `requirements-vllm-kaggle.txt` ke kernel notebook atau lingkungan aplikasi. Setelah instalasi dan `pip check`, setup menjalankan `vllm serve --help` melalui interpreter server untuk memeriksa import library native, tanpa memulai server atau memuat model. Kegagalan pada salah satu tahap menghentikan setup; hasil pemeriksaan import tersimpan di `logs/kaggle-vllm-import.log`.
 5. Jalankan Start vLLM. Pada T4, helper memeriksa/menerapkan workaround attention dalam environment server sebelum memuat model, termasuk pada environment yang sudah terpasang. Unduhan pertama dapat lama; helper menunggu model yang tepat muncul pada `/v1/models`. Respons ini belum membuktikan inference berhasil; lanjutkan ke eval.
 6. Jalankan eval fixture pendek, satu klip. Hasil disimpan ke `/kaggle/working/vllm-eval-short.json`. Evaluasi ini tidak memuat Whisper atau merender video.
-7. Opsional: jalankan regression tests, lalu smoke test nyata melalui switch di notebook. Setelah itu jalankan Studio dan uji video pendek untuk menilai transkripsi, hasil kurasi, serta rendering.
+7. Isi `VIDEO_URL` di sel **6b. Uji satu video di Kaggle**. Sel ini memakai server vLLM dari langkah 5 dan mencari satu highlight di seluruh transkrip. Untuk mengulang dari media yang sudah diunduh, isi `REUSE_SOURCE_VIDEO` dengan path lengkap ke `video_asli.mp4` dari folder percobaan lama, lalu masukkan URL aslinya untuk atribusi. Biarkan `video_asli.*.json3` di sebelah MP4. Jika subtitle tidak tersedia, pipeline memakai Whisper small di CPU/int8. Hasil baru disimpan di `/kaggle/working/uji-klip-*/outputs/`.
+   Setelah MP4, audio, dan thumbnail lolos pemeriksaan, sel menulis `uji-satu-klip.json` berisi model, jumlah token prompt penuh, batas konteks, jumlah bagian yang selesai, dan timestamp pilihan. Buka MP4 untuk menilai suara, framing dan sinkronisasi subtitle. Simpan laporan bersama MP4 dan thumbnail sebelum mengakhiri sesi. Untuk membandingkan Gemma dan Qwen, gunakan sumber dan subtitle yang sama; jumlah bagian dapat berbeda karena tokenizer dan konfigurasi model berbeda.
+   Jika YouTube meminta login, lampirkan ekspor cookie YouTube dalam format Netscape `.txt` sebagai **Input privat**. Gunakan **Copy path** pada file di panel Input dan isi `YOUTUBE_COOKIES_FILE` pada sel 6b (atau set `OSC_YOUTUBE_COOKIES_FILE` sebelum sel itu). Sel meneruskan cookie untuk unduhan subtitle dan video melalui salinan sementara di luar Output. Jika sesi dan server vLLM masih aktif, cukup ulangi 6b dengan URL yang sama.
+   Sel regression tests dan Studio berikutnya tetap opsional.
 8. Jalankan Stop vLLM setelah selesai agar VRAM dibebaskan. Simpan hasil/log dari Kaggle Files/Output sebelum sesi berakhir.
 
 Jangan mengganti `VLLM_API_KEY` ketika server masih berjalan. Notebook membuat key acak di memori bila belum ada, meneruskannya melalui environment, dan tidak mencetak nilainya. Restart kernel kehilangan key tersebut; jalankan Stop lalu konfigurasi dan Start kembali. Helper memeriksa identitas proses dan hanya menghentikan server yang dikelolanya sendiri.
@@ -74,11 +77,11 @@ Analisis vLLM tidak fallback ke cloud. Jika voiceover CLI diaktifkan, pembuatan 
 
 ```python
 VLLM_MODEL = "Qwen/Qwen3-4B-AWQ"
-CONTEXT_LIMIT = 8192
-OUTPUT_TOKENS = 2048
+CONTEXT_LIMIT = 16384
+OUTPUT_TOKENS = 4096
 ```
 
-Ini titik awal untuk evaluasi, belum hasil pengujian kapasitas atau kualitas Qwen pada T4. Helper tetap menggunakan satu GPU. Setelah mengganti konfigurasi, hentikan server lama, jalankan sel konfigurasi, lalu Start dan Eval; pada notebook Studio, jalankan kembali sel gabungan setup/start/eval. Pilih model yang sama pada form job Studio. Jatah input dan output bersama-sama harus muat dalam context server.
+Anggaran konteks dan jawaban ini menyamai uji Gemma sebelumnya. Kapasitas dan kualitas Qwen pada T4 masih perlu dibuktikan di Kaggle. Di sesi yang sama, hentikan server dari sel 9, jalankan ulang sel 3 dengan nama model Qwen, lalu jalankan sel 5, 6 dan 6b. Environment yang sudah terpasang dapat dipakai kembali. Jika server gagal memuat konteks 16.384 karena kapasitas GPU, coba 8.192 dan jalankan ulang Start dan Eval sebelum video. Hasil uji pendek dan hasil render dicatat terpisah.
 
 Helper memilih parser `gemma4` untuk keluarga resmi `google/gemma-4-...` dan `qwen3` untuk keluarga resmi `Qwen/Qwen3-<ukuran>...` yang dikenali. Keduanya mempertahankan `enable_thinking=false`. Keluarga lain seperti Qwen3.5, Qwen3-Next, Qwen3-VL, atau alias kustom tidak otomatis mewarisi parser Gemma. Untuk model kustom, gunakan flag helper `--reasoning-parser NAMA` sesuai model atau `--reasoning-parser none` untuk menghilangkan flag tersebut. Nama parser mengikuti [registry vLLM 0.32.0](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/reasoning/__init__.py).
 
@@ -97,8 +100,9 @@ Helper memilih parser `gemma4` untuk keluarga resmi `google/gemma-4-...` dan `qw
 | 401/403 dari Hugging Face | Pastikan akun menerima ketentuan model dan `HF_TOKEN` memiliki akses; ulangi konfigurasi secrets. |
 | 401 dari server vLLM | Aplikasi dan server harus memakai key yang sama. Setelah perubahan key/kernel restart, Stop lalu Start dengan konfigurasi baru. |
 | OOM saat startup | Hentikan proses GPU lain. Coba context 8192, tetap satu sequence/eager. Input + output harus muat; mengurangi output juga mungkin diperlukan. RAM sistem atau disk yang habis memerlukan pengurangan beban/sesi yang lebih besar. |
-| Context overflow | Provider menghitung token prompt berformat chat dan menambahkan jatah output. Kurangi panjang transkrip/jumlah klip/output, atau tingkatkan context server hanya jika memori memadai. Chunking belum otomatis. |
-| Output terpotong / JSON atau timestamp tidak valid | Kurangi jumlah klip, tinjau report eval, atau sesuaikan budget output dan context bersama-sama. Perbaikan output dibatasi; hasil tidak diam-diam dipotong/clamp menjadi klip lain. |
+| Prompt penuh melampaui batas konteks | Sel 6b memakai `--vllm-shortlist`. Tokenizer server mengukur setiap bagian beserta anggaran jawabannya. Model menilai kandidat dari seluruh transkrip, lalu membuat metadata penyuntingan dan publikasi untuk satu pemenang. |
+| `Durasi klip harus 20-179 detik` setelah log `Bagian ...` | Pada mode `--vllm-chunk-transcript` dengan satu klip, provider mencoba lagi di bagian yang gagal. Ia mengusulkan waktu mulai dari subtitle di dekat momen pilihan model dan menawarkan waktu akhir yang memenuhi batas durasi. Model memilih akhir dan menyusun ulang metadata. Jika uji tetap berhenti, periksa `failed_chunk` serta `failures` di `outputs/ai_run_meta.json` folder percobaan. Isi `REUSE_SOURCE_VIDEO` dengan MP4 dari percobaan itu untuk mengulang analisis dari awal dengan media dan subtitle yang sama. |
+| Output terpotong pada batas token | Server berhenti dengan `finish_reason=length` sebelum mengembalikan JSON lengkap. Pada sel 6b, setiap bagian hanya mengembalikan nomor kandidat dan skor. Jika hasil masih terpotong, lihat `error_stage` pada diagnostik sel dan `usage` di `outputs/ai_run_meta.json` untuk membedakan tahap pemilihan, penyuntingan dan publikasi. |
 | Port 8001 sibuk / setting server berubah | Jalankan `stop` untuk server yang dikelola helper. Proses lain tidak diadopsi atau dimatikan otomatis; pilih port lain dan perbarui `VLLM_BASE_URL`. |
 | Studio siap tetapi job gagal | Periksa log tahap job; readiness Studio tidak menguji inference vLLM. Jalankan fixture eval terlebih dahulu. |
 

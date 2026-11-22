@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import os
 import re
+from pathlib import Path
 from types import SimpleNamespace
 
 try:
@@ -234,6 +235,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--url", "-u", required=False, default=None, nargs="+",
         help="One or more video URLs to process (space-separated). Supports YouTube, TikTok, Instagram, Google Drive.",
+    )
+    p.add_argument(
+        "--reuse-source-video", type=Path, metavar="MP4",
+        help="Read an existing MP4 instead of downloading --url. With --use-dlp-subs, also read adjacent YouTube JSON3 subtitles.",
     )
     p.add_argument(
         "--yt-cookies", type=str, default=None,
@@ -463,6 +468,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--gemini-model", default=GEMINI_MODEL, help="Gemini model name")
     p.add_argument("--vllm-model", default=None, help="vLLM served model/alias (default: VLLM_MODEL or Gemma 4 E2B QAT 4-bit).")
+    p.add_argument("--vllm-chunk-transcript", action="store_true",
+                   help="Analyze the full transcript in sections if it exceeds the vLLM context limit.")
+    p.add_argument("--vllm-shortlist", action="store_true",
+                   help="Score candidates across the full transcript, then generate metadata for one winning clip.")
     p.add_argument("--local-base-url", dest="vllm_base_url", default=None, help="vLLM service URL, with optional /v1 (default: VLLM_BASE_URL or http://127.0.0.1:8001).")
     p.add_argument("--local-max-tokens", type=int, default=None, help="vLLM output token budget (default: VLLM_MAX_TOKENS or 4096).")
     p.add_argument("--local-context-limit", dest="vllm_context_limit", type=int, default=None, help="Optional vLLM client context ceiling; cannot increase server capacity.")
@@ -761,9 +770,20 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
     # Validate: --url is required
     if not args.url:
         parser.error("--url is required.")
+    if args.vllm_shortlist and (args.ai_provider != "vllm" or args.clips != 1):
+        parser.error("--vllm-shortlist requires --ai-provider vllm and --clips 1.")
 
     # Normalize URL list for batch support
     url_list = args.url if isinstance(args.url, list) else ([args.url] if args.url else [])
+    reuse_source = args.reuse_source_video
+    if reuse_source is not None:
+        if len(url_list) != 1 or args.cleanup_source:
+            parser.error("--reuse-source-video requires exactly one --url and cannot be combined with --cleanup-source.")
+        reuse_source = reuse_source.resolve()
+        if reuse_source.suffix.lower() != ".mp4" or not reuse_source.is_file() or reuse_source.stat().st_size == 0:
+            parser.error("--reuse-source-video requires an existing nonempty MP4 file.")
+        if reuse_source.parent == Path.cwd() or reuse_source.is_relative_to(Path.cwd() / "outputs"):
+            parser.error("Run --reuse-source-video from a new working directory to keep source files separate from render outputs.")
 
     # Validate watermark args
     if args.watermark:
@@ -798,7 +818,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         base_dir=base_dir,
         outputs_dir=outputs_dir,
         font_dir=font_dir,
-        file_video_asli=os.path.abspath(os.path.join(base_dir, "video_asli.mp4")),
+        reuse_source_video=str(reuse_source) if reuse_source is not None else None,
+        file_video_asli=str(reuse_source) if reuse_source is not None else os.path.join(base_dir, "video_asli.mp4"),
         file_font_thumbnail=os.path.abspath(
             os.path.join(base_dir, NAMA_FONT_THUMBNAIL)
         ),
@@ -885,6 +906,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         whisper_compute_type=args.whisper_compute_type,
         # AI
         ai_provider=args.ai_provider,
+        vllm_chunk_transcript=args.vllm_chunk_transcript or args.vllm_shortlist,
+        vllm_shortlist=args.vllm_shortlist,
         api_key_nvidia=os.environ.get("NVIDIA_API_KEY", ""),
         nvidia_model=args.nvidia_model,
         gemini_model=args.gemini_model,

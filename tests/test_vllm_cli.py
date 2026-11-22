@@ -32,8 +32,20 @@ def test_vllm_defaults_need_no_cloud_key():
     assert cfg.vllm_model == DEFAULT_VLLM_MODEL
     assert cfg.vllm_base_url == "http://127.0.0.1:8001"
     assert cfg.local_max_tokens == DEFAULT_LOCAL_MAX_TOKENS
+    assert not cfg.vllm_shortlist and not cfg.vllm_chunk_transcript
     assert cfg.api_key_vllm == cfg.api_key_gemini == cfg.api_key_nvidia == ""
     validate_analysis_config(cfg)
+
+
+def test_shortlist_flag_enables_single_clip_whole_transcript_analysis():
+    cfg = config("--ai-provider", "vllm", "--clips", "1", "--vllm-shortlist")
+    assert cfg.vllm_shortlist and cfg.vllm_chunk_transcript
+
+
+@pytest.mark.parametrize("provider,requested", [("gemini", "1"), ("vllm", "2")])
+def test_shortlist_rejects_unsupported_cli_combinations(provider, requested):
+    with pytest.raises(SystemExit):
+        config("--ai-provider", provider, "--clips", requested, "--vllm-shortlist")
 
 
 def test_environment_sets_local_defaults():

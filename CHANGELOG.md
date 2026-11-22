@@ -8,10 +8,27 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
-## [Unreleased]
+## [v1.16.12]
 
 ### Fixed
 - **Stale source video reused across runs**: `download_video` now removes the previous run's `video_asli.mp4`, its `.<lang>.json3` subtitles, `_audio.wav` and yt-dlp `.part`/`.ytdl` fragments before downloading. Previously, running the CLI on a new URL made yt-dlp skip the download ("already downloaded") and pick up the old subtitles, so clips were silently cut from the previous video. Studio job reuse and uploaded sources do not call `download_video` and are unchanged. Added regression tests.
+
+## [v1.16.11]
+
+- The Kaggle single-video test uses `--vllm-shortlist` to score candidate intervals across the full transcript. Only the selected interval needs editing and publishing metadata, reducing the amount of JSON the model must produce for each window.
+
+## [v1.16.10]
+
+- In the Kaggle full-video test, vLLM can retry an invalid clip duration with a nearby subtitle start and a choice of valid subtitle endings. The retry regenerates clip metadata and records the rejected timestamps in `ai_run_meta.json`.
+
+## [v1.16.9]
+
+- The Kaggle vLLM video test handles transcripts larger than the served context. Every section must finish before the CLI selects highlights. Cell 6b can retry with an existing MP4 and its captions, and records the model, coverage and chosen timestamps alongside the verified media.
+
+## [v1.16.8]
+
+- The Kaggle vLLM notebook includes an optional end-to-end test for one YouTube video. It checks fresh model inference, a vertical clip with audio, and its thumbnail in a separate output directory for each run.
+- The single-video test accepts a private Kaggle Input with YouTube cookies for authenticated subtitle and video downloads.
 
 ## [v1.16.7]
 

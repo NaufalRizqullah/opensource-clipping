@@ -26,6 +26,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--transcript", type=Path, required=True)
     parser.add_argument("--clips", type=int, default=1)
+    parser.add_argument("--vllm-shortlist", action="store_true", help="Evaluate the single-highlight shortlist workflow.")
     parser.add_argument("--model", dest="vllm_model")
     parser.add_argument("--base-url", dest="vllm_base_url")
     parser.add_argument("--max-tokens", dest="local_max_tokens", type=int)
@@ -35,8 +36,11 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if not 1 <= args.clips <= 30:
         parser.error("--clips must be between 1 and 30")
+    if args.vllm_shortlist and args.clips != 1:
+        parser.error("--vllm-shortlist requires --clips 1")
     cfg = SimpleNamespace(
         ai_provider="vllm", jumlah_clip=args.clips, durasi_hook=3,
+        vllm_shortlist=args.vllm_shortlist, vllm_chunk_transcript=args.vllm_shortlist,
         hook_v2=False, no_segment_trim=False, silence_trim=False,
         **vllm_config_values(vars(args)),
     )

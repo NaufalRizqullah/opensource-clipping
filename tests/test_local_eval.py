@@ -6,6 +6,8 @@ import os
 import sys
 from types import ModuleType
 
+import pytest
+
 from clipping.metadata import normalize_and_validate
 from scripts import eval_local_llm
 
@@ -21,7 +23,8 @@ def test_optional_warning_report_preserves_existing_normalized_output():
     assert "_warnings_temp" not in actual[0]
 
 
-def test_eval_counts_metadata_warnings_and_keeps_raw_result(monkeypatch, tmp_path, capsys):
+@pytest.mark.parametrize("shortlist", [False, True])
+def test_eval_counts_metadata_warnings_and_keeps_raw_result(monkeypatch, tmp_path, capsys, shortlist):
     monkeypatch.setattr(os, "environ", {})
     transcript = tmp_path / "transcript.txt"
     transcript.write_text("[0 - 30] Synthetic source", encoding="utf-8")
@@ -31,12 +34,14 @@ def test_eval_counts_metadata_warnings_and_keeps_raw_result(monkeypatch, tmp_pat
 
     def analyze(source, cfg):
         assert source == "[0 - 30] Synthetic source"
+        assert cfg.vllm_shortlist is shortlist and cfg.vllm_chunk_transcript is shortlist
         cfg.ai_run_meta = {"actual_provider": "vllm", "status": "completed"}
         return raw
 
     engine.analyze_with_vllm = analyze
     monkeypatch.setitem(sys.modules, "clipping.engine", engine)
-    assert eval_local_llm.main(["--transcript", str(transcript), "--output", str(output)]) == 0
+    flags = ["--vllm-shortlist"] if shortlist else []
+    assert eval_local_llm.main(["--transcript", str(transcript), "--output", str(output), *flags]) == 0
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["clips_with_metadata_warnings"] == 1
     assert report["clips"] == raw
