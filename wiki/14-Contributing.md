@@ -60,7 +60,11 @@ python main.py --url "https://youtube.com/watch?v=TEST_VIDEO" --clips 1 --no-bgm
 ```text
 opensource-clipping/
 ├── main.py                  # CLI entry point
-├── run_upload.py            # YouTube auto-uploader CLI
+├── scripts/
+│   ├── run_upload.py        # YouTube auto-uploader CLI
+│   └── run_fb_upload.py     # Facebook Pages Reels uploader CLI
+├── docs/
+│   └── README_ID.md         # Indonesian docs
 ├── requirements.txt         # Base Python dependencies
 ├── requirements/            # Specialized profiles and Kaggle constraints
 ├── clipping/

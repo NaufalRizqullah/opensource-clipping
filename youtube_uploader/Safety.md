@@ -4,6 +4,11 @@ Dokumen ini menyimpan kode dan konteks untuk fitur **Safety Checklist** dan **Da
 
 Fitur ini sebelumnya ditambahkan untuk meminimalisir risiko *channel banned* atau *spam* saat melakukan unggahan otomatis secara massal ke YouTube. Fitur ini sengaja dicabut (di-*revert*) agar *uploader* berjalan 100% secara otomatis, namun kode di bawah ini disimpan jika suatu saat ingin diaktifkan kembali.
 
+File konfigurasi lama `upload_safety.json` telah dihapus karena tidak digunakan.
+Contoh kode di bawah hanya dokumentasi historis, bukan fitur aktif uploader.
+Launcher berada di `scripts/run_upload.py`; opsi lama `--safety-config` dan
+`--no-approval` akan berhenti dengan pesan error sebelum upload.
+
 ## 1. File `safety.py`
 Kode di bawah ini sebelumnya diletakkan di `youtube_uploader/safety.py`. File ini berisi modul logika yang menangani batas harian (daily limit), batas antrean tayang (queue limit), jeda antar unggahan (interval minimum), dan *prompt* konfirmasi manual.
 
@@ -17,7 +22,7 @@ def _get_tz(tz_name: str):
     import pytz
     return pytz.timezone(tz_name)
 
-def load_safety_config(config_path: str = "upload_safety.json") -> dict:
+def load_safety_config(config_path: str) -> dict:
     default_config = {
         "max_upload_per_day": 3,
         "max_upload_per_run": 2,

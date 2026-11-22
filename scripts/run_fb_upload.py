@@ -1,24 +1,28 @@
 #!/usr/bin/env python3
 """
-run_fb_upload.py — CLI Entry Point for Facebook Pages Reels Auto-Uploader
+scripts/run_fb_upload.py — CLI Entry Point for Facebook Pages Reels Auto-Uploader
 
-Usage:
-    python run_fb_upload.py                       # Defaults
-    python run_fb_upload.py --test-mode           # Only upload 1 video
-    python run_fb_upload.py --interval-hours 3    # 3 hour gap between videos
+Usage (from the repository root):
+    python scripts/run_fb_upload.py                       # Defaults
+    python scripts/run_fb_upload.py --test-mode           # Only upload 1 video
+    python scripts/run_fb_upload.py --interval-hours 3    # 3 hour gap between videos
 """
 
-import sys
-import os
 import argparse
+import os
+from pathlib import Path
+import sys
 
-from facebook_uploader import upload_manifest_to_facebook
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description="OpenSource Clipping -- Facebook Pages Reels Auto-Uploader",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        epilog="Run from the repository root. Relative file paths use the current working directory.",
     )
 
     # Determine timezone default from env
@@ -65,6 +69,8 @@ def main():
         print("❌ ERROR: META_PAGE_ID belum di-set.")
         print("   Tambahkan ke file .env atau set sebagai environment variable.")
         sys.exit(1)
+
+    from facebook_uploader import upload_manifest_to_facebook
 
     upload_manifest_to_facebook(
         manifest_file=args.manifest_file,

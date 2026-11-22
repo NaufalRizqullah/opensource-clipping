@@ -277,13 +277,13 @@ If you see `invalid_grant: Token has been expired or revoked`, the token is inva
 ### Test upload (first video only)
 
 ```bash
-python run_upload.py --test-mode
+python scripts/run_upload.py --test-mode
 ```
 
 ### Full upload with scheduling
 
 ```bash
-python run_upload.py --interval-hours 12 --tz-name "Asia/Jakarta"
+python scripts/run_upload.py --interval-hours 12 --tz-name "Asia/Jakarta"
 ```
 
 The uploader will:
@@ -311,7 +311,7 @@ The uploader will:
 
 4. Run the uploader as usual:
    ```python
-   !python run_upload.py --test-mode
+   !python scripts/run_upload.py --test-mode
    ```
 
 ---
@@ -394,7 +394,7 @@ After completing the setup, the **Publish App** button should appear.
  9. Run: python youtube_uploader/generate_youtube_token.py
 10. Login & authorize YouTube access in browser
 11. Verify: python youtube_uploader/test_youtube_refresh.py
-12. Upload: python run_upload.py --test-mode
+12. Upload: python scripts/run_upload.py --test-mode
 ```
 
 ---

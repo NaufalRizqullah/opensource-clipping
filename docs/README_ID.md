@@ -1,7 +1,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/NaufalRizqullah/opensource-clipping">
-    <img src="assets/images/opensource-clipping-logo-editable.svg" alt="Logo" width="350">
+    <img src="../assets/images/opensource-clipping-logo-editable.svg" alt="Logo" width="350">
   </a>
 
   <h3 align="center">OpenSource Clipping</h3>
@@ -11,7 +11,7 @@
     Proyek open-source yang mengubah video panjang menjadi highlight pendek bergaya sinematik, lengkap dengan hook teaser, subtitle karaoke, dan thumbnail otomatis.
     <br />
     <br />
-    <a href="README.md">🇬🇧 Read in English</a>
+    <a href="../README.md">🇬🇧 Read in English</a>
     &middot;
     <a href="https://github.com/NaufalRizqullah/opensource-clipping/issues/new">Laporkan Bug</a>
     &middot;
@@ -48,12 +48,12 @@
 
 ## 📋 Prasyarat
 
-**Setup vLLM Kaggle eksperimental:** [notebook Gemma 4 Q4](notebooks/kaggle-vllm-gemma4.ipynb) dan [panduan](docs/KAGGLE_VLLM.md) menyiapkan server terpisah untuk satu GPU 16 GB yang didukung. Log T4 yang diberikan mengonfirmasi satu evaluasi transkrip pendek berhasil setelah workaround attention; validasi video/Studio lengkap masih menunggu. P100 tidak didukung preset ini. Provider default tetap Gemini.
+**Setup vLLM Kaggle eksperimental:** [notebook Gemma 4 Q4](../notebooks/kaggle-vllm-gemma4.ipynb) dan [panduan](KAGGLE_VLLM.md) menyiapkan server terpisah untuk satu GPU 16 GB yang didukung. Log T4 yang diberikan mengonfirmasi satu evaluasi transkrip pendek berhasil setelah workaround attention; validasi video/Studio lengkap masih menunggu. P100 tidak didukung preset ini. Provider default tetap Gemini.
 
 - **Python** 3.10+
 - **FFmpeg** terinstall dan tersedia di PATH
 - **GPU CUDA** disarankan (untuk Whisper; bisa fallback ke CPU)
-- **Provider AI**: [API key Gemini](https://aistudio.google.com/apikey), key NVIDIA NIM, atau server vLLM yang berjalan ([konfigurasi](docs/providers.md))
+- **Provider AI**: [API key Gemini](https://aistudio.google.com/apikey), key NVIDIA NIM, atau server vLLM yang berjalan ([konfigurasi](providers.md))
 - **Pexels API Key** (opsional, untuk B-roll — [dapatkan di sini](https://www.pexels.com/api/))
 - **HuggingFace Token** (opsional, untuk split-screen / camera-switch — [dapatkan di sini](https://huggingface.co/settings/tokens), perlu accept [Pyannote model agreement](https://huggingface.co/pyannote/speaker-diarization-3.1))
 
@@ -104,13 +104,13 @@ WHISPER_COMPUTE_TYPE = "float32"
   --no-bgm
 ```
 
-> 💡 **Baru pertama kali?** Gunakan **[Quick Start Notebook](notebooks/Quick_Start.ipynb)** — notebook yang ramah pemula dengan konfigurasi minimal, instruksi langkah demi langkah dalam Bahasa Inggris, dan hanya 3 pengaturan yang perlu diubah (URL YouTube, jumlah klip, dan model Whisper).
+> 💡 **Baru pertama kali?** Gunakan **[Quick Start Notebook](../notebooks/Quick_Start.ipynb)** — notebook yang ramah pemula dengan konfigurasi minimal, instruksi langkah demi langkah dalam Bahasa Inggris, dan hanya 3 pengaturan yang perlu diubah (URL YouTube, jumlah klip, dan model Whisper).
 >
 > Kami juga menyertakan `notebooks/Lib_OpenSource_Clipping.ipynb` sebagai template lengkap.
 
 Kedua notebook menyediakan sel **YouTube Cookies Setup** opsional. Setelah setup proyek, unggah ekspor `cookies.txt` berformat Netscape dan isi `YOUTUBE_COOKIES_FILE` dengan path filenya, misalnya `/content/cookies.txt` di Colab atau file dalam Input privat Kaggle. Nilai awal dibaca dari environment variable `OSC_YOUTUBE_COOKIES_FILE`; nilai kosong mempertahankan deteksi otomatis `youtube_cookies.txt`. Path yang diisi diprioritaskan dan harus menunjuk ke file yang tersedia. Jalankan ulang sel cookie setelah mengganti path. Simpan file cookie secara privat.
 
-Keduanya juga menyediakan pilihan **Gemini atau vLLM**. Sebelum instalasi dependency, isi `AI_PROVIDER = "vllm"` dan konfigurasi endpoint/model server aktif, atau gunakan `START_LOCAL_VLLM = True` untuk menyiapkan environment aplikasi/server Python 3.12 terpisah serta menjalankan pemeriksaan GPU, startup, dan evaluasi singkat. Gemini tetap menjadi pilihan bawaan; vLLM tidak memerlukan `GOOGLE_API_KEY`. Server lokal memakai Whisper CPU/int8 dan dilengkapi sel Stop. Lihat [setup provider notebook](docs/providers.md#quick-start-and-lib-notebooks).
+Keduanya juga menyediakan pilihan **Gemini atau vLLM**. Sebelum instalasi dependency, isi `AI_PROVIDER = "vllm"` dan konfigurasi endpoint/model server aktif, atau gunakan `START_LOCAL_VLLM = True` untuk menyiapkan environment aplikasi/server Python 3.12 terpisah serta menjalankan pemeriksaan GPU, startup, dan evaluasi singkat. Gemini tetap menjadi pilihan bawaan; vLLM tidak memerlukan `GOOGLE_API_KEY`. Server lokal memakai Whisper CPU/int8 dan dilengkapi sel Stop. Lihat [setup provider notebook](providers.md#quick-start-and-lib-notebooks).
 
 ---
 
@@ -138,11 +138,11 @@ Keduanya juga menyediakan pilihan **Gemini atau vLLM**. Sebelum instalasi depend
         GRATIS                                         GRATIS (GPU)
 ```
 
-**Bahasa antarmuka:** Studio menggunakan **Inggris (EN)** secara default. Pilih **ID · Bahasa Indonesia** pada menu **Language** di sidebar (buka menu pada ponsel) untuk langsung beralih bahasa. Pilihan diingat saat berpindah halaman atau memuat ulang Studio tanpa menghapus isian formulir. Pengaturan ini mengubah bahasa antarmuka; konten video dan log backend tetap menggunakan bahasa aslinya. Lihat [panduan terjemahan Studio](docs/STUDIO_I18N.md) untuk kontributor.
+**Bahasa antarmuka:** Studio menggunakan **Inggris (EN)** secara default. Pilih **ID · Bahasa Indonesia** pada menu **Language** di sidebar (buka menu pada ponsel) untuk langsung beralih bahasa. Pilihan diingat saat berpindah halaman atau memuat ulang Studio tanpa menghapus isian formulir. Pengaturan ini mengubah bahasa antarmuka; konten video dan log backend tetap menggunakan bahasa aslinya. Lihat [panduan terjemahan Studio](STUDIO_I18N.md) untuk kontributor.
 
 ### Cara Pakai
 
-1. **Jalankan backend** — Buka versi terbaru [`notebooks/kaggle-studio-server.ipynb`](notebooks/kaggle-studio-server.ipynb) di Kaggle (atau Colab), aktifkan Internet dan GPU, tambahkan API key ke Secrets, lalu jalankan cell berurutan. **Prepare Python 3.12** menyiapkan interpreter terpisah sehingga kernel notebook Python 3.13 tetap dapat dipakai tanpa diganti. Notebook menyimpan environment di luar Output secara default. Pilih profil Torch CPU bila ingin memperkecil instalasi Studio. Biarkan `START_LOCAL_VLLM=False` untuk Gemini/NVIDIA, atau aktifkan untuk menyiapkan Gemma 4 Q4 dalam environment server terpisah beserta evaluasi singkatnya. **Public URL** baru muncul setelah pemeriksaan kesiapan backend berhasil. Lihat [panduan setup dan troubleshooting](docs/KAGGLE_STUDIO.md).
+1. **Jalankan backend** — Buka versi terbaru [`notebooks/kaggle-studio-server.ipynb`](../notebooks/kaggle-studio-server.ipynb) di Kaggle (atau Colab), aktifkan Internet dan GPU, tambahkan API key ke Secrets, lalu jalankan cell berurutan. **Prepare Python 3.12** menyiapkan interpreter terpisah sehingga kernel notebook Python 3.13 tetap dapat dipakai tanpa diganti. Notebook menyimpan environment di luar Output secara default. Pilih profil Torch CPU bila ingin memperkecil instalasi Studio. Biarkan `START_LOCAL_VLLM=False` untuk Gemini/NVIDIA, atau aktifkan untuk menyiapkan Gemma 4 Q4 dalam environment server terpisah beserta evaluasi singkatnya. **Public URL** baru muncul setelah pemeriksaan kesiapan backend berhasil. Lihat [panduan setup dan troubleshooting](KAGGLE_STUDIO.md).
 
 2. **Buka Studio** — Kunjungi [halaman Studio](https://naufalrizqullah.github.io/opensource-clipping/studio/) di browser.
 
@@ -156,7 +156,7 @@ Keduanya juga menyediakan pilihan **Gemini atau vLLM**. Sebelum instalasi depend
 
 ## 🚀 Cara Cepat (Lokal)
 
-Dependency dasar tetap di `requirements.txt` pada root proyek. Profil khusus dan constraints dikumpulkan di [requirements/](requirements/README.md).
+Dependency dasar tetap di `requirements.txt` pada root proyek. Profil khusus dan constraints dikumpulkan di [requirements/](../requirements/README.md).
 
 ```bash
 # 1. Clone repo
@@ -274,7 +274,7 @@ python main.py --help
 | `--clips`, `-n` | `7` | Jumlah klip highlight yang dihasilkan |
 | `--ratio`, `-r` | `9:16` | Rasio aspek output (`9:16`, `16:9`, `1:1`, `3:4`, `4:5`) |
 | `--source-height` | `max` | Batas tinggi resolusi source saat download (`max`, `1080`, `1440`, `2160`, dst.) |
-| `--ai-provider` | `gemini` | Provider analisis (`gemini`, `nvidia`, atau `vllm`). Lihat [konfigurasi provider](docs/providers.md). |
+| `--ai-provider` | `gemini` | Provider analisis (`gemini`, `nvidia`, atau `vllm`). Lihat [konfigurasi provider](providers.md). |
 | `--nvidia-model` | `deepseek...` | Nama model untuk NVIDIA NIM API (misal `deepseek-ai/deepseek-v3`). |
 | `--render-height` | `1080` | Target tinggi output render (`1080`, `1440`, `2160`, `source`) |
 | `--video-bitrate` | `auto` | Target bitrate video (misal 8M, 12M, auto). 'auto' menyesuaikan resolusi. |
@@ -521,13 +521,15 @@ Contoh:
 ```text
 opensource-clipping/
 ├── main.py                  # Entry point CLI
-├── run_upload.py            # CLI auto-uploader YouTube
-├── run_fb_upload.py         # CLI auto-uploader Facebook Pages Reels
+├── scripts/
+│   ├── run_upload.py        # CLI auto-uploader YouTube
+│   └── run_fb_upload.py     # CLI auto-uploader Facebook Pages Reels
 ├── pyproject.toml           # Dependensi & metadata proyek
 ├── .env.sample              # Template API key
 ├── .gitignore
 ├── README.md                # Dokumentasi (English)
-├── README_ID.md             # Dokumentasi (Indonesia)
+├── docs/
+│   └── README_ID.md         # Dokumentasi (Indonesia)
 ├── clipping/
 │   ├── config.py            # Konfigurasi master & argparse
 │   ├── engine.py            # Download → Transkripsi → Gemini AI
@@ -725,20 +727,25 @@ GEMINI_MODEL = "gemini-2.0-flash"
 
 Proyek ini sekarang menyertakan uploader YouTube mandiri (standalone) dengan dukungan penjadwalan (scheduling) otomatis!
 
+Jalankan perintah di bawah dari root proyek. Path relatif seperti `.credentials/`
+dan `outputs/` mengikuti folder kerja saat menjalankan perintah.
+
 1. Tempatkan file `youtube_token.json` Anda yang telah dikonfigurasi ke dalam folder `.credentials/` (buat foldernya secara manual jika belum ada).
 2. Setelah proses render secara keseluruhan selesai, script secara otomatis akan membaca metadata dan file video dari dalam folder `outputs/` (contoh: `outputs/render_manifest.json`). Anda cukup jalankan script uploader:
    ```bash
-   # Mode biasa (default interval 8 jam & scheduling otomatis)
-   python run_upload.py
+   # Mode biasa (interval 24 jam, zona waktu Asia/Makassar)
+   python scripts/run_upload.py
 
    # Atau jalankan dengan argumen kustom (contoh):
-   python run_upload.py --interval-hours 12 --tz-name "Asia/Jakarta"
+   python scripts/run_upload.py --interval-hours 12 --tz-name "Asia/Jakarta"
    ```
-3. Untuk mengetes hanya dengan video pertama, jalankan dengan argumen `--test-mode`. Gunakan perintah `python run_upload.py --help` untuk melihat opsi timezone dan interval penjadwalan.
+3. Untuk mengetes hanya dengan video pertama, jalankan dengan argumen `--test-mode`. Gunakan perintah `python scripts/run_upload.py --help` untuk melihat opsi timezone dan interval penjadwalan.
 
 ## 📘 Upload Otomatis ke Facebook Pages (Reels)
 
 Proyek ini juga menyertakan uploader Reels Facebook Pages mandiri dengan dukungan penjadwalan native via Meta Graph API!
+
+Jalankan perintah di bawah dari root proyek.
 
 **Prasyarat:**
 - Page Access Token (long-lived) Facebook dengan izin `pages_manage_posts` dan `pages_read_engagement`.
@@ -753,16 +760,16 @@ Proyek ini juga menyertakan uploader Reels Facebook Pages mandiri dengan dukunga
 
 ```bash
 # Mode biasa (baca .env untuk META_PAGE_ID & META_PAGE_ACCESS_TOKEN)
-python run_fb_upload.py
+python scripts/run_fb_upload.py
 
 # Mode test — hanya upload klip pertama
-python run_fb_upload.py --test-mode
+python scripts/run_fb_upload.py --test-mode
 
 # Interval kustom (3 jam antar video)
-python run_fb_upload.py --interval-hours 3
+python scripts/run_fb_upload.py --interval-hours 3
 
 # Lihat semua opsi
-python run_fb_upload.py --help
+python scripts/run_fb_upload.py --help
 ```
 
 | Argumen | Default | Deskripsi |

@@ -286,7 +286,7 @@ Arahan terbaru memasukkan vLLM dalam sesi Kaggle dengan satu GPU 16 GB. Preset Q
 
 Perbarui saat fitur terkait tersedia:
 
-- `README.md`/`README_ID.md`: vLLM, kebutuhan server, contoh CLI.
+- `README.md`/`docs/README_ID.md`: vLLM, kebutuhan server, contoh CLI.
 - `wiki/3-CLI-Reference.md`: flag/default nyata.
 - `wiki/13-Troubleshooting-and-FAQ.md`: server/model/auth/context/length/RAM/VRAM.
 - `wiki/12-Google-Colab-Guide.md`, `docs/KAGGLE_STUDIO.md`: koneksi server eksternal dan batas klaim offline.

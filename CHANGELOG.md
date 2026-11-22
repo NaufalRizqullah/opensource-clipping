@@ -8,6 +8,17 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.15]
+
+### Changed
+- **Repository layout**: Moved the YouTube and Facebook CLI launchers to `scripts/` and the Indonesian guide to `docs/README_ID.md`. Updated documentation links, project trees, and commands. Run uploader commands from the repository root; relative input and output paths retain their existing meaning.
+
+### Removed
+- **Unused upload safety configuration**: Deleted `upload_safety.json` because the retired safety feature no longer reads it. Removed its directory guide and active file references from documentation and CLI messages.
+
+### Fixed
+- **Uploader launchers**: Added repository import setup for direct execution from `scripts/` and deferred uploader imports so `--help` works without upload SDKs. Removed the stale import of the deleted YouTube safety module and unsupported backend arguments. Retired safety flags now stop with an explanatory error. Added offline CLI regression tests.
+
 ## [v1.16.14]
 
 ### Changed
@@ -301,7 +312,7 @@ All notable changes to the **OpenSource Clipping** project will be documented in
   - **Publish or Schedule**: First clip is published immediately if no existing queue; subsequent clips are scheduled via `video_state=SCHEDULED` with `scheduled_publish_time`.
   - **Fail-Fast Safety**: If any upload step fails or `SCHEDULED` is rejected by the API, the batch stops immediately — no fallback to `PUBLISHED` (prevents accidental mass-publish).
   - **Incremental Save**: Upload results and updated manifest are saved after each clip, so progress is never lost.
-- **Facebook Uploader CLI (`run_fb_upload.py`)**: New CLI entry point mirroring `run_upload.py` for YouTube.
+- **Facebook Uploader CLI (`scripts/run_fb_upload.py`)**: New CLI entry point mirroring `scripts/run_upload.py` for YouTube.
   - `--manifest-file`: Input manifest from clipping pipeline (default: `outputs/render_manifest.json`).
   - `--result-file`: Output upload trace JSON (default: `outputs/fb_upload_results.json`).
   - `--interval-hours`: Gap between scheduled videos (default: `5`).
@@ -1081,7 +1092,7 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 ## [v0.4.0] - 2026-04-05
 
 ### Added
-- **Standalone YouTube Auto-Uploader**: Created a dedicated CLI (`run_upload.py`) with a `youtube_uploader` package for automated background uploading and scheduling without interrupting the rendering pipeline.
+- **Standalone YouTube Auto-Uploader**: Created a dedicated CLI (`scripts/run_upload.py`) with a `youtube_uploader` package for automated background uploading and scheduling without interrupting the rendering pipeline.
 
 ### Changed
 - **Centralized Outputs Directory**: Refactored the engine (`config.py`, `studio.py`, `runner.py`) so all generated media, thumbnails, and manifests are now neatly sandboxed inside an `outputs/` folder.
@@ -1099,7 +1110,7 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Modular CLI Architecture**: Completely refactored the project from a monolithic Jupyter Notebook into a clean, CLI-based Python project (`main.py` & `clipping/` package).
 - **Dynamic Scaling & Font Pairing (Kinetic Typography)**: Specific core words within the running subtitles now scale dynamically for emphasis (e.g., "I eat *RICE*").
 - **Contextual B-roll Injection**: The system now automatically fetches and splices contextual B-roll footage from Pexels based on relevant keywords spoken in the clip.
-- **Multi-language Documentation**: Added `README.md` (English) and `README_ID.md` (Indonesian), complete with execution guides for Google Colab.
+- **Multi-language Documentation**: Added `README.md` (English) and `docs/README_ID.md` (Indonesian), complete with execution guides for Google Colab.
 - **Environment Management**: Introduced `.env` support to securely manage API keys, removing hardcoded/Colab userdata from the core logic.
 
 ### Changed

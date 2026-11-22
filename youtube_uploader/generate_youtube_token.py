@@ -5,7 +5,7 @@ Tujuan file ini:
 - Membuka login Google lewat browser.
 - Meminta izin akses YouTube sesuai scope yang dibutuhkan.
 - Membuat file .credentials/youtube_token.json.
-- File token ini nanti dipakai oleh run_upload.py / uploader.py untuk upload video ke YouTube.
+- File token ini nanti dipakai oleh scripts/run_upload.py / youtube_uploader/uploader.py untuk upload video ke YouTube.
 
 Jalankan file ini hanya saat pertama kali membuat token,
 atau saat token lama rusak / ingin login ulang akun YouTube.

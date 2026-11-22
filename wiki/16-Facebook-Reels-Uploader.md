@@ -33,7 +33,7 @@ META_GRAPH_VERSION="v25.0" # Optional, defaults to v25.0
 After rendering your clips, run the Facebook uploader CLI tool:
 
 ```bash
-python run_fb_upload.py
+python scripts/run_fb_upload.py
 ```
 
 This will:
@@ -48,16 +48,16 @@ You can adjust the interval between scheduled posts or test the uploader with a 
 
 ```bash
 # 3-hour intervals with Jakarta timezone
-python run_fb_upload.py --interval-hours 3 --tz-name "Asia/Jakarta"
+python scripts/run_fb_upload.py --interval-hours 3 --tz-name "Asia/Jakarta"
 
 # Test mode: only upload the FIRST item in the manifest
-python run_fb_upload.py --test-mode
+python scripts/run_fb_upload.py --test-mode
 ```
 
 ### All Options
 
 ```bash
-python run_fb_upload.py --help
+python scripts/run_fb_upload.py --help
 ```
 
 ---

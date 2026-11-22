@@ -41,31 +41,34 @@ mv youtube_token.json .credentials/
 
 ### Basic Upload
 
-After rendering clips, simply run:
+After rendering clips, run from the repository root:
 
 ```bash
-python run_upload.py
+python scripts/run_upload.py
 ```
 
 This will:
 1. Read `outputs/render_manifest.json` for clip metadata
 2. Upload each clip to YouTube with AI-generated titles, descriptions, and tags
-3. Schedule uploads at 8-hour intervals by default
+3. Schedule uploads at 24-hour intervals by default (Asia/Makassar)
+
+The former safety feature (daily limits and manual approval) has been removed.
+The old `--safety-config` and `--no-approval` options stop with an error.
 
 ### Custom Scheduling
 
 ```bash
 # 12-hour intervals with Jakarta timezone
-python run_upload.py --interval-hours 12 --tz-name "Asia/Jakarta"
+python scripts/run_upload.py --interval-hours 12 --tz-name "Asia/Jakarta"
 
 # Test with only the first video
-python run_upload.py --test-mode
+python scripts/run_upload.py --test-mode
 ```
 
 ### All Options
 
 ```bash
-python run_upload.py --help
+python scripts/run_upload.py --help
 ```
 
 ---
