@@ -73,7 +73,7 @@ class JobCreateRequest(BaseModel):
     """Payload to create a new clipping job."""
 
     # Source
-    url: Optional[str] = Field(None, description="Video URL to process")
+    url: Optional[str] = Field(None, max_length=2048, description="Video URL to process")
     upload_filename: Optional[str] = Field(None, description="Filename of an uploaded video")
     source: SourcePlatform = Field(SourcePlatform.YOUTUBE, description="Source platform")
     reuse_job_id: Optional[str] = Field(
@@ -126,6 +126,21 @@ class JobCreateRequest(BaseModel):
     )
     face_detector: FaceDetector = FaceDetector.MEDIAPIPE
     load_gemini_json: bool = False
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value: Optional[str]) -> Optional[str]:
+        """Only remote http(s) sources; blocks file://, local paths and yt-dlp tricks."""
+        if value is None:
+            return value
+        value = value.strip()
+        if not value:
+            return None
+        from urllib.parse import urlsplit
+        parts = urlsplit(value)
+        if parts.scheme not in {"http", "https"} or not parts.netloc or any(c.isspace() for c in value):
+            raise ValueError("url must be a valid http(s) link")
+        return value
 
     @field_validator("upload_filename")
     @classmethod
@@ -205,15 +220,15 @@ class JobListResponse(BaseModel):
 
 class SettingsRequest(BaseModel):
     """Settings update payload."""
-    google_api_key: Optional[str] = None
-    pexels_api_key: Optional[str] = None
-    hf_token: Optional[str] = None
-    nvidia_api_key: Optional[str] = None
+    google_api_key: Optional[str] = Field(None, max_length=512)
+    pexels_api_key: Optional[str] = Field(None, max_length=512)
+    hf_token: Optional[str] = Field(None, max_length=512)
+    nvidia_api_key: Optional[str] = Field(None, max_length=512)
     # Defaults
-    default_clips: Optional[int] = None
+    default_clips: Optional[int] = Field(None, ge=1, le=30)
     default_ratio: Optional[AspectRatio] = None
     default_font_style: Optional[FontStyle] = None
-    default_whisper_model: Optional[str] = None
+    default_whisper_model: Optional[str] = Field(None, max_length=64, pattern=r"^[A-Za-z0-9._/-]+$")
     default_whisper_device: Optional[WhisperDevice] = None
     default_ai_provider: Optional[AIProvider] = None
 

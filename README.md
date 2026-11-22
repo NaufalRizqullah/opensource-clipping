@@ -154,6 +154,26 @@ The **Clipping Studio** is a browser-based dashboard hosted for free on **GitHub
 
 > **Note:** The tunnel URL changes each time the notebook restarts. The Studio saves your last URL in `localStorage` for convenience, but you'll need to update it after each new session.
 
+### Self-hosted Studio Dashboard (one server)
+
+The React dashboard in `web/dashboard` (Overview, Projects, New Project, live progress, Clip Editor, Settings, System) is served by the FastAPI backend itself once built, so a single process hosts the whole Studio.
+
+```bash
+# 1. Build the dashboard (Node.js 20.19+)
+cd web/dashboard && npm ci && npm run build && cd ../..
+
+# 2. Protect the server (strongly recommended whenever it is reachable by others)
+export OSC_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+
+# 3. Start it and open http://localhost:8000
+uvicorn web.api.app:app --host 0.0.0.0 --port 8000
+```
+
+- **Access token** — with `OSC_API_TOKEN` set (environment or `.env`), the dashboard asks for the token once and sends it as a Bearer header. Rendered clips use signed links that expire after 12 hours. Without a token, the API prints a warning at startup and stays open, which is compatible with the GitHub Pages Studio.
+- **Docker** — `docker compose up --build` builds the dashboard into the backend image and serves everything on port 8000. `docker compose --profile dev up` adds the hot-reload Vite server on port 5173.
+- **Development** — run the API on port 8000, then `npm run dev` in `web/dashboard` (proxies `/api` to `VITE_API_PROXY`, default `http://127.0.0.1:8000`).
+- **Remote GPU** — the dashboard can also point at a Kaggle/Colab tunnel from **Settings → Connection**. Add the dashboard's origin to `OSC_CORS_ORIGINS` on the backend when it is hosted on a different domain.
+
 ---
 
 ## 🚀 Local Quick Start

@@ -8,6 +8,22 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.17.0]
+
+### Added
+- **Studio dashboard 2.0** (`web/dashboard`): Rebuilt the React dashboard with an Overview (stats, live jobs, top clips by viral score), searchable/filterable Projects, a guided New Project flow (style presets, aspect-ratio and caption-style pickers, every pipeline option the API accepts, drag-and-drop upload with progress), a live Project view (pipeline stepper over SSE with reconnect, activity log, output files), a Clip Editor (custom video player with keyboard shortcuts, editable YouTube/TikTok metadata with character limits, per-browser autosaved drafts, JSON export), Settings (profile, connection, API keys, defaults, YouTube cookies) and a System page (health, readiness, shutdown). Dark and light themes, reduced-motion support, and responsive layouts down to 320 px.
+- **Same-origin serving**: When `web/dashboard/dist` exists, the API serves the dashboard and its deep links, so one process hosts the whole Studio.
+- **Optional access token**: Set `OSC_API_TOKEN` to require `Authorization: Bearer <token>` on every `/api` route except `/api`, `/api/health` and `/api/ready`. Output media URLs are HMAC-signed and expire after 12 hours so `<video>` and downloads work without exposing the token. `OSC_CORS_ORIGINS` adds allowed browser origins.
+
+### Changed
+- **Security headers** on every response (`nosniff`, `DENY` framing, referrer and permissions policies; CSP for dashboard pages). CORS no longer allows credentials and lists explicit methods and headers.
+- **Job input validation**: `url` must be an absolute `http(s)` link (blocks `file://`, local paths and yt-dlp search prefixes); settings fields have length and range limits.
+- **API responses** no longer expose absolute server paths from renderer manifests, and include thumbnail URLs for rendered clips.
+- **Progress messages** shown in the Studio are now in English. The API reports one version everywhere.
+
+### Fixed
+- **Windows startup crash**: The API now switches stdout/stderr to UTF-8 so emoji log lines no longer raise `UnicodeEncodeError` on cp1252 consoles.
+
 ## [v1.16.15]
 
 ### Changed

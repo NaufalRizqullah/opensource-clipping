@@ -185,7 +185,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             step="download",
             step_number=1,
             total_steps=7,
-            message="Mengunduh video...",
+            message="Downloading video…",
             percent=5.0,
         )
 
@@ -205,7 +205,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                 step="download",
                 step_number=1,
                 total_steps=7,
-                message="Menggunakan file upload.",
+                message="Using the uploaded file.",
                 percent=14.0,
             )
         else:
@@ -217,7 +217,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                         step="download",
                         step_number=1,
                         total_steps=7,
-                        message="Bypass download: menggunakan video lama.",
+                        message="Reusing the previously downloaded video.",
                         percent=14.0,
                     )
                 else:
@@ -238,7 +238,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                     step="download",
                     step_number=1,
                     total_steps=7,
-                    message="Video berhasil diunduh.",
+                    message="Video downloaded.",
                     percent=14.0,
                 )
 
@@ -251,7 +251,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             step="transcribe",
             step_number=2,
             total_steps=7,
-            message="Memulai transkripsi...",
+            message="Transcribing audio…",
             percent=15.0,
         )
 
@@ -281,7 +281,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             step="transcribe",
             step_number=2,
             total_steps=7,
-            message="Transkripsi selesai.",
+            message="Transcription complete.",
             percent=35.0,
         )
 
@@ -294,7 +294,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             step="analyze",
             step_number=3,
             total_steps=7,
-            message="Menganalisis dengan AI... Provider dapat melakukan retry otomatis; tahap ini bisa memerlukan beberapa menit.",
+            message="Analyzing with AI — the provider may retry automatically; this can take a few minutes.",
             percent=36.0,
         )
 
@@ -329,7 +329,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             step="analyze",
             step_number=3,
             total_steps=7,
-            message=f"AI menemukan {len(hasil_json)} klip viral.",
+            message=f"AI found {len(hasil_json)} highlight clips.",
             percent=50.0,
         )
 
@@ -349,7 +349,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             step="metadata",
             step_number=4,
             total_steps=7,
-            message="Metadata dinormalisasi.",
+            message="Metadata prepared.",
             percent=55.0,
         )
 
@@ -371,7 +371,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                     step="diarization",
                     step_number=5,
                     total_steps=7,
-                    message="Menjalankan speaker diarization...",
+                    message="Detecting speakers…",
                     percent=56.0,
                 )
                 audio_path = str(Path(cfg.outputs_dir) / "diarization_audio.wav")
@@ -402,7 +402,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                     step="diarization",
                     step_number=5,
                     total_steps=7,
-                    message=f"Diarization gagal: {e}. Fallback ke mode biasa.",
+                    message=f"Speaker detection failed: {e}. Falling back to standard framing.",
                     percent=58.0,
                 )
                 diarization_data = None
@@ -420,7 +420,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
             step="render",
             step_number=6,
             total_steps=7,
-            message="Menyiapkan rendering...",
+            message="Preparing render…",
             percent=60.0,
         )
 
@@ -465,7 +465,7 @@ def _run_pipeline_sync(job_id: str, payload: dict) -> None:
                 step="render",
                 step_number=6,
                 total_steps=7,
-                message=f"Merender klip {clip_num}/{total_clips}...",
+                message=f"Rendering clip {clip_num}/{total_clips}…",
                 percent=60.0 + (35.0 * clip_num / total_clips),
             )
 

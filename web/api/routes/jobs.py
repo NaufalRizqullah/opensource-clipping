@@ -6,8 +6,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -22,9 +23,32 @@ from ..models import (
 from .. import store
 from .. import worker
 from .. import config_adapter
+from .. import security
 from ..readiness import get_readiness
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+
+
+# Renderer manifests contain absolute server paths; never expose them.
+_PRIVATE_METADATA_KEYS = {"video_path", "thumbnail_path", "output_file", "ass_path", "source_path"}
+
+
+def _public_clip(job_id: str, clip: ClipDetail) -> ClipDetail:
+    """Attach (signed) media URLs and strip filesystem paths from metadata."""
+    meta = dict(clip.metadata or {})
+    thumb_name = os.path.basename(str(meta.get("thumbnail_path") or ""))
+    thumbnail_url = clip.thumbnail_url
+    if thumb_name and meta.get("thumbnail_exists"):
+        thumbnail_url = security.media_url(job_id, thumb_name)
+    public_meta = {
+        k: v for k, v in meta.items()
+        if k not in _PRIVATE_METADATA_KEYS and not k.endswith("_path")
+    }
+    return clip.model_copy(update={
+        "download_url": security.media_url(job_id, clip.filename),
+        "thumbnail_url": thumbnail_url,
+        "metadata": public_meta,
+    })
 
 
 def _job_to_response(job: dict) -> JobResponse:
@@ -33,9 +57,9 @@ def _job_to_response(job: dict) -> JobResponse:
     clip_list = []
     for c in clips:
         if isinstance(c, ClipDetail):
-            clip_list.append(c)
+            clip_list.append(_public_clip(job["id"], c))
         elif isinstance(c, dict):
-            clip_list.append(ClipDetail(**c))
+            clip_list.append(_public_clip(job["id"], ClipDetail(**c)))
 
     progress = job.get("progress")
     if progress and isinstance(progress, dict):
@@ -48,8 +72,8 @@ def _job_to_response(job: dict) -> JobResponse:
     return JobResponse(
         id=job["id"],
         status=job.get("status", JobStatus.QUEUED),
-        created_at=job.get("created_at", datetime.utcnow()),
-        updated_at=job.get("updated_at", datetime.utcnow()),
+        created_at=job.get("created_at", datetime.now(timezone.utc)),
+        updated_at=job.get("updated_at", datetime.now(timezone.utc)),
         url=job.get("url"),
         upload_filename=job.get("upload_filename"),
         source=job.get("source", "youtube"),
@@ -112,7 +136,7 @@ async def create_job(req: JobCreateRequest) -> JobResponse:
 
     readiness = await asyncio.to_thread(get_readiness)
     if not readiness["ready"]:
-        raise HTTPException(status_code=503, detail="Renderer backend belum siap. Periksa /api/ready.")
+        raise HTTPException(status_code=503, detail="The renderer is not ready. Check System → Pipeline readiness (/api/ready).")
 
     try:
         if reuse_job_id and worker.is_job_active(reuse_job_id):
@@ -225,7 +249,7 @@ async def job_status_sse(job_id: str):
             if status in terminal_states:
                 event["type"] = status
                 event["clips"] = [
-                    c.model_dump(mode="json") if isinstance(c, ClipDetail) else c
+                    _public_clip(job_id, c if isinstance(c, ClipDetail) else ClipDetail(**c)).model_dump(mode="json")
                     for c in current_job.get("clips", [])
                 ]
                 yield f"data: {json.dumps(event, default=str)}\n\n"

@@ -17,6 +17,7 @@ from ..models import SettingsRequest, SettingsResponse, SystemHealthResponse
 from .. import store as job_store
 from .. import config_adapter, worker, youtube_cookies
 from ..readiness import get_readiness
+from ..version import APP_VERSION
 
 router = APIRouter(tags=["settings"])
 
@@ -149,7 +150,7 @@ async def health_check() -> SystemHealthResponse:
     )
     return SystemHealthResponse(
         status="ok",
-        version="1.12.0",
+        version=APP_VERSION,
         gpu_available=gpu_available,
         ffmpeg_available=ffmpeg_available,
         jobs_running=job_store.get_running_count(),

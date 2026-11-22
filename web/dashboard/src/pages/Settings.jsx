@@ -1,273 +1,300 @@
-import { useState, useEffect, useRef } from 'react'
-import { changeYoutubeCookies, fetchSettings, updateSettings } from '../api'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { AnimatePresence, motion } from 'motion/react'
+import { Cookie, Eye, EyeOff, KeyRound, Link2, Save, SlidersHorizontal, Trash2, Upload, UserRound, CheckCircle2, CircleDashed, ShieldCheck, ShieldAlert } from 'lucide-react'
+import { api, connection, normalizeBaseUrl } from '../lib/api'
+import { useConnection } from '../lib/connection'
+import { useDocumentTitle, useLocalState, useResource } from '../lib/hooks'
+import { useToast } from '../lib/toast'
+import { PageHeader } from '../components/Layout'
+import { Badge, Button, Card, CardHeader, ConfirmModal, Field, Input, Select, Skeleton } from '../components/ui'
 
-const PasswordInput = ({ value, onChange, placeholder, isSet }) => {
+const TABS = [
+  { id: 'profile', label: 'Profile', icon: UserRound },
+  { id: 'connection', label: 'Connection', icon: Link2 },
+  { id: 'keys', label: 'API keys', icon: KeyRound },
+  { id: 'defaults', label: 'Defaults', icon: SlidersHorizontal },
+  { id: 'cookies', label: 'YouTube cookies', icon: Cookie },
+]
+
+export default function SettingsPage() {
+  useDocumentTitle('Settings')
+  const [params, setParams] = useSearchParams()
+  const tab = TABS.some((t) => t.id === params.get('tab')) ? params.get('tab') : 'profile'
+  const settings = useResource((signal) => api.settings({ signal }), [])
+
+  return (
+    <>
+      <PageHeader title="Settings" description="Your workspace, server connection and pipeline defaults." />
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="Settings sections">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button key={id} type="button" className={`settings-tab ${tab === id ? 'is-active' : ''}`} onClick={() => setParams({ tab: id }, { replace: true })} aria-current={tab === id ? 'page' : undefined}>
+              {tab === id && <motion.span layoutId="settings-tab" className="settings-tab-bg" transition={{ type: 'spring', stiffness: 500, damping: 40 }} />}
+              <Icon size={16} aria-hidden /><span>{label}</span>
+            </button>
+          ))}
+        </nav>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div key={tab} className="settings-body" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}>
+            {tab === 'profile' && <ProfileTab />}
+            {tab === 'connection' && <ConnectionTab />}
+            {tab === 'keys' && <KeysTab settings={settings} />}
+            {tab === 'defaults' && <DefaultsTab settings={settings} />}
+            {tab === 'cookies' && <CookiesTab settings={settings} />}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </>
+  )
+}
+
+function ProfileTab() {
+  const toast = useToast()
+  const [profile, setProfile] = useLocalState('osc.profile', { name: '', channel: '', niche: '' })
+  const [form, setForm] = useState(profile)
+  const initials = (form.name || 'You').split(/\s+/).map((s) => s[0]).join('').slice(0, 2).toUpperCase()
+  return (
+    <Card>
+      <CardHeader title="Creator profile" description="Personalizes your workspace. Stored only in this browser." />
+      <form className="stack-md" onSubmit={(e) => { e.preventDefault(); setProfile({ name: form.name.trim().slice(0, 60), channel: form.channel.trim().slice(0, 80), niche: form.niche.trim().slice(0, 80) }); toast.success('Profile saved') }}>
+        <div className="profile-row">
+          <div className="avatar" aria-hidden>{initials}</div>
+          <div>
+            <strong>{form.name || 'Your name'}</strong>
+            <p className="muted small">{form.channel || 'Your channel'}{form.niche ? ` · ${form.niche}` : ''}</p>
+          </div>
+        </div>
+        <div className="form-grid">
+          <Field label="Display name" htmlFor="p-name"><Input id="p-name" value={form.name} maxLength={60} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Alex" autoComplete="name" /></Field>
+          <Field label="Channel / handle" htmlFor="p-channel"><Input id="p-channel" value={form.channel} maxLength={80} onChange={(e) => setForm({ ...form, channel: e.target.value })} placeholder="@yourchannel" /></Field>
+          <Field label="Niche" htmlFor="p-niche"><Input id="p-niche" value={form.niche} maxLength={80} onChange={(e) => setForm({ ...form, niche: e.target.value })} placeholder="Podcasts, finance, gaming…" /></Field>
+        </div>
+        <div><Button type="submit" variant="primary" icon={Save}>Save profile</Button></div>
+      </form>
+    </Card>
+  )
+}
+
+function ConnectionTab() {
+  const { configure, status, info, base } = useConnection()
+  const toast = useToast()
+  const [url, setUrl] = useState(base)
+  const [token, setToken] = useState('')
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const hasToken = !!connection.getToken()
+
+  const save = async (e) => {
+    e.preventDefault()
+    setErr('')
+    let normalized = ''
+    try { normalized = url.trim() ? normalizeBaseUrl(url) : '' } catch { setErr('Enter a valid http(s) URL.'); return }
+    setBusy(true)
+    await configure({ baseUrl: normalized, ...(token ? { token } : {}) })
+    setBusy(false)
+    setToken('')
+    toast.success('Connection updated')
+  }
+
+  return (
+    <div className="stack-md">
+      <Card>
+        <CardHeader title="Backend server" description="Where the clipping pipeline runs. Empty means this same server." actions={<Badge tone={status === 'ready' ? 'success' : 'danger'} dot>{status === 'ready' ? 'Connected' : status}</Badge>} />
+        <form className="stack-md" onSubmit={save}>
+          <Field label="Backend URL" htmlFor="c-url" error={err} hint="For Kaggle/Colab, paste the ngrok Public URL printed by the notebook.">
+            <Input id="c-url" icon={Link2} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Same origin" spellCheck={false} inputMode="url" />
+          </Field>
+          <Field label="Access token" htmlFor="c-token" hint={hasToken ? 'A token is saved. Enter a new one to replace it.' : 'Required only when the server sets OSC_API_TOKEN.'}>
+            <Input id="c-token" icon={KeyRound} type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder={hasToken ? '•••••••• saved' : 'None'} autoComplete="off" />
+          </Field>
+          <div className="row gap-sm wrap">
+            <Button type="submit" variant="primary" loading={busy}>Save & reconnect</Button>
+            {hasToken && <Button type="button" variant="ghost" icon={Trash2} onClick={() => configure({ token: '' })}>Forget token</Button>}
+          </div>
+        </form>
+      </Card>
+      <Card>
+        <CardHeader title="Security" />
+        {info?.auth_required ? (
+          <p className="row gap-sm align-start"><ShieldCheck size={18} className="ok" aria-hidden /><span>Access token required. Only people with the token can use this Studio; media links are signed and expire after 12 hours.</span></p>
+        ) : (
+          <p className="row gap-sm align-start"><ShieldAlert size={18} className="warn" aria-hidden /><span>This server is <strong>open</strong>. Anyone who can reach its URL can start jobs with your API keys. Before exposing it publicly, restart it with <code>OSC_API_TOKEN</code> set to a long random value.</span></p>
+        )}
+      </Card>
+    </div>
+  )
+}
+
+function SecretField({ id, label, set, value, onChange, hint, placeholder }) {
   const [show, setShow] = useState(false)
   return (
-    <div style={{ position: 'relative' }}>
-      <input
-        className="form-input"
-        type={show ? "text" : "password"}
-        placeholder={isSet ? '••••••••••••••••' : placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        style={{ paddingRight: '40px' }}
-      />
-      <button
-        type="button"
-        onClick={() => setShow(!show)}
-        style={{
-          position: 'absolute',
-          right: '12px',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          background: 'none',
-          border: 'none',
-          color: 'var(--text-secondary)',
-          cursor: 'pointer',
-          fontSize: '14px',
-          padding: '4px'
-        }}
-        title={show ? "Hide" : "Show"}
-      >
-        {show ? '👀' : '👁️'}
-      </button>
-    </div>
+    <Field label={label} htmlFor={id} hint={hint} trailing={set ? <Badge tone="success"><CheckCircle2 size={11} aria-hidden />Configured</Badge> : <Badge><CircleDashed size={11} aria-hidden />Not set</Badge>}>
+      <div className="input-wrap">
+        <KeyRound size={16} className="input-icon" aria-hidden />
+        <input id={id} className="input has-icon has-trailing mono" type={show ? 'text' : 'password'} value={value} onChange={(e) => onChange(e.target.value)} placeholder={set ? '•••••••• (leave empty to keep)' : placeholder} autoComplete="off" spellCheck={false} maxLength={512} />
+        <button type="button" className="input-trailing icon-btn icon-btn-sm" onClick={() => setShow((s) => !s)} aria-label={show ? 'Hide value' : 'Show value'}>{show ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+      </div>
+    </Field>
   )
 }
 
-function YoutubeCookies({ settings, onStatus }) {
-  const fileInput = useRef(null)
-  const [hasSelection, setHasSelection] = useState(false)
+const KEY_FIELDS = [
+  { key: 'google_api_key', flag: 'google_api_key_set', label: 'Google Gemini API key', hint: 'Required for the default AI provider and voice-over scripts.', placeholder: 'AIza…' },
+  { key: 'nvidia_api_key', flag: 'nvidia_api_key_set', label: 'NVIDIA NIM API key', hint: 'Only when using NVIDIA as the AI provider.', placeholder: 'nvapi-…' },
+  { key: 'pexels_api_key', flag: 'pexels_api_key_set', label: 'Pexels API key', hint: 'Enables contextual B-roll. Free at pexels.com/api.', placeholder: 'Pexels key' },
+  { key: 'hf_token', flag: 'hf_token_set', label: 'Hugging Face token', hint: 'Needed for podcast split-screen / camera switch (Pyannote).', placeholder: 'hf_…' },
+]
+
+function KeysTab({ settings }) {
+  const toast = useToast()
+  const [values, setValues] = useState({})
   const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('')
-  const supported = typeof settings?.youtube_cookies_uploaded === 'boolean'
-  const invalid = 'Pilih file cookies.txt format Netscape yang berisi cookies YouTube (maksimal 1 MiB).'
+  const [clearKey, setClearKey] = useState(null)
+  const s = settings.data
 
-  function selectFile() {
-    const file = fileInput.current.files[0]
-    if (file && (!file.size || file.size > 1024 * 1024)) {
-      fileInput.current.value = ''
-      setHasSelection(false)
-      setMessage(invalid)
-    } else {
-      setHasSelection(!!file)
-      setMessage('')
-    }
-  }
-
-  async function submit(remove) {
-    const file = fileInput.current.files[0]
-    if (busy || !supported || (!remove && !file)) return
+  const save = async (e) => {
+    e.preventDefault()
+    const payload = Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v.trim()]).filter(([, v]) => v))
+    if (!Object.keys(payload).length) { toast.info('Nothing to save — enter a key first.'); return }
     setBusy(true)
-    setMessage('Memperbarui cookies…')
     try {
-      const status = await changeYoutubeCookies(remove ? null : file)
-      onStatus(previous => ({ ...previous, ...status }))
-      fileInput.current.value = ''
-      setHasSelection(false)
-      setMessage(remove ? 'Cookies unggahan dihapus.' : 'Cookies siap dipakai untuk unduhan berikutnya.')
-    } catch (err) {
-      setMessage([413, 422].includes(err.status) ? invalid : 'Gagal memperbarui cookies. Periksa koneksi backend dan coba lagi.')
-    } finally {
-      setBusy(false)
-    }
+      settings.setData(await api.updateSettings(payload))
+      setValues({})
+      toast.success('API keys saved for this server session')
+    } catch (err) { toast.error(err.message) } finally { setBusy(false) }
   }
+
+  const clear = async () => {
+    setBusy(true)
+    try {
+      settings.setData(await api.updateSettings({ [clearKey]: '' }))
+      toast.success('Key removed')
+    } catch (err) { toast.error(err.message) } finally { setBusy(false); setClearKey(null) }
+  }
+
+  if (settings.loading && !s) return <Skeleton style={{ height: 380 }} />
+  if (settings.error) return <p className="alert alert-danger">{settings.error.message}</p>
 
   return (
-    <div className="settings-section">
-      <h3>Cookies YouTube</h3>
-      <label className="form-label" htmlFor="cookies-file">File cookies YouTube (.txt)</label>
-      <p className="form-hint" id="cookies-help">Untuk unduhan yang memerlukan login, buka youtube.com dan ekspor cookies situs itu dengan Get cookies.txt LOCALLY. Unggah file .txt format Netscape (maksimal 1 MiB) hanya ke backend tepercaya. Backend menyimpannya selama sesi ini.</p>
-      <input id="cookies-file" className="form-input" type="file" accept=".txt,text/plain" aria-describedby="cookies-help" ref={fileInput} onChange={selectFile} disabled={!supported || busy} />
-      <p className="form-hint">{!supported ? 'Perbarui backend untuk mengunggah cookies dari Pengaturan.' : settings.youtube_cookies_uploaded ? 'Sesi backend ini memakai cookies yang Anda unggah.' : settings.youtube_cookies_set ? 'Memakai cookies dari konfigurasi backend.' : 'Cookies YouTube belum diatur.'}</p>
-      <button type="button" className="btn btn-primary" onClick={() => submit(false)} disabled={!supported || !hasSelection || busy}>Unggah file</button>
-      {settings?.youtube_cookies_uploaded && <button type="button" className="btn" onClick={() => submit(true)} disabled={busy}>Hapus file unggahan</button>}
-      <p className="form-hint" role="status">{message}</p>
-    </div>
+    <Card>
+      <CardHeader title="API keys" description="Keys are sent to your server only, held in memory for the current session and never shown again. For permanent setup, use environment variables or notebook Secrets." />
+      <form className="stack-md" onSubmit={save}>
+        {KEY_FIELDS.map((f) => (
+          <div key={f.key} className="key-row">
+            <SecretField id={`k-${f.key}`} label={f.label} set={s?.[f.flag]} value={values[f.key] || ''} onChange={(v) => setValues((x) => ({ ...x, [f.key]: v }))} hint={f.hint} placeholder={f.placeholder} />
+            {s?.[f.flag] && <Button type="button" size="sm" variant="ghost" icon={Trash2} onClick={() => setClearKey(f.key)} aria-label={`Remove ${f.label}`}>Remove</Button>}
+          </div>
+        ))}
+        <div><Button type="submit" variant="primary" icon={Save} loading={busy}>Save keys</Button></div>
+      </form>
+      <ConfirmModal open={!!clearKey} onClose={() => setClearKey(null)} onConfirm={clear} loading={busy} title="Remove this key?" description="The key is disabled for this server session — including one set by an environment variable — until you add a new key or restart the server. Jobs that need it will fail meanwhile." confirmLabel="Remove key" />
+    </Card>
   )
 }
 
-function Settings() {
-  const [settings, setSettings] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [msg, setMsg] = useState('')
-
-  // Form fields
-  const [googleKey, setGoogleKey] = useState('')
-  const [pexelsKey, setPexelsKey] = useState('')
-  const [hfToken, setHfToken] = useState('')
-  const [nvidiaKey, setNvidiaKey] = useState('')
-  const [defaultAiProvider, setDefaultAiProvider] = useState('gemini')
+function DefaultsTab({ settings }) {
+  const toast = useToast()
+  const s = settings.data
+  const [form, setForm] = useState(null)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    fetchSettings()
-      .then(data => { setSettings(data); setDefaultAiProvider(data.default_ai_provider || 'gemini'); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [])
+    if (s && !form) setForm({
+      default_clips: s.default_clips, default_ratio: s.default_ratio, default_font_style: s.default_font_style,
+      default_whisper_model: s.default_whisper_model, default_whisper_device: s.default_whisper_device, default_ai_provider: s.default_ai_provider,
+    })
+  }, [s, form])
 
-  const handleSave = async (e) => {
+  if (!form) return settings.error ? <p className="alert alert-danger">{settings.error.message}</p> : <Skeleton style={{ height: 320 }} />
+
+  const save = async (e) => {
     e.preventDefault()
-    setSaving(true)
-    setMsg('')
+    setBusy(true)
     try {
-      const payload = {}
-      if (googleKey) payload.google_api_key = googleKey
-      if (pexelsKey) payload.pexels_api_key = pexelsKey
-      if (hfToken) payload.hf_token = hfToken
-      if (nvidiaKey) payload.nvidia_api_key = nvidiaKey
-      if (defaultAiProvider !== settings?.default_ai_provider) payload.default_ai_provider = defaultAiProvider
-
-      if (Object.keys(payload).length === 0) {
-        setMsg('Tidak ada perubahan')
-        setSaving(false)
-        return
-      }
-
-      const updated = await updateSettings(payload)
-      setSettings(updated)
-      setGoogleKey('')
-      setPexelsKey('')
-      setHfToken('')
-      setNvidiaKey('')
-      setMsg('✅ Settings berhasil diperbarui!')
-    } catch (err) {
-      setMsg('❌ Gagal menyimpan: ' + err.message)
-    } finally {
-      setSaving(false)
-    }
+      settings.setData(await api.updateSettings({ ...form, default_clips: Math.max(1, Math.min(30, Number(form.default_clips) || 7)) }))
+      toast.success('Defaults saved')
+    } catch (err) { toast.error(err.message) } finally { setBusy(false) }
   }
 
-  if (loading) return <div className="empty-state"><div className="spinner"></div></div>
-
   return (
-    <div className="fade-in">
-      <div className="page-header">
-        <div>
-          <h2>Settings</h2>
-          <p>Konfigurasi API keys dan default settings</p>
+    <Card>
+      <CardHeader title="Pipeline defaults" description="Pre-filled on every new project. Applies to this server session." />
+      <form className="stack-md" onSubmit={save}>
+        <div className="form-grid">
+          <Field label="Clips per project" htmlFor="d-clips"><Input id="d-clips" type="number" min="1" max="30" value={form.default_clips} onChange={(e) => setForm({ ...form, default_clips: e.target.value })} /></Field>
+          <Field label="Aspect ratio" htmlFor="d-ratio">
+            <Select id="d-ratio" value={form.default_ratio} onChange={(e) => setForm({ ...form, default_ratio: e.target.value })}>
+              {['9:16', '4:5', '1:1', '3:4', '16:9'].map((r) => <option key={r} value={r}>{r}</option>)}
+            </Select>
+          </Field>
+          <Field label="Caption style" htmlFor="d-font">
+            <Select id="d-font" value={form.default_font_style} onChange={(e) => setForm({ ...form, default_font_style: e.target.value })}>
+              <option value="HORMOZI">Hormozi</option><option value="DEFAULT">Montserrat</option><option value="STORYTELLER">Storyteller</option><option value="CINEMATIC">Cinematic</option>
+            </Select>
+          </Field>
+          <Field label="AI provider" htmlFor="d-ai">
+            <Select id="d-ai" value={form.default_ai_provider} onChange={(e) => setForm({ ...form, default_ai_provider: e.target.value })}>
+              <option value="gemini">Google Gemini</option><option value="nvidia">NVIDIA NIM</option><option value="vllm">vLLM</option>
+            </Select>
+          </Field>
+          <Field label="Whisper model" htmlFor="d-wm">
+            <Select id="d-wm" value={form.default_whisper_model} onChange={(e) => setForm({ ...form, default_whisper_model: e.target.value })}>
+              <option value="large-v3">large-v3</option><option value="medium">medium</option><option value="small">small</option><option value="base">base</option>
+            </Select>
+          </Field>
+          <Field label="Whisper device" htmlFor="d-wd">
+            <Select id="d-wd" value={form.default_whisper_device} onChange={(e) => setForm({ ...form, default_whisper_device: e.target.value })}>
+              <option value="cuda">CUDA GPU</option><option value="cpu">CPU</option><option value="auto">Auto</option>
+            </Select>
+          </Field>
         </div>
-      </div>
-
-      <form onSubmit={handleSave}>
-        <div className="settings-grid">
-          {/* API Keys */}
-          <div className="settings-section">
-            <h3>🔑 API Keys</h3>
-
-            <div className="form-group">
-              <label className="form-label">
-                Google Gemini API Key
-                {settings?.google_api_key_set && <span style={{ color: 'var(--success)', marginLeft: '8px' }}>✅ Set</span>}
-              </label>
-              <PasswordInput
-                value={googleKey}
-                onChange={setGoogleKey}
-                placeholder="Paste your Gemini API key"
-                isSet={settings?.google_api_key_set}
-              />
-              <p className="form-hint">
-                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style={{ color: 'var(--accent)' }}>Get free key →</a>
-              </p>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                Pexels API Key
-                {settings?.pexels_api_key_set && <span style={{ color: 'var(--success)', marginLeft: '8px' }}>✅ Set</span>}
-              </label>
-              <PasswordInput
-                value={pexelsKey}
-                onChange={setPexelsKey}
-                placeholder="For B-roll footage (optional)"
-                isSet={settings?.pexels_api_key_set}
-              />
-              <p className="form-hint">Required for B-roll stock footage</p>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                HuggingFace Token
-                {settings?.hf_token_set && <span style={{ color: 'var(--success)', marginLeft: '8px' }}>✅ Set</span>}
-              </label>
-              <PasswordInput
-                value={hfToken}
-                onChange={setHfToken}
-                placeholder="For split-screen mode (optional)"
-                isSet={settings?.hf_token_set}
-              />
-              <p className="form-hint">Required for speaker diarization</p>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                NVIDIA API Key
-                {settings?.nvidia_api_key_set && <span style={{ color: 'var(--success)', marginLeft: '8px' }}>✅ Set</span>}
-              </label>
-              <PasswordInput
-                value={nvidiaKey}
-                onChange={setNvidiaKey}
-                placeholder="For NVIDIA NIM provider (optional)"
-                isSet={settings?.nvidia_api_key_set}
-              />
-            </div>
-          </div>
-
-          {/* System Info */}
-          <div className="settings-section">
-            <h3>💻 System Info</h3>
-            <div className="form-group">
-              <label className="form-label" htmlFor="default-ai-provider">Default AI Provider</label>
-              <select id="default-ai-provider" className="form-select" value={defaultAiProvider} onChange={(e) => setDefaultAiProvider(e.target.value)}>
-                <option value="gemini">Google Gemini</option>
-                <option value="nvidia">NVIDIA NIM</option>
-                <option value="vllm">vLLM (Self-hosted)</option>
-              </select>
-              <p className="form-hint">Berlaku selama backend berjalan. Endpoint dan key vLLM dikonfigurasi di notebook/server.</p>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Model default vLLM</label>
-              <p style={{ fontSize: '12px', overflowWrap: 'anywhere' }}>{settings?.vllm_model || 'Gunakan konfigurasi server'}</p>
-              <p className="form-hint">Key vLLM: {settings?.vllm_api_key_set ? 'tersedia' : 'tidak disetel (opsional)'}. Status ini tidak memeriksa koneksi ke model.</p>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>GPU</span>
-                <span style={{ color: settings?.gpu_available ? 'var(--success)' : 'var(--text-tertiary)' }}>
-                  {settings?.gpu_available ? '✅ Available' : '⚪ Not available'}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Default Whisper</span>
-                <span>{settings?.default_whisper_model}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Default AI</span>
-                <span>{settings?.default_ai_provider}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Default Ratio</span>
-                <span>{settings?.default_ratio}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <YoutubeCookies settings={settings} onStatus={setSettings} />
-
-        {msg && (
-          <div style={{ marginTop: '16px', fontSize: '13px', color: msg.startsWith('✅') ? 'var(--success)' : 'var(--error)' }}>
-            {msg}
-          </div>
-        )}
-
-        <button type="submit" className="btn btn-primary" disabled={saving} style={{ marginTop: '20px' }}>
-          {saving ? <><span className="spinner"></span> Saving...</> : '💾 Save Settings'}
-        </button>
+        <div><Button type="submit" variant="primary" icon={Save} loading={busy}>Save defaults</Button></div>
       </form>
-    </div>
+    </Card>
   )
 }
 
-export default Settings
+function CookiesTab({ settings }) {
+  const toast = useToast()
+  const input = useRef(null)
+  const [busy, setBusy] = useState(false)
+  const s = settings.data
+
+  const upload = async (file) => {
+    if (!file) return
+    if (file.size > 1024 * 1024) { toast.error('cookies.txt must be under 1 MiB'); return }
+    setBusy(true)
+    try {
+      const status = await api.uploadCookies(file)
+      settings.setData((d) => ({ ...d, ...status }))
+      toast.success('YouTube cookies uploaded for this session')
+    } catch (err) {
+      toast.error(err.status === 422 ? 'That file is not a valid Netscape cookies.txt export.' : err.message)
+    } finally { setBusy(false) }
+  }
+  const remove = async () => {
+    setBusy(true)
+    try {
+      const status = await api.removeCookies()
+      settings.setData((d) => ({ ...d, ...status }))
+      toast.success('Uploaded cookies removed')
+    } catch (err) { toast.error(err.message) } finally { setBusy(false) }
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="YouTube cookies"
+        description="Some videos (age-restricted, members-only, or when YouTube asks to “confirm you’re not a bot”) need a signed-in session. Upload a Netscape-format cookies.txt export."
+        actions={s && <Badge tone={s.youtube_cookies_set ? 'success' : 'neutral'} dot>{s.youtube_cookies_uploaded ? 'Uploaded' : s.youtube_cookies_set ? 'Server file' : 'Not set'}</Badge>}
+      />
+      <input ref={input} type="file" accept=".txt,text/plain" hidden onChange={(e) => { upload(e.target.files?.[0]); e.target.value = '' }} />
+      <div className="row gap-sm wrap">
+        <Button variant="primary" icon={Upload} loading={busy} onClick={() => input.current?.click()}>Upload cookies.txt</Button>
+        {s?.youtube_cookies_uploaded && <Button variant="ghost" icon={Trash2} onClick={remove} disabled={busy}>Remove upload</Button>}
+      </div>
+      <p className="alert alert-warning" style={{ marginTop: 16 }}>Cookies grant access to your account. Use a secondary account, and only upload to a server you control.</p>
+    </Card>
+  )
+}

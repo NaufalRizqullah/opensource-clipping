@@ -1,4 +1,14 @@
 # Multi-stage build for smaller final image
+
+# ---- Dashboard (static React build, served by FastAPI) ----
+FROM node:22-alpine AS dashboard
+WORKDIR /dash
+COPY web/dashboard/package.json web/dashboard/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY web/dashboard/ ./
+RUN npm run build
+
+# ---- Python dependencies ----
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
@@ -43,6 +53,7 @@ RUN pip install --upgrade --no-cache-dir yt-dlp
 
 # Copy application code
 COPY . .
+COPY --from=dashboard /dash/dist /app/web/dashboard/dist
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser

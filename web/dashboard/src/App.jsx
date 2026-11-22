@@ -1,52 +1,72 @@
-import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
-import Dashboard from './pages/Dashboard'
-import NewJob from './pages/NewJob'
-import JobDetail from './pages/JobDetail'
-import Settings from './pages/Settings'
+import { Component, lazy, Suspense } from 'react'
+import { Route, Routes, Link } from 'react-router-dom'
+import { Loader2 } from 'lucide-react'
+import Layout from './components/Layout'
+import ConnectScreen from './components/ConnectScreen'
+import { useConnection } from './lib/connection'
+import Overview from './pages/Overview'
 
-function App() {
-  const location = useLocation()
+const Projects = lazy(() => import('./pages/Projects'))
+const NewProject = lazy(() => import('./pages/NewProject'))
+const ProjectDetail = lazy(() => import('./pages/ProjectDetail'))
+const ClipEditor = lazy(() => import('./pages/ClipEditor'))
+const SettingsPage = lazy(() => import('./pages/Settings'))
+const SystemPage = lazy(() => import('./pages/System'))
 
+function PageFallback() {
+  return <div className="page-loading" role="status" aria-label="Loading"><Loader2 className="spin" size={20} /></div>
+}
+
+class ErrorBoundary extends Component {
+  state = { error: null }
+  static getDerivedStateFromError(error) { return { error } }
+  render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <div className="empty" role="alert">
+        <h3>Something went wrong</h3>
+        <p>{String(this.state.error?.message || this.state.error)}</p>
+        <button className="btn btn-secondary btn-md" onClick={() => window.location.reload()}>Reload</button>
+      </div>
+    )
+  }
+}
+
+function NotFound() {
   return (
-    <div className="app-layout">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <h1>🎬 OSC Studio</h1>
-          <p>AI Auto-Clipper v1.0.7</p>
-        </div>
-        <nav className="sidebar-nav">
-          <NavLink to="/" end className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-            <span className="icon">📊</span>
-            Dashboard
-          </NavLink>
-          <NavLink to="/new" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-            <span className="icon">➕</span>
-            New Job
-          </NavLink>
-          <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-            <span className="icon">⚙️</span>
-            Settings
-          </NavLink>
-        </nav>
-        <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border-color)' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-            OpenSource Clipping
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="main-content">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/new" element={<NewJob />} />
-          <Route path="/job/:jobId" element={<JobDetail />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </main>
+    <div className="empty">
+      <p className="eyebrow">404</p>
+      <h3>Page not found</h3>
+      <p>The page you’re looking for doesn’t exist.</p>
+      <Link to="/" className="btn btn-primary btn-md">Back to overview</Link>
     </div>
   )
 }
 
-export default App
+export default function App() {
+  const { status } = useConnection()
+
+  if (status === 'checking') {
+    return <div className="boot" role="status"><Loader2 className="spin" size={22} /><span>Connecting to Studio…</span></div>
+  }
+  if (status !== 'ready') return <ConnectScreen />
+
+  const wrap = (el) => <ErrorBoundary><Suspense fallback={<PageFallback />}>{el}</Suspense></ErrorBoundary>
+
+  return (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route index element={wrap(<Overview />)} />
+        <Route path="projects" element={wrap(<Projects />)} />
+        <Route path="new" element={wrap(<NewProject />)} />
+        <Route path="projects/:jobId" element={wrap(<ProjectDetail />)} />
+        <Route path="projects/:jobId/clips/:rank" element={wrap(<ClipEditor />)} />
+        <Route path="settings" element={wrap(<SettingsPage />)} />
+        <Route path="system" element={wrap(<SystemPage />)} />
+        {/* Legacy dashboard links */}
+        <Route path="job/:jobId" element={wrap(<ProjectDetail />)} />
+        <Route path="*" element={<NotFound />} />
+      </Route>
+    </Routes>
+  )
+}

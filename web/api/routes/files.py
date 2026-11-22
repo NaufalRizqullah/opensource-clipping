@@ -13,6 +13,8 @@ from urllib.parse import quote
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 
+from .. import security
+
 router = APIRouter(tags=["files"])
 
 # Resolve absolute path to the project root (2 levels up from web/api/routes)
@@ -99,7 +101,7 @@ async def upload_video(file: UploadFile = File(...)) -> dict:
     return {
         "filename": safe_name,
         "size_mb": round(size_mb, 2),
-        "message": f"Upload berhasil: {safe_name} ({size_mb:.1f} MB)",
+        "message": f"Upload complete: {safe_name} ({size_mb:.1f} MB)",
     }
 
 
@@ -152,7 +154,7 @@ async def list_outputs(job_id: str) -> dict:
                 "filename": fname,
                 "size_bytes": size,
                 "size_mb": round(size / (1024 * 1024), 2),
-                "download_url": f"/api/outputs/{quote(job_id, safe='')}/{quote(fname, safe='')}",
+                "download_url": security.media_url(job_id, fname),
             })
 
     return {"job_id": job_id, "files": files, "total": len(files)}

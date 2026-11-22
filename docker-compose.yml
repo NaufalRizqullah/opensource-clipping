@@ -22,6 +22,9 @@ services:
       - VLLM_CONTEXT_LIMIT=${VLLM_CONTEXT_LIMIT:-}
       - VLLM_TIMEOUT=${VLLM_TIMEOUT:-900}
       - MAX_CONCURRENT_JOBS=${MAX_CONCURRENT_JOBS:-1}
+      # Strongly recommended whenever the port is reachable by others.
+      - OSC_API_TOKEN=${OSC_API_TOKEN:-}
+      - OSC_CORS_ORIGINS=${OSC_CORS_ORIGINS:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
@@ -34,8 +37,14 @@ services:
     #           count: 1
     #           capabilities: [gpu]
 
+  # Hot-reload dashboard for development only: docker compose --profile dev up
+  # (the backend image already serves the built dashboard on :8000).
   frontend:
+    profiles: ["dev"]
     build: ./web/dashboard
+    environment:
+      - VITE_API_PROXY=http://backend:8000
+      - VITE_POLLING=1
     container_name: osc-frontend
     ports:
       - "5173:5173"

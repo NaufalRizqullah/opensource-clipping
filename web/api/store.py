@@ -265,13 +265,13 @@ def finish_job(
         if clips is not None:
             job["clips"] = clips
         if job.get("cancel_requested"):
-            status, step, message = JobStatus.CANCELLED, "cancelled", "Job dibatalkan."
+            status, step, message = JobStatus.CANCELLED, "cancelled", "Project cancelled."
             error = None
         elif error:
             status, step, message = JobStatus.FAILED, "error", error
         else:
             status, step = JobStatus.COMPLETED, "done"
-            message = f"Selesai! {len(job.get('clips', []))} klip berhasil dirender."
+            message = f"Done — {len(job.get('clips', []))} clips rendered."
         job.update(
             status=status.value, error=error, updated_at=_now(),
             progress=JobProgressEvent(

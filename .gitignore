@@ -38,3 +38,6 @@ logs/
 
 # YouTube Tracker local database
 youtube_tracker/*.sqlite3
+
+# Node
+node_modules/
