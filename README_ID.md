@@ -108,6 +108,10 @@ WHISPER_COMPUTE_TYPE = "float32"
 >
 > Kami juga menyertakan `notebooks/Lib_OpenSource_Clipping.ipynb` sebagai template lengkap.
 
+Kedua notebook menyediakan sel **YouTube Cookies Setup** opsional. Setelah setup proyek, unggah ekspor `cookies.txt` berformat Netscape dan isi `YOUTUBE_COOKIES_FILE` dengan path filenya, misalnya `/content/cookies.txt` di Colab atau file dalam Input privat Kaggle. Nilai awal dibaca dari environment variable `OSC_YOUTUBE_COOKIES_FILE`; nilai kosong mempertahankan deteksi otomatis `youtube_cookies.txt`. Path yang diisi diprioritaskan dan harus menunjuk ke file yang tersedia. Jalankan ulang sel cookie setelah mengganti path. Simpan file cookie secara privat.
+
+Keduanya juga menyediakan pilihan **Gemini atau vLLM**. Sebelum instalasi dependency, isi `AI_PROVIDER = "vllm"` dan konfigurasi endpoint/model server aktif, atau gunakan `START_LOCAL_VLLM = True` untuk menyiapkan environment aplikasi/server Python 3.12 terpisah serta menjalankan pemeriksaan GPU, startup, dan evaluasi singkat. Gemini tetap menjadi pilihan bawaan; vLLM tidak memerlukan `GOOGLE_API_KEY`. Server lokal memakai Whisper CPU/int8 dan dilengkapi sel Stop. Lihat [setup provider notebook](docs/providers.md#quick-start-and-lib-notebooks).
+
 ---
 
 ## 🎬 Web Studio (GitHub Pages + Remote GPU)

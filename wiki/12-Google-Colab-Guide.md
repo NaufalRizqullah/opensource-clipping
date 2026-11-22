@@ -6,7 +6,9 @@ If you don't have a local GPU, Google Colab provides free access to NVIDIA T4 GP
 
 ## Quick Start (3 Cells)
 
-For the browser-based **Studio** on a Python 3.13 kernel, use the latest [Studio server notebook](../notebooks/kaggle-studio-server.ipynb). Its **Prepare Python 3.12** cell creates/reuses a separate interpreter before installing the application, without changing the kernel. It also includes optional local vLLM startup through `START_LOCAL_VLLM=True`; leave that off for Gemini/NVIDIA or an existing vLLM endpoint. See the [Studio guide](../docs/KAGGLE_STUDIO.md). The CLI examples below and other CLI notebooks do not include this bootstrap and still require a compatible application Python environment.
+For the browser-based **Studio** on a Python 3.13 kernel, use the latest [Studio server notebook](../notebooks/kaggle-studio-server.ipynb). Its **Prepare Python 3.12** cell creates/reuses a separate interpreter before installing the application, without changing the kernel. It also includes optional local vLLM startup through `START_LOCAL_VLLM=True`; leave that off for Gemini/NVIDIA or an existing vLLM endpoint. See the [Studio guide](../docs/KAGGLE_STUDIO.md). The three CLI cells below still require a compatible application Python environment.
+
+The [Quick Start](../notebooks/Quick_Start.ipynb) and [Lib](../notebooks/Lib_OpenSource_Clipping.ipynb) notebooks now include `AI_PROVIDER = "gemini"` or `"vllm"` before dependency installation. For an existing vLLM server, set its endpoint/model and optional authentication key; no Google API key is required. For a server in the same runtime, also enable `START_LOCAL_VLLM=True` and run Prepare followed by Start/Eval. This mode uses separate Python 3.12 application/server environments and Whisper CPU/int8. Gemini and external-server modes keep the notebook Python environment. Use the explicit Stop cell when finished. See [provider setup and runtime limitations](../docs/providers.md#quick-start-and-lib-notebooks).
 
 Open a new [Google Colab](https://colab.research.google.com/) notebook and set the Runtime to **T4 GPU**.
 

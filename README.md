@@ -110,6 +110,10 @@ WHISPER_COMPUTE_TYPE = "float32"
 >
 > We also include `notebooks/Lib_OpenSource_Clipping.ipynb` as a full-featured template.
 
+Both notebooks include an optional **YouTube Cookies Setup** cell. After project setup, upload a Netscape-format `cookies.txt` export and set `YOUTUBE_COOKIES_FILE` to its path, such as `/content/cookies.txt` in Colab or a file in a private Kaggle Input. The default reads `OSC_YOUTUBE_COOKIES_FILE` from the environment; an empty value retains automatic detection of `youtube_cookies.txt`. Explicit paths take priority and must point to an existing file. Re-run the cookie cell after changing the path. Keep cookie files private.
+
+Both also offer **Gemini or vLLM**. Before installing dependencies, set `AI_PROVIDER = "vllm"` and configure an existing endpoint/model, or enable `START_LOCAL_VLLM = True` to prepare separate Python 3.12 application/server environments and run the existing GPU preflight, startup, and short evaluation. Gemini remains the default; vLLM does not require `GOOGLE_API_KEY`. Local hosting uses Whisper CPU/int8 and includes an explicit Stop cell. See [notebook provider setup](docs/providers.md#quick-start-and-lib-notebooks).
+
 ---
 
 ## 🎬 Web Studio (GitHub Pages + Remote GPU)

@@ -8,6 +8,16 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.13]
+
+### Added
+- **Cookie file paths in CLI notebooks**: Quick Start and Lib expose `YOUTUBE_COOKIES_FILE`, defaulting to `OSC_YOUTUBE_COOKIES_FILE`, for a Netscape cookie export uploaded to Colab or attached as a private Kaggle Input. Explicit paths take priority and are checked before use; leaving the setting empty preserves automatic detection. Added usage instructions and regression coverage for both notebooks.
+- **vLLM alternative in CLI notebooks**: Quick Start and Lib now select Gemini (default) or vLLM, with endpoint/model/context/token/timeout settings and optional Colab/Kaggle Secrets. `START_LOCAL_VLLM=True` reuses the GPU preflight, temporary storage, Python 3.12 bootstrap, separate application/server environments, startup, evaluation, and managed stop helpers. Local hosting uses Whisper CPU/int8; external servers keep the user's Whisper settings. vLLM runs enable transcript chunking and do not require a Google API key. Added offline regressions and setup documentation; live notebook/GPU validation remains pending.
+
+### Fixed
+- **CLI notebook command construction**: Replaced shell continuation with a checked subprocess argument list so the provider and `--yt-cookies` reach `main.py`, including paths containing spaces. Cookie copies do not inherit read-only Input permissions.
+- **Optional notebook credentials**: Missing Colab/Kaggle optional secrets no longer block setup. Only the selected cloud provider requires its key; vLLM credentials remain in the process environment.
+
 ## [v1.16.12]
 
 ### Fixed

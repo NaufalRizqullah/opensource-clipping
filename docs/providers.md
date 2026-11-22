@@ -30,6 +30,20 @@ Studio offers vLLM, a model/alias field and an output-token budget in New Job. S
 
 Compose forwards the same variables to the backend and defaults its endpoint to `http://host.docker.internal:8001` using a host-gateway mapping. The server must listen on an interface reachable from the container; a loopback-only Kaggle helper is for same-host notebook processes. Set an explicit private endpoint for remote serving. Compose does not install/start a vLLM server.
 
+## Quick Start and Lib notebooks
+
+[Quick Start](../notebooks/Quick_Start.ipynb) and [Lib](../notebooks/Lib_OpenSource_Clipping.ipynb) expose the same provider settings before dependency installation. The default is `AI_PROVIDER = "gemini"` and `START_LOCAL_VLLM = False`.
+
+For an existing vLLM server, choose `AI_PROVIDER = "vllm"`, leave local startup disabled, and set `VLLM_BASE_URL`, `VLLM_MODEL`, `VLLM_CONTEXT_LIMIT`, `VLLM_MAX_TOKENS`, and `VLLM_TIMEOUT`. The endpoint must be reachable from the notebook and expose both `/v1` and `/tokenize`; loopback points to that notebook's runtime. Add `VLLM_API_KEY` to the environment or Colab/Kaggle Secrets only if required by the server. Google API keys are not required for this mode. Whisper settings remain user-controlled.
+
+For a server in the same notebook, also set `START_LOCAL_VLLM = True` before installing dependencies. This skips installation into the kernel. After credentials are configured, run **Prepare** to check the GPU, select temporary storage, bootstrap Python 3.12, and install the application with CPU Torch and vLLM into separate environments using the existing helpers. Run **Start/Eval** to start the configured model and evaluate one short transcript. Clipping stays blocked until both steps succeed. The preset has the same experimental Linux/GPU restrictions as the [Kaggle vLLM guide](KAGGLE_VLLM.md); actual execution in these two notebooks still needs Kaggle/Colab validation.
+
+The pipeline forwards the selected provider and cookie file as separate process arguments. For vLLM it enables `--vllm-chunk-transcript` to handle long transcripts in windows. Local hosting forces Whisper to CPU/int8 so it does not compete with the server for GPU memory. The application runs through its isolated interpreter, while Gemini and external-server mode use the notebook's Python environment. Existing application Python/dependency requirements still apply to those modes.
+
+Environment credentials take priority over Secrets, missing optional keys are tolerated, and only Gemini requires `GOOGLE_API_KEY`. Local vLLM generates an internal key in memory when none is available, retaining it across cell reruns without printing it or writing it to `.env`. The existing Gemini `.env` workflow is preserved.
+
+For another video with the same server, rerun only the cookie/pipeline cells. Set `STOP_LOCAL_VLLM = True` in the Stop cell after finishing; external servers are not stopped. Stop before reinstalling or changing model/key settings. The short evaluation is saved to `outputs/vllm-eval-short.json`; managed server logs remain under `logs/`. These notebook paths are covered by offline tests with fake Secrets, installers, processes, and inference; those tests do not start a real server.
+
 ## Request and failure behavior
 
 - Gemini keeps its Developer API `v1beta` route, schema dialect, retry policy and fallback model. NVIDIA keeps its NIM request fields, SDK retry defaults and existing Gemini fallback. The OpenAI SDK is now a main dependency, fixing the previously missing NIM import.
