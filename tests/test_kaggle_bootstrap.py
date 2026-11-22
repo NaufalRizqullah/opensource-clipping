@@ -70,7 +70,7 @@ def test_cpu_profile_installs_matching_triplet_and_keeps_it_on_reruns(monkeypatc
     monkeypatch.setattr(bootstrap.subprocess, "run", run)
     for _ in range(2):
         bootstrap.setup_environment(env_dir, torch_profile="cpu")
-    assert installs == [bootstrap.PROJECT_ROOT / "requirements-kaggle-cpu.txt"] * 2
+    assert installs == [bootstrap.PROJECT_ROOT / "requirements" / "requirements-kaggle-cpu.txt"] * 2
     wheel_pins = installs[0].read_text().splitlines()
     assert {"torch==2.5.1+cpu", "torchvision==0.20.1+cpu", "torchaudio==2.5.1+cpu",
             "-r requirements-kaggle.txt"}.issubset(wheel_pins)

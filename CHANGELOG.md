@@ -8,6 +8,11 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.14]
+
+### Changed
+- **Dependency file layout**: Kept the base `requirements.txt` at the repository root and moved specialized pip profiles and Kaggle constraints into `requirements/`, preserving filenames and package versions. Updated setup helpers, notebooks, tests, README guides, and Wiki references. Base installation remains `pip install -r requirements.txt`; the Kaggle profile includes it through `-r ../requirements.txt`. Added a directory guide describing each profile.
+
 ## [v1.16.13]
 
 ### Added

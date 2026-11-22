@@ -61,6 +61,8 @@ python main.py --url "https://youtube.com/watch?v=TEST_VIDEO" --clips 1 --no-bgm
 opensource-clipping/
 ├── main.py                  # CLI entry point
 ├── run_upload.py            # YouTube auto-uploader CLI
+├── requirements.txt         # Base Python dependencies
+├── requirements/            # Specialized profiles and Kaggle constraints
 ├── clipping/
 │   ├── config.py            # Master configuration & argparse
 │   ├── engine.py            # Download → Transcribe → Gemini AI

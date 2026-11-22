@@ -87,8 +87,9 @@ def test_setup_checks_native_imports_only_after_successful_dependency_checks(
     monkeypatch.setattr(helper, "require_platform", lambda: None)
     monkeypatch.setattr(helper, "validate_environment", lambda directory: None)
     monkeypatch.setattr(helper, "ensure_pip", lambda *args: None)
-    manifest = (REPO_ROOT / "requirements-vllm-kaggle.txt").read_text(encoding="utf-8")
-    (tmp_path / "requirements-vllm-kaggle.txt").write_text(manifest, encoding="utf-8")
+    manifest = (REPO_ROOT / "requirements/requirements-vllm-kaggle.txt").read_text(encoding="utf-8")
+    (tmp_path / "requirements").mkdir()
+    (tmp_path / "requirements/requirements-vllm-kaggle.txt").write_text(manifest, encoding="utf-8")
     stages = []
 
     def run(command, **kwargs):
@@ -126,7 +127,7 @@ def test_setup_checks_native_imports_only_after_successful_dependency_checks(
 
 
 def test_server_manifest_selects_cpu_codec_without_replacing_cuda_vllm():
-    manifest = (REPO_ROOT / "requirements-vllm-kaggle.txt").read_text(encoding="utf-8")
+    manifest = (REPO_ROOT / "requirements/requirements-vllm-kaggle.txt").read_text(encoding="utf-8")
     requirements = [line.strip() for line in manifest.splitlines()
                     if line.strip() and not line.lstrip().startswith("#")]
     codecs = [line for line in requirements if line.startswith("torchcodec @ ")]

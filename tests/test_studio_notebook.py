@@ -37,6 +37,8 @@ def notebook_context(monkeypatch, tmp_path):
     monkeypatch.setattr(kaggle_python, "urlopen", forbidden)
     monkeypatch.setattr(kaggle_studio, "urlopen", forbidden)
     monkeypatch.setattr(kaggle_python.os, "environ", {})
+    # The isolated environment has no Windows USERPROFILE; use a synthetic home.
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
     workspace = tmp_path / "working"
     project = workspace / "checkout"
     project.mkdir(parents=True)
@@ -155,7 +157,7 @@ def run_stop_cell(context):
 
 def prepare_local_files(context):
     for filename in ("scripts/kaggle_vllm.py", "scripts/kaggle_vllm_compat.py",
-                     "scripts/eval_local_llm.py", "requirements-vllm-kaggle.txt"):
+                     "scripts/eval_local_llm.py", "requirements/requirements-vllm-kaggle.txt"):
         path = context["PROJECT_DIR"] / filename
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("# Fake fixture; never executed\n", encoding="utf-8")

@@ -156,6 +156,8 @@ Keduanya juga menyediakan pilihan **Gemini atau vLLM**. Sebelum instalasi depend
 
 ## 🚀 Cara Cepat (Lokal)
 
+Dependency dasar tetap di `requirements.txt` pada root proyek. Profil khusus dan constraints dikumpulkan di [requirements/](requirements/README.md).
+
 ```bash
 # 1. Clone repo
 git clone https://github.com/your-username/opensource-clipping.git

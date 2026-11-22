@@ -42,7 +42,7 @@ Nomor baris adalah snapshot review dan dapat bergeser.
 | Gemini | `clipping/engine.py:1151`, retry 491–588 | Pertahankan API-key Developer API `v1beta`, schema, retry, fallback model |
 | Prompt | `clipping/engine.py:596` | Seluruh transkrip dalam satu prompt panjang; 23 field wajib per klip |
 | Voiceover | `clipping/voiceover.py:221`, `clipping/runner.py:187` | Script langsung memakai Gemini; belum mengikuti provider analisis |
-| Dependency | `requirements.txt`, `pyproject.toml`, `requirements-kaggle.txt` | `openai` belum ada di dua manifest utama, ada pada Kaggle |
+| Dependency | `requirements.txt`, `pyproject.toml`, `requirements/requirements-kaggle.txt` | `openai` belum ada di dua manifest utama, ada pada Kaggle |
 | CLI | `main.py:133` | Google key masih diwajibkan; menghalangi vLLM tanpa kredensial cloud |
 | Worker | `web/api/worker.py:97` | Pertahankan aturan cache bypass dan validasi NVIDIA/Gemini |
 | Metadata | `clipping/metadata.py:104` | Ada normalisasi timestamp, belum ada validasi rentang lengkap |
@@ -163,7 +163,7 @@ Timeout dapat menyisakan request yang sedang dikerjakan server; benchmark risiko
 | `web/api/routes/settings.py`, router provider | Setting operator, status/probe dan key masking |
 | `web/dashboard/src/pages/NewJob.jsx`, `Settings.jsx` | Form vLLM |
 | `docs/studio/new-job.html`, `settings.html` | Paritas Studio statis |
-| `requirements.txt`, `pyproject.toml`, `requirements-test.txt` | Client OpenAI versi kompatibel yang diuji; tanpa dependency server vLLM |
+| `requirements.txt`, `pyproject.toml`, `requirements/requirements-test.txt` | Client OpenAI versi kompatibel yang diuji; tanpa dependency server vLLM |
 | `docker-compose.yml`, `pytest.ini` | Profil GPU/CPU/network dan marker opt-in |
 
 Untuk Studio, `JobCreateRequest` memuat `vllm_model` dan `local_max_tokens` dengan validasi tipe/rentang. Base URL, key, dan context ceiling berasal dari operator, bukan endpoint arbitrer per job. Awali dengan env operator; UI editor endpoint menunggu kontrol akses dan URL validation.

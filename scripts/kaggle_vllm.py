@@ -221,12 +221,12 @@ def setup(env_dir: Path, version: str) -> None:
     if env_dir.resolve() in {(ROOT / ".cache/kaggle-studio/venv").resolve(), Path(sys.prefix).resolve()}:
         raise RuntimeError("Use a separate vLLM environment, never the Studio environment.")
     if version != DEFAULT_VERSION:
-        raise RuntimeError("This profile pins vLLM and Transformers together; update requirements-vllm-kaggle.txt to change versions.")
+        raise RuntimeError("This profile pins vLLM and Transformers together; update requirements/requirements-vllm-kaggle.txt to change versions.")
     if not env_dir.exists():
         venv.EnvBuilder(with_pip=False, system_site_packages=False).create(env_dir)
     validate_environment(env_dir)
     ensure_pip(env_dir, ROOT)
-    requirements = (ROOT / "requirements-vllm-kaggle.txt").read_text(encoding="utf-8")
+    requirements = (ROOT / "requirements" / "requirements-vllm-kaggle.txt").read_text(encoding="utf-8")
     with tempfile.TemporaryDirectory(prefix="clipping-vllm-") as directory:
         target = Path(directory) / "requirements.txt"
         target.write_text(requirements, encoding="utf-8")

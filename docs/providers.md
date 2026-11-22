@@ -73,7 +73,7 @@ For a CLI retry, start in a fresh working directory and pass the original URL wi
 Use the app environment, not the vLLM server environment, for tests:
 
 ```bash
-python -m pip install -r requirements-test.txt
+python -m pip install -r requirements/requirements-test.txt
 python -m pytest tests/test_provider_cloud_contracts.py tests/test_provider_metadata.py \
   tests/test_gemini_routing.py tests/test_worker.py tests/test_studio_logging.py \
   tests/test_vllm_provider.py tests/test_vllm_chunking.py tests/test_reuse_source_video.py \

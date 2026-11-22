@@ -1,7 +1,7 @@
 # Install only into the isolated environment created by scripts/kaggle_studio.py.
-# CLI dependencies remain in requirements.txt / pyproject.toml.
+# Base CLI dependencies are in requirements.txt / pyproject.toml at the repository root.
 -c constraints-kaggle.txt
--r requirements.txt
+-r ../requirements.txt
 
 # Extras used by Web Studio download/provider paths and its tunnel.
 yt-dlp[default]

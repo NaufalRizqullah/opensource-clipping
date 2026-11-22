@@ -158,6 +158,8 @@ The **Clipping Studio** is a browser-based dashboard hosted for free on **GitHub
 
 ## 🚀 Local Quick Start
 
+Base dependencies remain in `requirements.txt` at the repository root. Specialized profiles and constraints are grouped in [requirements/](requirements/README.md).
+
 ```bash
 # 1. Clone the repo
 git clone https://github.com/your-username/opensource-clipping.git

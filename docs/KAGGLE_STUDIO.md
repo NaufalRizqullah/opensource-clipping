@@ -76,7 +76,7 @@ The managed process uses `MPLBACKEND=Agg`. MediaPipe imports Matplotlib, but thi
 
 | Symptom | Action |
 | --- | --- |
-| `Error in sitecustomize` / `No module named 'wrapt'` | Kaggle's Python startup hook imports `wrapt` from the base standard-library path, even in an isolated venv. Rerun setup with the updated `requirements-kaggle.txt`, which includes `wrapt`. Early bootstrap warnings can occur before it is installed. Keep system site packages disabled. Studio disables Kaggle's automatic Gemini proxy hook to preserve its configured API-key/provider behavior. |
+| `Error in sitecustomize` / `No module named 'wrapt'` | Kaggle's Python startup hook imports `wrapt` from the base standard-library path, even in an isolated venv. Rerun setup with the updated `requirements/requirements-kaggle.txt`, which includes `wrapt`. Early bootstrap warnings can occur before it is installed. Keep system site packages disabled. Studio disables Kaggle's automatic Gemini proxy hook to preserve its configured API-key/provider behavior. |
 | `NGROK_AUTHTOKEN: not configured` / `NGROK_AUTHTOKEN is missing` | The server has not received the token. In Kaggle Add-ons → Secrets, use the exact label `NGROK_AUTHTOKEN` and attach/enable it for this notebook. Rerun Configure API Keys, confirm its status is `configured` (no value is printed), then rerun Start Backend Server. A Python variable alone is not exported to child processes. |
 | Readiness is 200, then `PyngrokNgrokHTTPError` / `tunnel.failed` | The backend passed readiness, but the ngrok agent rejected tunnel creation. Update the checkout to include the full upstream URL and v2/v3 HTTPS option fix, then rerun Start Backend Server. Check `error.http_status`, `error.ngrok_error_code`, and `error.agent_error_code` in `kaggle-studio.jsonl` if it still fails. The older generic exception alone does not establish an invalid token, account limit, or network problem; use the actual ngrok code to distinguish them. The code fix does not require rebuilding the ML environment. |
 | `ensurepip ... returned non-zero exit status 1` during venv creation | Update `scripts/kaggle_studio.py` to the repair revision and rerun the dependency setup cell. A valid partial venv is repaired in place; no clone, output deletion, or kernel package install is needed. The screenshot/error alone does not identify why that runtime's `ensurepip` failed. |
@@ -151,7 +151,7 @@ The tunnel exposes the existing Studio API, including settings and shutdown. No 
 
 ## Regression tests
 
-Use a separate local virtual environment, install `requirements-test.txt`, then run:
+Use a separate local virtual environment, install `requirements/requirements-test.txt`, then run:
 
 ```sh
 python -m pytest tests -q

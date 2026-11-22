@@ -247,7 +247,7 @@ def setup_environment(env_dir: Path, root: Path = PROJECT_ROOT, *, torch_profile
     requirements = "requirements-kaggle-cpu.txt" if torch_profile == "cpu" else "requirements-kaggle.txt"
     for stage, command in zip(("pip_upgrade", "dependencies", "pip_check"), (
         [python, "-m", "pip", "install", "--upgrade", "pip", "--index-url", "https://pypi.org/simple"],
-        [python, "-m", "pip", "install", "--upgrade", "-r", str(root / requirements),
+        [python, "-m", "pip", "install", "--upgrade", "-r", str(root / "requirements" / requirements),
          "--index-url", "https://pypi.org/simple"],
         [python, "-m", "pip", "check"],
     )):
