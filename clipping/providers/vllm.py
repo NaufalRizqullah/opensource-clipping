@@ -4,6 +4,7 @@ No vLLM/torch import belongs here: the model server has its own environment.
 """
 
 from copy import deepcopy
+import json
 import time
 
 from .base import (
@@ -299,6 +300,106 @@ class VllmProvider:
                 self.run_meta["duration_seconds"] = round(self._clock() - started, 3)
                 self._deadline = None
 
+    def _messages_fit(self, messages, max_tokens, stage, *, probe=False):
+        for attempt in range(MAX_ATTEMPTS):
+            try:
+                if probe:
+                    self.validate()
+                    probe = False
+                self._preflight_tokens(messages, max_tokens)
+                return True
+            except ContextOverflowError:
+                return False
+            except ProviderUnavailableError as exc:
+                self._record_failure(exc, attempt + 1, stage)
+                if not exc.retryable or attempt == MAX_ATTEMPTS - 1:
+                    raise
+                self._sleep(min(2 ** attempt, self._remaining()))
+            except ProviderError as exc:
+                self._record_failure(exc, attempt + 1, stage)
+                raise
+
+    def _generate_shortlist(self, full_messages, prompt, wrapped, transcript, source_end, min_duration, max_duration):
+        from .chunking import plan_windows
+        from .shortlist import choices_for, metadata_fields, metadata_messages, one_clip_schema, selection_messages
+
+        stage = "shortlist_planning"
+        meta = self.run_meta
+        meta.update(mode="chunked", strategy="shortlist", windows=[], chunks_total=0, chunks_completed=0,
+                    candidate_count=0)
+        try:
+            instructions, separator, tail = prompt.partition("\nTranskrip:\n")
+            if not separator or not tail.startswith(transcript) or tail[len(transcript):].strip():
+                raise ProviderConfigError("Shortlist memerlukan template dengan transkrip lengkap pada bagian Transkrip.")
+            self._messages_fit(full_messages, self.max_tokens, stage, probe=True)
+            meta["full_prompt_tokens"] = meta["prompt_tokens"]
+            choice_budget = min(128, self.max_tokens)
+
+            def fits(window):
+                options = choices_for(window, min_duration, max_duration)
+                if not options:
+                    # The planner can probe a short cue before extending it.
+                    return window.end - window.start < min_duration
+                return self._messages_fit(selection_messages(window, options), choice_budget, stage)
+
+            windows = plan_windows(transcript, fits, min_duration=min_duration, overlap_seconds=max_duration)
+            meta["chunks_total"] = len(windows)
+            stage = "shortlist_selection"
+            nominees = []
+            for index, window in enumerate(windows, 1):
+                self._remaining()
+                meta["active_chunk"] = index
+                options = choices_for(window, min_duration, max_duration)
+                if not options:
+                    raise ProviderConfigError("Bagian transkrip tidak dapat dibagi menjadi klip dengan durasi yang valid.")
+                messages = selection_messages(window, options)
+                schema = one_clip_schema({
+                    "choice": {"type": "integer", "enum": list(range(1, len(options) + 1))},
+                    "viral_score": {"type": "integer", "enum": list(range(1, 101))},
+                })
+                print(f"[vLLM] Bagian {index}/{len(windows)}: {window.start:.1f}–{window.end:.1f} detik, "
+                      f"{len(options)} pilihan.", flush=True)
+                choice, = self._generate(
+                    messages, max_tokens=choice_budget, temperature=0.4, top_p=1, schema=schema,
+                    parse=parse_clips, _shared_run=True, _validated=True, repair_messages=messages,
+                )
+                nominee = options[int(choice["choice"]) - 1]
+                nominees.append((nominee, choice["viral_score"]))
+                meta["windows"].append({"start": window.start, "end": window.end,
+                                        "prompt_tokens": meta["prompt_tokens"], "start_time": nominee.start,
+                                        "end_time": nominee.end, "viral_score": choice["viral_score"]})
+                meta.update(chunks_completed=index, candidate_count=index)
+            meta.pop("active_chunk")
+            excerpt, score = min(nominees, key=lambda item: (-item[1], item[0].start, item[0].end))
+            result = dict(rank=1, viral_score=score, start_time=excerpt.start, end_time=excerpt.end)
+            fields = wrapped["properties"]["clips"]["items"]["properties"]
+
+            for editing in (True, False):
+                stage = "edit_metadata" if editing else "publishing_metadata"
+                group = metadata_fields(fields, editing=editing)
+                messages = metadata_messages(instructions, excerpt, group, editing=editing, cfg=self.cfg)
+                print(f"[vLLM] {stage}: {excerpt.start:.1f}–{excerpt.end:.1f} detik.", flush=True)
+
+                def parse_group(content, response_schema):
+                    partial, = parse_clips(content, response_schema)
+                    validate_clips([result | partial], source_end=source_end, requested_clips=1,
+                                   min_duration=min_duration, max_duration=max_duration)
+                    return partial
+
+                result.update(self._generate(
+                    messages, max_tokens=self.max_tokens, temperature=0.5, top_p=1,
+                    schema=one_clip_schema(group), parse=parse_group, _shared_run=True, _validated=True,
+                ))
+            # Recheck the assembled object against the exact public contract.
+            clips = parse_clips(json.dumps({"clips": [result]}), wrapped)
+            self._remaining()
+            return clips
+        except ProviderError as exc:
+            meta.update(error_type=type(exc).__name__, error_stage=stage)
+            if "active_chunk" in meta:
+                meta["failed_chunk"] = meta.pop("active_chunk")
+            raise
+
     def _generate_chunked(self, prompt, wrapped, *, transcript, requested_clips,
                           min_duration, max_duration, source_end, system_message):
         from .chunking import duration_repair_options, plan_windows, select_candidates
@@ -351,23 +452,8 @@ class VllmProvider:
                 ]
 
             def fits(window):
-                for repair in (True, False):
-                    messages = messages_for(window, repair=repair)
-                    for attempt in range(MAX_ATTEMPTS):
-                        try:
-                            self._preflight_tokens(messages, self.max_tokens)
-                            break
-                        except ContextOverflowError:
-                            return False
-                        except ProviderUnavailableError as exc:
-                            self._record_failure(exc, attempt + 1, "chunk_planning")
-                            if not exc.retryable or attempt == MAX_ATTEMPTS - 1:
-                                raise
-                            self._sleep(min(2 ** attempt, self._remaining()))
-                        except ProviderError as exc:
-                            self._record_failure(exc, attempt + 1, "chunk_planning")
-                            raise
-                return True
+                return all(self._messages_fit(messages_for(window, repair=repair), self.max_tokens, stage)
+                           for repair in (True, False))
 
             windows = list(plan_windows(
                 transcript, fits, min_duration=min_duration, overlap_seconds=max_duration,
@@ -438,6 +524,9 @@ class VllmProvider:
     def generate_clips(self, prompt, schema, *, transcript, requested_clips, min_duration=20, max_duration=179):
         if not _positive_int(requested_clips):
             raise ProviderConfigError("Jumlah klip harus integer positif.")
+        shortlist = bool(getattr(self.cfg, "vllm_shortlist", False))
+        if shortlist and requested_clips != 1:
+            raise ProviderConfigError("Shortlist vLLM memerlukan tepat satu klip.")
         end = transcript_end(transcript)
         if end < min_duration:
             raise ProviderConfigError("Transkrip lebih pendek dari durasi minimum klip.")
@@ -460,23 +549,26 @@ class VllmProvider:
             {"role": "system", "content": system_message},
             {"role": "user", "content": _local_prompt(prompt)},
         ]
-        chunking = bool(getattr(self.cfg, "vllm_chunk_transcript", False))
+        chunking = shortlist or bool(getattr(self.cfg, "vllm_chunk_transcript", False))
         started = self._clock()
         if chunking:
             self._begin_run(started)
             self.run_meta["mode"] = "single_pass"
         try:
-            try:
-                options = {"_shared_run": True} if chunking else {}
-                result = self._generate(
-                    messages, max_tokens=self.max_tokens, temperature=0.5, top_p=1,
-                    schema=wrapped, parse=parse, **options,
-                )
-            except ContextOverflowError:
-                if (not chunking or self.run_meta.get("error_stage") != "tokenize"
-                        or self.run_meta.get("attempts") != 0):
-                    raise
-                result = None
+            if shortlist:
+                result = self._generate_shortlist(messages, prompt, wrapped, transcript, end, min_duration, max_duration)
+            else:
+                try:
+                    options = {"_shared_run": True} if chunking else {}
+                    result = self._generate(
+                        messages, max_tokens=self.max_tokens, temperature=0.5, top_p=1,
+                        schema=wrapped, parse=parse, **options,
+                    )
+                except ContextOverflowError:
+                    if (not chunking or self.run_meta.get("error_stage") != "tokenize"
+                            or self.run_meta.get("attempts") != 0):
+                        raise
+                    result = None
             # Leave the expected initial overflow out of any later error traceback.
             if result is None:
                 result = self._generate_chunked(

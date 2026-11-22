@@ -27,7 +27,8 @@ Complete reference for all command-line arguments. Run `python main.py --help` f
 | `--gemini-fallback-model` | `gemini-2.5-flash` | Fallback model if main model fails |
 | `--nvidia-model` | `deepseek-ai/deepseek-v4-pro` | Model name for NVIDIA NIM API |
 | `--vllm-model` | `VLLM_MODEL` or `google/gemma-4-E2B-it-qat-w4a16-ct` | Exact served model ID/alias |
-| `--vllm-chunk-transcript` | off | On initial context overflow, assess timestamped windows covering the whole transcript and select the highest-scoring non-overlapping candidates. Enabled in the Kaggle video test. |
+| `--vllm-chunk-transcript` | off | On initial context overflow, assess timestamped windows covering the whole transcript and select the highest-scoring non-overlapping candidates. |
+| `--vllm-shortlist` | off | With `--ai-provider vllm --clips 1`, score a choice per window, then generate editing and publishing metadata for the winning interval. Used by the Kaggle video test. |
 | `--local-base-url` | `VLLM_BASE_URL` or `http://127.0.0.1:8001` | vLLM server root, optional `/v1` suffix |
 | `--local-max-tokens` | `VLLM_MAX_TOKENS` or `4096` | Analysis output-token budget |
 | `--local-context-limit` | `VLLM_CONTEXT_LIMIT` or unset | Conservative client ceiling; does not increase server context |

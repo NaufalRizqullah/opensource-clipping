@@ -315,6 +315,125 @@ def _clip_fields(body):
     return clips["items"]["properties"]
 
 
+@pytest.fixture
+def shortlist_run(provider_factory, schema):
+    # Budget a seven-cue search window. The full video contains 18 consecutive
+    # 30-second cues, one of which identifies the best highlight at the very end.
+    transcript = "".join(f"[{i * 30} - {(i + 1) * 30}] private-caption-{i}\n" for i in range(18))
+
+    def configure(answer):
+        def count(messages):
+            return 512 + 1000 * len(_window_captions(messages))
+
+        state = provider_factory([], model_limit=8192, token_limit=8192, count=count,
+                                 max_tokens=2048, on_completion=answer)
+        state.cfg.vllm_chunk_transcript = True
+        state.cfg.vllm_shortlist = True
+
+        def run():
+            return state.provider.generate_clips(
+                f"Select a highlight.\nTranskrip:\n{transcript}\n", schema,
+                transcript=transcript, requested_clips=1,
+            )
+
+        return state, run
+
+    return configure
+
+
+@pytest.mark.parametrize("failure", [None, "hook-outside", "publishing-length"])
+def test_shortlist_reviews_entire_video_then_details_only_the_winner(shortlist_run, clip, failure):
+    reviewed_cues = set()
+    shortlist_requests = []
+    detail_requests = []
+
+    def answer(body, _call):
+        fields = _clip_fields(body)
+        ids = _window_captions(body["messages"])
+        assert ids
+        assert 512 + 1000 * len(ids) + body["max_tokens"] <= 8192
+        if "choice" in fields:
+            assert set(fields) == {"choice", "viral_score"}
+            assert body["max_tokens"] <= 128
+            assert not detail_requests
+            reviewed_cues.update(ids)
+            shortlist_requests.append(ids)
+            item = {"choice": max(fields["choice"]["enum"]), "viral_score": 98 if 17 in ids else 70}
+            return completion(json.dumps({"clips": [item]}))
+
+        # Full caption coverage precedes even the first metadata request.
+        assert reviewed_cues == set(range(18))
+        assert 17 in ids and 0 not in ids
+        assert not {"rank", "viral_score", "start_time", "end_time"}.intersection(fields)
+        start = min(ids) * 30
+        end = (max(ids) + 1) * 30
+        candidate = dict(clip, hook_start_time=start, hook_end_time=start + 2, keep_segments=[])
+        detail_requests.append((set(fields), set(ids)))
+        if failure == "hook-outside" and "hook_end_time" in fields:
+            candidate["hook_end_time"] = end + 1
+        item = {key: candidate[key] for key in fields}
+        truncated = failure == "publishing-length" and "title_inggris" in fields
+        return completion(json.dumps({"clips": [item]}), finish_reason="length" if truncated else "stop")
+
+    state, run = shortlist_run(answer)
+    if failure:
+        error = InvalidOutputError if failure == "hook-outside" else ContextOverflowError
+        with pytest.raises(error):
+            run()
+        assert state.cfg.ai_run_meta["status"] == "failed"
+        assert "returned_clips" not in state.cfg.ai_run_meta
+    else:
+        winner, = run()
+        assert len(detail_requests) == 2
+        (editing, first_cues), (publishing, second_cues) = detail_requests
+        assert not editing.intersection(publishing)
+        assert set(winner) == set(clip) == editing | publishing | {"rank", "viral_score", "start_time", "end_time"}
+        assert first_cues == second_cues
+        assert (winner["rank"], winner["viral_score"], winner["end_time"]) == (1, 98, 540)
+        assert first_cues == set(range(int(winner["start_time"] // 30), 18))
+        assert winner["title_inggris"] == clip["title_inggris"]
+        assert state.cfg.ai_run_meta["status"] == "completed"
+    meta = state.cfg.ai_run_meta
+    assert meta["strategy"] == "shortlist" and meta["mode"] == "chunked"
+    assert meta["chunks_total"] == meta["chunks_completed"] == len(shortlist_requests) > 1
+    assert meta["candidate_count"] == len(shortlist_requests)
+    assert "private-caption-" not in json.dumps(meta)
+
+
+@pytest.mark.parametrize("bad", ["truncated", "invalid-json", "unoffered"])
+def test_invalid_shortlist_choice_never_finishes_a_window(shortlist_run, bad):
+    def answer(body, call):
+        fields = _clip_fields(body)
+        choices = fields["choice"]["enum"]
+        item = {"choice": choices[0], "viral_score": 88}
+        if call == 1:
+            return completion(json.dumps({"clips": [item]}))
+        if bad == "invalid-json":
+            return completion('{"clips": [private-model-output')
+        if bad == "unoffered":
+            item["choice"] = max(choices) + 1
+        return completion(json.dumps({"clips": [item]}), finish_reason="length" if bad == "truncated" else "stop")
+
+    state, run = shortlist_run(answer)
+    with pytest.raises(ContextOverflowError if bad == "truncated" else InvalidOutputError):
+        run()
+    meta = state.cfg.ai_run_meta
+    assert meta["status"] == "failed" and meta["failed_chunk"] == 2
+    assert meta["chunks_completed"] == meta["candidate_count"] == 1
+    assert "returned_clips" not in meta
+    assert "private-model-output" not in json.dumps(meta)
+
+
+def test_shortlist_uses_compact_request_even_when_full_prompt_fits(provider_factory, schema):
+    state = provider_factory([completion('{"clips":[', finish_reason="length")])
+    state.cfg.vllm_chunk_transcript = state.cfg.vllm_shortlist = True
+    with pytest.raises(ContextOverflowError):
+        generate(state, schema, prompt=f"Select one clip.\nTranskrip:\n{TRANSCRIPT}")
+    first, = state.completions
+    assert set(_clip_fields(first)) == {"choice", "viral_score"}
+    assert state.cfg.ai_run_meta["chunks_completed"] == 0
+
+
 def _window_reply(clip, start, end, *, score=75, **changes):
     candidate = dict(clip, start_time=start, end_time=end, hook_start_time=start,
                      hook_end_time=start + 2, keep_segments=[], viral_score=score)

@@ -470,6 +470,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--vllm-model", default=None, help="vLLM served model/alias (default: VLLM_MODEL or Gemma 4 E2B QAT 4-bit).")
     p.add_argument("--vllm-chunk-transcript", action="store_true",
                    help="Analyze the full transcript in sections if it exceeds the vLLM context limit.")
+    p.add_argument("--vllm-shortlist", action="store_true",
+                   help="Score candidates across the full transcript, then generate metadata for one winning clip.")
     p.add_argument("--local-base-url", dest="vllm_base_url", default=None, help="vLLM service URL, with optional /v1 (default: VLLM_BASE_URL or http://127.0.0.1:8001).")
     p.add_argument("--local-max-tokens", type=int, default=None, help="vLLM output token budget (default: VLLM_MAX_TOKENS or 4096).")
     p.add_argument("--local-context-limit", dest="vllm_context_limit", type=int, default=None, help="Optional vLLM client context ceiling; cannot increase server capacity.")
@@ -768,6 +770,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
     # Validate: --url is required
     if not args.url:
         parser.error("--url is required.")
+    if args.vllm_shortlist and (args.ai_provider != "vllm" or args.clips != 1):
+        parser.error("--vllm-shortlist requires --ai-provider vllm and --clips 1.")
 
     # Normalize URL list for batch support
     url_list = args.url if isinstance(args.url, list) else ([args.url] if args.url else [])
@@ -902,7 +906,8 @@ def build_config(argv: list[str] | None = None) -> SimpleNamespace:
         whisper_compute_type=args.whisper_compute_type,
         # AI
         ai_provider=args.ai_provider,
-        vllm_chunk_transcript=args.vllm_chunk_transcript,
+        vllm_chunk_transcript=args.vllm_chunk_transcript or args.vllm_shortlist,
+        vllm_shortlist=args.vllm_shortlist,
         api_key_nvidia=os.environ.get("NVIDIA_API_KEY", ""),
         nvidia_model=args.nvidia_model,
         gemini_model=args.gemini_model,

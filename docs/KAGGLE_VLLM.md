@@ -77,11 +77,11 @@ Analisis vLLM tidak fallback ke cloud. Jika voiceover CLI diaktifkan, pembuatan 
 
 ```python
 VLLM_MODEL = "Qwen/Qwen3-4B-AWQ"
-CONTEXT_LIMIT = 8192
-OUTPUT_TOKENS = 2048
+CONTEXT_LIMIT = 16384
+OUTPUT_TOKENS = 4096
 ```
 
-Ini titik awal untuk evaluasi, belum hasil pengujian kapasitas atau kualitas Qwen pada T4. Helper tetap menggunakan satu GPU. Setelah mengganti konfigurasi, hentikan server lama, jalankan sel konfigurasi, lalu Start dan Eval; pada notebook Studio, jalankan kembali sel gabungan setup/start/eval. Pilih model yang sama pada form job Studio. Jatah input dan output bersama-sama harus muat dalam context server.
+Anggaran konteks dan jawaban ini menyamai uji Gemma sebelumnya. Kapasitas dan kualitas Qwen pada T4 masih perlu dibuktikan di Kaggle. Di sesi yang sama, hentikan server dari sel 9, jalankan ulang sel 3 dengan nama model Qwen, lalu jalankan sel 5, 6 dan 6b. Environment yang sudah terpasang dapat dipakai kembali. Jika server gagal memuat konteks 16.384 karena kapasitas GPU, coba 8.192 dan jalankan ulang Start dan Eval sebelum video. Hasil uji pendek dan hasil render dicatat terpisah.
 
 Helper memilih parser `gemma4` untuk keluarga resmi `google/gemma-4-...` dan `qwen3` untuk keluarga resmi `Qwen/Qwen3-<ukuran>...` yang dikenali. Keduanya mempertahankan `enable_thinking=false`. Keluarga lain seperti Qwen3.5, Qwen3-Next, Qwen3-VL, atau alias kustom tidak otomatis mewarisi parser Gemma. Untuk model kustom, gunakan flag helper `--reasoning-parser NAMA` sesuai model atau `--reasoning-parser none` untuk menghilangkan flag tersebut. Nama parser mengikuti [registry vLLM 0.32.0](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/reasoning/__init__.py).
 
@@ -100,9 +100,9 @@ Helper memilih parser `gemma4` untuk keluarga resmi `google/gemma-4-...` dan `qw
 | 401/403 dari Hugging Face | Pastikan akun menerima ketentuan model dan `HF_TOKEN` memiliki akses; ulangi konfigurasi secrets. |
 | 401 dari server vLLM | Aplikasi dan server harus memakai key yang sama. Setelah perubahan key/kernel restart, Stop lalu Start dengan konfigurasi baru. |
 | OOM saat startup | Hentikan proses GPU lain. Coba context 8192, tetap satu sequence/eager. Input + output harus muat; mengurangi output juga mungkin diperlukan. RAM sistem atau disk yang habis memerlukan pengurangan beban/sesi yang lebih besar. |
-| Context overflow | Sel 6b memakai `--vllm-chunk-transcript`. Misalnya prompt 24.486 dan anggaran output 4.096 membutuhkan 28.582 token untuk satu permintaan. Pada konteks 16.384, sel membagi seluruh transkrip berdasarkan hitungan tokenizer server, lalu memilih kandidat dengan skor tertinggi dari semua bagian yang berhasil. Jika instruksi dan bagian minimum sekalipun tidak muat atau timeout tercapai, lihat `outputs/ai_run_meta.json` pada folder percobaan. |
-| `Durasi klip harus 20-179 detik` setelah log `Bagian ...` | Saat uji satu highlight, provider mencoba lagi di bagian yang gagal. Ia mengusulkan waktu mulai dari subtitle di dekat momen pilihan model dan menawarkan waktu akhir yang memenuhi batas durasi. Model memilih akhir dan menyusun ulang metadata. Jika uji tetap berhenti, periksa `failed_chunk` serta `failures` di `outputs/ai_run_meta.json` folder percobaan. Isi `REUSE_SOURCE_VIDEO` dengan MP4 dari percobaan itu untuk mengulang analisis dari awal dengan media dan subtitle yang sama. |
-| Output terpotong / JSON atau timestamp tidak valid | Kurangi jumlah klip, tinjau report eval, atau sesuaikan budget output dan context bersama-sama. Perbaikan output dibatasi; hasil tidak diam-diam dipotong/clamp menjadi klip lain. |
+| Prompt penuh melampaui batas konteks | Sel 6b memakai `--vllm-shortlist`. Tokenizer server mengukur setiap bagian beserta anggaran jawabannya. Model menilai kandidat dari seluruh transkrip, lalu membuat metadata penyuntingan dan publikasi untuk satu pemenang. |
+| `Durasi klip harus 20-179 detik` setelah log `Bagian ...` | Pada mode `--vllm-chunk-transcript` dengan satu klip, provider mencoba lagi di bagian yang gagal. Ia mengusulkan waktu mulai dari subtitle di dekat momen pilihan model dan menawarkan waktu akhir yang memenuhi batas durasi. Model memilih akhir dan menyusun ulang metadata. Jika uji tetap berhenti, periksa `failed_chunk` serta `failures` di `outputs/ai_run_meta.json` folder percobaan. Isi `REUSE_SOURCE_VIDEO` dengan MP4 dari percobaan itu untuk mengulang analisis dari awal dengan media dan subtitle yang sama. |
+| Output terpotong pada batas token | Server berhenti dengan `finish_reason=length` sebelum mengembalikan JSON lengkap. Pada sel 6b, setiap bagian hanya mengembalikan nomor kandidat dan skor. Jika hasil masih terpotong, lihat `error_stage` pada diagnostik sel dan `usage` di `outputs/ai_run_meta.json` untuk membedakan tahap pemilihan, penyuntingan dan publikasi. |
 | Port 8001 sibuk / setting server berubah | Jalankan `stop` untuk server yang dikelola helper. Proses lain tidak diadopsi atau dimatikan otomatis; pilih port lain dan perbarui `VLLM_BASE_URL`. |
 | Studio siap tetapi job gagal | Periksa log tahap job; readiness Studio tidak menguji inference vLLM. Jalankan fixture eval terlebih dahulu. |
 

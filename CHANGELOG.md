@@ -8,6 +8,10 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.16.11]
+
+- The Kaggle single-video test uses `--vllm-shortlist` to score candidate intervals across the full transcript. Only the selected interval needs editing and publishing metadata, reducing the amount of JSON the model must produce for each window.
+
 ## [v1.16.10]
 
 - In the Kaggle full-video test, vLLM can retry an invalid clip duration with a nearby subtitle start and a choice of valid subtitle endings. The retry regenerates clip metadata and records the rejected timestamps in `ai_run_meta.json`.
