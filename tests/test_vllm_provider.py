@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import socket
 import sys
 from types import ModuleType, SimpleNamespace
@@ -81,7 +82,7 @@ def provider_factory():
     def create(outcomes, *, base_url="http://inference.test:8001", key="synthetic-local-key",
                model_limit=8192, token_limit=8192, count=64, context=None,
                max_tokens=512, timeout=900, models_status=200, tokenize_status=200,
-               model_outcomes=None, token_outcomes=None):
+               model_outcomes=None, token_outcomes=None, on_completion=None):
         state = SimpleNamespace(requests=[], completions=[], tokens=[], remaining=deque(outcomes),
                                 time=0.0, delays=[], model_outcomes=deque(model_outcomes or []),
                                 token_outcomes=deque(token_outcomes or []))
@@ -105,9 +106,12 @@ def provider_factory():
                 state.tokens.append(json.loads(request.content))
                 if state.token_outcomes:
                     return response_for(state.token_outcomes.popleft())
-                return httpx.Response(tokenize_status, json={"count": count, "max_model_len": token_limit})
+                tokens = count(state.tokens[-1]["messages"]) if callable(count) else count
+                return httpx.Response(tokenize_status, json={"count": tokens, "max_model_len": token_limit})
             assert path.endswith("/v1/chat/completions"), str(request.url)
             state.completions.append(json.loads(request.content))
+            if on_completion is not None:
+                return response_for(on_completion(state.completions[-1], len(state.completions)))
             assert state.remaining, "Unexpected SDK retry or extra completion request"
             return response_for(state.remaining.popleft())
 
@@ -214,6 +218,332 @@ def test_prompt_exhausting_context_reports_required_capacity_before_inference(pr
 def test_exact_context_budget_is_accepted(provider_factory, schema, clip):
     state = provider_factory([completion(json.dumps({"clips": [clip]}))], count=512, token_limit=1024)
     assert generate(state, schema) == [clip]
+
+
+@pytest.mark.parametrize("fail_second_window", [False, True], ids=["whole-video", "partial-failure"])
+def test_long_source_uses_model_tokenizer_and_commits_only_complete_analysis(
+    provider_factory, schema, clip, fail_second_window,
+):
+    # Simulate the served model counting 1,000 tokens per caption and 512 for
+    # the instructions/template. Only the server knows the size of each caption.
+    def source_ids(messages):
+        return [
+            int(i) for message in messages
+            for i in re.findall(r"caption-(\d+)", message["content"])
+        ]
+
+    def token_count(messages):
+        return 512 + 1000 * len(source_ids(messages))
+
+    def answer(body, call_number):
+        if fail_second_window and call_number == 2:
+            return 401, {"error": {"message": "sensitive server response"}}
+        final_id = max(source_ids(body["messages"]))
+        start = 120 * final_id
+        candidate = dict(
+            clip, start_time=start, end_time=start + 30, hook_start_time=start,
+            hook_end_time=start + 3, keep_segments=[], viral_score=99 if final_id == 49 else 75,
+        )
+        return completion(json.dumps({"clips": [candidate]}))
+
+    state = provider_factory(
+        [], model_limit=16384, token_limit=16384, count=token_count, max_tokens=4096,
+        on_completion=answer,
+    )
+    state.cfg.vllm_chunk_transcript = True
+    transcript = "".join(f"[{120*i} - {120*(i+1)}] caption-{i}\n" for i in range(50))
+    args = (f"Select one highlight.\nTranskrip:\n{transcript}\n", schema)
+    kwargs = dict(transcript=transcript, requested_clips=1)
+    if fail_second_window:
+        with pytest.raises(ProviderConfigError, match="Autentikasi"):
+            state.provider.generate_clips(*args, **kwargs)
+    else:
+        winner, = state.provider.generate_clips(*args, **kwargs)
+        assert (winner["start_time"], winner["viral_score"], winner["rank"]) == (120 * 49, 99, 1)
+
+    covered = set()
+    for previous, current in zip(state.requests, state.requests[1:]):
+        if not current.url.path.endswith("/chat/completions"):
+            continue
+        sent, measured = json.loads(current.content), json.loads(previous.content)
+        assert previous.url.path.endswith("/tokenize")
+        assert measured["messages"] == sent["messages"]
+        assert measured["chat_template_kwargs"] == sent["chat_template_kwargs"]
+        assert token_count(measured["messages"]) + sent["max_tokens"] <= 16384
+        covered.update(source_ids(sent["messages"]))
+
+    meta = state.cfg.ai_run_meta
+    assert meta["mode"] == "chunked" and meta["full_prompt_tokens"] == 50512
+    assert meta["chunks_total"] > 1 and meta["attempts"] == len(state.completions)
+    assert len(meta["windows"]) == meta["chunks_completed"]
+    for record, request in zip(meta["windows"], state.completions):
+        ids = source_ids(request["messages"])
+        assert (record["start"], record["end"]) == (120 * min(ids), 120 * (max(ids) + 1))
+        assert record["prompt_tokens"] == token_count(request["messages"])
+    assert "caption-" not in json.dumps(meta)
+    if fail_second_window:
+        assert meta["status"] == "failed" and meta["failed_chunk"] == 2
+        assert meta["chunks_completed"] == 1 and meta["candidate_count"] == 1
+        assert "returned_clips" not in meta and len(state.completions) == 2
+    else:
+        assert covered == set(range(50))
+        assert meta["status"] == "completed" and meta["returned_clips"] == 1
+        assert meta["chunks_completed"] == meta["chunks_total"] == len(state.completions)
+        assert meta["candidate_count"] == len(meta["usage"]) == len(state.completions)
+
+
+@pytest.mark.parametrize("finish_reason", ["stop", "length"])
+def test_opt_in_fitting_prompt_stays_one_request(provider_factory, schema, clip, finish_reason):
+    state = provider_factory([completion(json.dumps({"clips": [clip]}), finish_reason=finish_reason)])
+    state.cfg.vllm_chunk_transcript = True
+    if finish_reason == "length":
+        with pytest.raises(ContextOverflowError, match="terpotong"):
+            generate(state, schema)
+    else:
+        assert generate(state, schema) == [clip]
+    assert state.cfg.ai_run_meta["mode"] == "single_pass"
+    assert len(state.tokens) == len(state.completions) == 1
+
+
+def _window_captions(messages):
+    return [int(index) for message in messages
+            for index in re.findall(r"private-caption-(\d+)", message["content"])]
+
+
+def _clip_fields(body):
+    clips = body["response_format"]["json_schema"]["schema"]["properties"]["clips"]
+    return clips["items"]["properties"]
+
+
+@pytest.fixture
+def shortlist_run(provider_factory, schema):
+    # Budget a seven-cue search window. The full video contains 18 consecutive
+    # 30-second cues, one of which identifies the best highlight at the very end.
+    transcript = "".join(f"[{i * 30} - {(i + 1) * 30}] private-caption-{i}\n" for i in range(18))
+
+    def configure(answer):
+        def count(messages):
+            return 512 + 1000 * len(_window_captions(messages))
+
+        state = provider_factory([], model_limit=8192, token_limit=8192, count=count,
+                                 max_tokens=2048, on_completion=answer)
+        state.cfg.vllm_chunk_transcript = True
+        state.cfg.vllm_shortlist = True
+
+        def run():
+            return state.provider.generate_clips(
+                f"Select a highlight.\nTranskrip:\n{transcript}\n", schema,
+                transcript=transcript, requested_clips=1,
+            )
+
+        return state, run
+
+    return configure
+
+
+@pytest.mark.parametrize("failure", [None, "hook-outside", "publishing-length"])
+def test_shortlist_reviews_entire_video_then_details_only_the_winner(shortlist_run, clip, failure):
+    reviewed_cues = set()
+    shortlist_requests = []
+    detail_requests = []
+
+    def answer(body, _call):
+        fields = _clip_fields(body)
+        ids = _window_captions(body["messages"])
+        assert ids
+        assert 512 + 1000 * len(ids) + body["max_tokens"] <= 8192
+        if "choice" in fields:
+            assert set(fields) == {"choice", "viral_score"}
+            assert body["max_tokens"] <= 128
+            assert not detail_requests
+            reviewed_cues.update(ids)
+            shortlist_requests.append(ids)
+            item = {"choice": max(fields["choice"]["enum"]), "viral_score": 98 if 17 in ids else 70}
+            return completion(json.dumps({"clips": [item]}))
+
+        # Full caption coverage precedes even the first metadata request.
+        assert reviewed_cues == set(range(18))
+        assert 17 in ids and 0 not in ids
+        assert not {"rank", "viral_score", "start_time", "end_time"}.intersection(fields)
+        start = min(ids) * 30
+        end = (max(ids) + 1) * 30
+        candidate = dict(clip, hook_start_time=start, hook_end_time=start + 2, keep_segments=[])
+        detail_requests.append((set(fields), set(ids)))
+        if failure == "hook-outside" and "hook_end_time" in fields:
+            candidate["hook_end_time"] = end + 1
+        item = {key: candidate[key] for key in fields}
+        truncated = failure == "publishing-length" and "title_inggris" in fields
+        return completion(json.dumps({"clips": [item]}), finish_reason="length" if truncated else "stop")
+
+    state, run = shortlist_run(answer)
+    if failure:
+        error = InvalidOutputError if failure == "hook-outside" else ContextOverflowError
+        with pytest.raises(error):
+            run()
+        assert state.cfg.ai_run_meta["status"] == "failed"
+        assert "returned_clips" not in state.cfg.ai_run_meta
+    else:
+        winner, = run()
+        assert len(detail_requests) == 2
+        (editing, first_cues), (publishing, second_cues) = detail_requests
+        assert not editing.intersection(publishing)
+        assert set(winner) == set(clip) == editing | publishing | {"rank", "viral_score", "start_time", "end_time"}
+        assert first_cues == second_cues
+        assert (winner["rank"], winner["viral_score"], winner["end_time"]) == (1, 98, 540)
+        assert first_cues == set(range(int(winner["start_time"] // 30), 18))
+        assert winner["title_inggris"] == clip["title_inggris"]
+        assert state.cfg.ai_run_meta["status"] == "completed"
+    meta = state.cfg.ai_run_meta
+    assert meta["strategy"] == "shortlist" and meta["mode"] == "chunked"
+    assert meta["chunks_total"] == meta["chunks_completed"] == len(shortlist_requests) > 1
+    assert meta["candidate_count"] == len(shortlist_requests)
+    assert "private-caption-" not in json.dumps(meta)
+
+
+@pytest.mark.parametrize("bad", ["truncated", "invalid-json", "unoffered"])
+def test_invalid_shortlist_choice_never_finishes_a_window(shortlist_run, bad):
+    def answer(body, call):
+        fields = _clip_fields(body)
+        choices = fields["choice"]["enum"]
+        item = {"choice": choices[0], "viral_score": 88}
+        if call == 1:
+            return completion(json.dumps({"clips": [item]}))
+        if bad == "invalid-json":
+            return completion('{"clips": [private-model-output')
+        if bad == "unoffered":
+            item["choice"] = max(choices) + 1
+        return completion(json.dumps({"clips": [item]}), finish_reason="length" if bad == "truncated" else "stop")
+
+    state, run = shortlist_run(answer)
+    with pytest.raises(ContextOverflowError if bad == "truncated" else InvalidOutputError):
+        run()
+    meta = state.cfg.ai_run_meta
+    assert meta["status"] == "failed" and meta["failed_chunk"] == 2
+    assert meta["chunks_completed"] == meta["candidate_count"] == 1
+    assert "returned_clips" not in meta
+    assert "private-model-output" not in json.dumps(meta)
+
+
+def test_shortlist_uses_compact_request_even_when_full_prompt_fits(provider_factory, schema):
+    state = provider_factory([completion('{"clips":[', finish_reason="length")])
+    state.cfg.vllm_chunk_transcript = state.cfg.vllm_shortlist = True
+    with pytest.raises(ContextOverflowError):
+        generate(state, schema, prompt=f"Select one clip.\nTranskrip:\n{TRANSCRIPT}")
+    first, = state.completions
+    assert set(_clip_fields(first)) == {"choice", "viral_score"}
+    assert state.cfg.ai_run_meta["chunks_completed"] == 0
+
+
+def _window_reply(clip, start, end, *, score=75, **changes):
+    candidate = dict(clip, start_time=start, end_time=end, hook_start_time=start,
+                     hook_end_time=start + 2, keep_segments=[], viral_score=score)
+    candidate.update(changes)
+    return completion(json.dumps({"clips": [candidate]}))
+
+
+@pytest.fixture
+def chunk_duration_run(provider_factory, schema):
+    def prepare(answer, *, cue_seconds=60, requested=1):
+        # Six cues, four fit at once. Every initial window is long enough that
+        # a duration error can occur even when both endpoints are in bounds.
+        def count(messages):
+            return 100 + 1000 * len(_window_captions(messages))
+
+        state = provider_factory([], model_limit=5500, token_limit=5500, count=count,
+                                 max_tokens=512, on_completion=answer)
+        state.cfg.vllm_chunk_transcript = True
+        transcript = "".join(
+            f"[{i * cue_seconds} - {(i + 1) * cue_seconds}] private-caption-{i}\n"
+            for i in range(6)
+        )
+
+        def run():
+            return state.provider.generate_clips(
+                f"Select a highlight.\nTranskrip:\n{transcript}\n", schema,
+                transcript=transcript, requested_clips=requested,
+            )
+
+        return state, run
+
+    return prepare
+
+
+@pytest.mark.parametrize("bad_duration", [5, 200], ids=["too-short", "too-long"])
+def test_later_window_retries_with_legal_source_times(chunk_duration_run, clip, bad_duration):
+    def answer(body, call):
+        cues = _window_captions(body["messages"])
+        if call == 1:
+            return _window_reply(clip, 0, 30)
+        if call == 2:
+            start = 60 * min(cues) + 1
+            assert start > 0 and start + bad_duration <= 60 * (1 + max(cues))
+            return _window_reply(clip, start, start + bad_duration)
+        assert call == 3
+        properties = _clip_fields(body)
+        start, = properties["start_time"]["enum"]
+        ends = properties["end_time"]["enum"]
+        original = _window_captions(state.completions[1]["messages"])
+        assert start in [60 * cue for cue in original]
+        assert ends and all(end in [60 * (cue + 1) for cue in original] and
+                            20 <= end - start <= 179 for end in ends)
+        assert set(cues) and set(cues) < set(original)
+        return _window_reply(clip, start, ends[-1], score=99)
+
+    state, run = chunk_duration_run(answer)
+    winner, = run()
+    assert winner["viral_score"] == 99 and winner["start_time"] > 0
+    meta = state.cfg.ai_run_meta
+    assert meta["status"] == "completed"
+    assert meta["chunks_total"] == meta["chunks_completed"] == meta["candidate_count"] == 2
+    assert len(state.completions) == meta["attempts"] == 3
+    rejected = next(f for f in meta["failures"] if f.get("chunk") == 2)
+    assert rejected["duration_seconds"] == rejected["proposed_end"] - rejected["proposed_start"] == bad_duration
+    assert "private-caption-" not in json.dumps(meta)
+
+
+@pytest.mark.parametrize("invalid_repair", ["nested", "unoffered-end"])
+def test_duration_repair_checks_schema_and_nested_timestamps(chunk_duration_run, clip, invalid_repair):
+    def answer(body, call):
+        if call == 1:
+            return _window_reply(clip, 0, 30)
+        if call == 2:
+            start = 60 * min(_window_captions(body["messages"])) + 1
+            return _window_reply(clip, start, start + 5)
+        assert 3 <= call <= 4
+        properties = _clip_fields(body)
+        start, = properties["start_time"]["enum"]
+        end = properties["end_time"]["enum"][0]
+        if invalid_repair == "unoffered-end":
+            assert start + 30 not in properties["end_time"]["enum"]
+            return _window_reply(clip, start, start + 30)
+        return _window_reply(clip, start, end, hook_end_time=end + 1)
+
+    state, run = chunk_duration_run(answer)
+    with pytest.raises(InvalidOutputError):
+        run()
+    meta = state.cfg.ai_run_meta
+    assert meta["status"] == "failed" and meta["failed_chunk"] == 2
+    assert meta["chunks_completed"] == meta["candidate_count"] == 1
+    assert "returned_clips" not in meta and len(state.completions) == 4
+
+
+@pytest.mark.parametrize(("cue_seconds", "requested"), [(200, 1), (60, 2)],
+                         ids=["no-legal-cue-end", "multiple-clips-requested"])
+def test_non_applicable_duration_repair_preserves_full_window_retry(chunk_duration_run, clip, cue_seconds, requested):
+    def answer(body, call):
+        if call == 1:
+            return _window_reply(clip, 0, 30)
+        cues = _window_captions(body["messages"])
+        start = cue_seconds * min(cues) + 1
+        if call == 2:
+            return _window_reply(clip, start, start + 5)
+        assert call == 3 and cues == _window_captions(state.completions[1]["messages"])
+        assert body["response_format"] == state.completions[1]["response_format"]
+        return _window_reply(clip, start, start + 30, score=99)
+
+    state, run = chunk_duration_run(answer, cue_seconds=cue_seconds, requested=requested)
+    assert run()[0]["viral_score"] == 99
+    assert state.cfg.ai_run_meta["chunks_completed"] == state.cfg.ai_run_meta["chunks_total"] == 2
 
 
 def test_schema_repair_does_not_echo_raw_model_output(provider_factory, schema, clip):

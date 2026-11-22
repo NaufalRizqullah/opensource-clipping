@@ -39,6 +39,16 @@ def validate_analysis_config(cfg, *, probe=False, check_cache=True):
 _STAMP = re.compile(r"^\[(-?\d+(?:\.\d+)?)\s*-\s*(-?\d+(?:\.\d+)?)\]\s*", re.MULTILINE)
 
 
+class ClipDurationError(InvalidOutputError):
+    def __init__(self, start, end, minimum, maximum):
+        super().__init__(
+            f"Durasi klip harus {minimum}-{maximum} detik. "
+            f"Usulan {start:g}–{end:g} detik berdurasi {end - start:g} detik."
+        )
+        self.start = start
+        self.end = end
+
+
 def transcript_end(transcript):
     # Do not silently shorten the source when a trailing timestamp is malformed.
     for line in transcript.splitlines():
@@ -89,7 +99,7 @@ def validate_clips(clips, *, source_end, requested_clips, min_duration=20, max_d
     for item in clips:
         a, b = _interval(item, 0, source_end)
         if not min_duration <= b - a <= max_duration:
-            raise InvalidOutputError(f"Durasi klip harus {min_duration}-{max_duration} detik.")
+            raise ClipDurationError(a, b, min_duration, max_duration)
         if not 1 <= _number(item["viral_score"]) <= 100:
             raise InvalidOutputError("Viral score harus 1-100.")
         _interval(item, a, b, start="hook_start_time", end="hook_end_time")
