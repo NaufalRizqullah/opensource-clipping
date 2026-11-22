@@ -1,0 +1,42 @@
+name: cpu-video-clip
+display_name: Vertical Video Clip
+version: 0.1.0
+description: Render one 720x1280 portrait clip from 0.2 to 59.6 seconds of one video.
+price: TODO
+max_response_time: TODO
+harness:
+  run: python3 harness.py
+workspace:
+  install: |
+    apt-get update
+    apt-get install -y --no-install-recommends ffmpeg
+    python3 -m pip install 'yt-dlp[default]==2026.10.26'
+    install -d /usr/local/lib/cpu-video-clip
+    install -m 644 render.py workspace_job.py /usr/local/lib/cpu-video-clip/
+private: [harness.py, prompt.md]
+inputs:
+  description: Attach one MP4, or provide one public YouTube URL in params.youtube_url. The source must contain the entire interval.
+  params:
+    type: object
+    additionalProperties: false
+    properties:
+      youtube_url:
+        type: string
+        format: uri
+        description: A public YouTube video you may process. Omit when attaching an MP4.
+  files:
+    - accept: [video/mp4]
+      required: false
+      min_count: 0
+      max_count: 1
+outputs:
+  description: Center-cropped H.264 video with source audio when present, a first-frame JPEG, and measured timing.
+  files:
+    - {name: clip.mp4, type: video/mp4, required: true}
+    - {name: thumbnail.jpg, type: image/jpeg, required: true}
+    - {name: metadata.json, type: application/json, required: true}
+tests:
+  - name: render-attached-sample
+    request: Render the fixed interval of this synthetic video as a portrait clip.
+    input: ./fixtures/color-bars.mp4
+    must: The three outputs are a playable 720x1280 portrait clip around 59.4 seconds, a matching JPEG thumbnail, and JSON identifying source times 0.2 and 59.6.

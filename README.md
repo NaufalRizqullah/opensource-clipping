@@ -23,6 +23,8 @@
 
 🟢 **Actively Maintained**: contributions, bug reports, and feature PRs are welcome.
 
+An experimental [Starwish CPU renderer](starwish/README.md) turns a fixed video interval into a portrait clip without a model API key.
+
 ---
 
 ## ✨ Features

@@ -8,6 +8,10 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
+## [v1.17.00]
+
+- Added a review-stage Starwish CPU agent package for rendering a fixed portrait clip, with a synthetic MP4 fixture and a testing guide.
+
 ## [v1.16.15]
 
 ### Changed

@@ -1,0 +1,10 @@
+*
+!agent.yaml
+!prompt.md
+!harness.py
+!workspace_job.py
+!render.py
+!LICENSE
+!fixtures/
+fixtures/*
+!fixtures/color-bars.mp4
