@@ -30,9 +30,13 @@ class RenderError(Exception):
 
 
 def run_media(command, stage):
-    completed = subprocess.run(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    if completed.returncode:
-        raise RenderError(f"{stage} failed (exit {completed.returncode}).")
+    with tempfile.TemporaryFile() as errors:
+        completed = subprocess.run(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=errors)
+        if completed.returncode:
+            errors.seek(max(0, errors.tell() - 2048))
+            detail = errors.read().decode("utf-8", errors="replace").strip()
+            message = f"{stage} failed (exit {completed.returncode})."
+            raise RenderError(f"{message}\n{detail}" if detail else message)
     return completed.stdout
 
 

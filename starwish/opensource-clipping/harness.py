@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlsplit
 from urllib.request import Request, urlopen
 
 
-WORKSPACE_COMMAND = "python3 /usr/local/lib/cpu-video-clip/workspace_job.py"
+WORKSPACE_COMMAND = "python3 /usr/local/lib/opensource-clipping/workspace_job.py"
 
 
 def requested_video(params):
@@ -81,7 +81,7 @@ class Workspace:
     def render(self, video_id):
         init = self.rpc("initialize", {
             "protocolVersion": "2025-06-18", "capabilities": {},
-            "clientInfo": {"name": "cpu-video-clip", "version": "0.1.0"},
+            "clientInfo": {"name": "opensource-clipping", "version": "0.1.0"},
         })
         self.headers["MCP-Protocol-Version"] = init["protocolVersion"]
         self.rpc("notifications/initialized", {}, notification=True)

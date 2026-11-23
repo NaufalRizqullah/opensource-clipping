@@ -27,6 +27,7 @@ def process(input_dir, output_dir, video_id):
             sys.executable, "-m", "yt_dlp", "--ignore-config", "--no-playlist", "--no-cache-dir", "--no-progress",
             "--js-runtimes", "node", "--match-filters", "!is_live", "--download-sections", "*0-65",
             "-f", "bv[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720][ext=mp4]/bv[height<=720][ext=mp4]+ba/bv[height<=720][ext=mp4]",
+            "-S", "vcodec:h264,acodec:aac",
             "--merge-output-format", "mp4", "-o", str(directory / "source.%(ext)s"),
             "--", "https://www.youtube.com/watch?v=" + video_id,
         ], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

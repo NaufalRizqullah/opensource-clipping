@@ -10,7 +10,7 @@ import sys
 import pytest
 
 
-AGENT = Path(__file__).resolve().parents[1] / "starwish" / "cpu-video-clip"
+AGENT = Path(__file__).resolve().parents[1] / "starwish" / "opensource-clipping"
 FIXTURE = AGENT / "fixtures" / "color-bars.mp4"
 spec = importlib.util.spec_from_file_location("cpu_clip_harness", AGENT / "harness.py")
 harness = importlib.util.module_from_spec(spec)
@@ -23,6 +23,22 @@ def test_only_supported_video_sources_are_accepted():
     for url in ("file:///tmp/video.mp4", "https://example.org/a", "https://youtube.com/watch?v=INVALID"):
         with pytest.raises(ValueError):
             harness.requested_video({"youtube_url": url})
+
+
+def test_media_failure_reports_bounded_stderr_tail(monkeypatch):
+    monkeypatch.syspath_prepend(str(AGENT))
+    import render
+
+    command = [sys.executable, "-c",
+               "import sys; sys.stderr.write('early diagnostic' + 'x' * 8192 + "
+               "'\\nInvalid data found when processing input\\n'); sys.exit(183)"]
+    with pytest.raises(render.RenderError) as failure:
+        render.run_media(command, "CPU clip encoding")
+    message = str(failure.value)
+    assert "CPU clip encoding" in message and "183" in message
+    assert "Invalid data found when processing input" in message
+    assert "early diagnostic" not in message
+    assert len(message) < 2200
 
 
 def test_job_with_nested_attachment_calls_renderer(tmp_path, monkeypatch):
@@ -57,6 +73,7 @@ def test_harness_calls_workspace_and_propagates_failed_render(monkeypatch):
     monkeypatch.setattr(workspace, "rpc", fake_rpc)
     workspace.render(None)
     assert [method for method, _ in calls] == list(responses)
+    assert calls[0][1]["clientInfo"]["name"] == "opensource-clipping"
     call = calls[-1][1]
     assert call["name"] == "run_command"
     assert call["arguments"]["command"] == harness.WORKSPACE_COMMAND

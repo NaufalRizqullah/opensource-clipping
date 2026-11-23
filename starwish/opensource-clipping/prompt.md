@@ -1,4 +1,4 @@
-# Vertical Video Clip
+# opensource-clipping
 
 Render one video that the customer has permission to process. The source is an attached MP4 or a public YouTube video supplied in the structured parameter `youtube_url`.
 

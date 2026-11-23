@@ -1,5 +1,5 @@
-name: cpu-video-clip
-display_name: Vertical Video Clip
+name: opensource-clipping
+display_name: opensource-clipping
 version: 0.1.0
 description: Render one 720x1280 portrait clip from 0.2 to 59.6 seconds of one video.
 price: TODO
@@ -11,8 +11,8 @@ workspace:
     apt-get update
     apt-get install -y --no-install-recommends ffmpeg
     python3 -m pip install 'yt-dlp[default]==2026.10.26'
-    install -d /usr/local/lib/cpu-video-clip
-    install -m 644 render.py workspace_job.py /usr/local/lib/cpu-video-clip/
+    install -d /usr/local/lib/opensource-clipping
+    install -m 644 render.py workspace_job.py /usr/local/lib/opensource-clipping/
 private: [harness.py, prompt.md]
 inputs:
   description: Attach one MP4, or provide one public YouTube URL in params.youtube_url. The source must contain the entire interval.
