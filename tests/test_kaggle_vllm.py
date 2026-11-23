@@ -108,7 +108,23 @@ def test_invalid_timeout_is_rejected_before_platform_or_process_access(monkeypat
     assert caught.value.code == 2
 
 
-def test_setup_refuses_studio_or_active_python_environment(monkeypatch):
+@pytest.fixture
+def supported_python(monkeypatch):
+    """Model the Kaggle 3.12 interpreter so later guards run on any developer Python."""
+    monkeypatch.setattr(helper.sys, "version_info", (3, 12, 0, "final", 0))
+
+
+@pytest.mark.parametrize("version", [(3, 10, 0, "final", 0), (3, 13, 0, "final", 0)])
+def test_setup_refuses_unsupported_python_before_any_install(monkeypatch, tmp_path, version):
+    monkeypatch.setattr(helper, "require_platform", lambda: None)
+    monkeypatch.setattr(helper.sys, "version_info", version)
+    monkeypatch.setattr(helper.subprocess, "run", lambda *a, **kw: pytest.fail("No installer may run"))
+    with pytest.raises(RuntimeError, match="require Python 3.11 or 3.12"):
+        helper.setup(tmp_path / "server", helper.DEFAULT_VERSION)
+    assert not (tmp_path / "server").exists()
+
+
+def test_setup_refuses_studio_or_active_python_environment(monkeypatch, supported_python):
     monkeypatch.setattr(helper, "require_platform", lambda: None)
     monkeypatch.setattr(helper.subprocess, "run", lambda *a, **kw: pytest.fail("No installer may run"))
     for directory in (helper.ROOT / ".cache/kaggle-studio/venv", Path(helper.sys.prefix)):
@@ -116,14 +132,14 @@ def test_setup_refuses_studio_or_active_python_environment(monkeypatch):
             helper.setup(directory, helper.DEFAULT_VERSION)
 
 
-def test_setup_preserves_pinned_dependency_pair(monkeypatch, tmp_path):
+def test_setup_preserves_pinned_dependency_pair(monkeypatch, tmp_path, supported_python):
     monkeypatch.setattr(helper, "require_platform", lambda: None)
     monkeypatch.setattr(helper.subprocess, "run", lambda *a, **kw: pytest.fail("No installer may run"))
     with pytest.raises(RuntimeError, match="pins vLLM and Transformers"):
         helper.setup(tmp_path / "server", "999.0.0")
 
 
-def test_setup_uses_only_target_python_and_stops_on_pip_failure(monkeypatch, tmp_path):
+def test_setup_uses_only_target_python_and_stops_on_pip_failure(monkeypatch, tmp_path, supported_python):
     monkeypatch.setattr(helper, "require_platform", lambda: None)
     env_dir = tmp_path / "server"
     env_dir.mkdir()

@@ -23,6 +23,8 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 
 ### Fixed
 - **Windows startup crash**: The API now switches stdout/stderr to UTF-8 so emoji log lines no longer raise `UnicodeEncodeError` on cp1252 consoles.
+- **Studio notebook default**: `notebooks/kaggle-studio-server.ipynb` shipped with `START_LOCAL_VLLM = True`; restored the documented opt-in default `False` so a normal Gemini/NVIDIA run no longer installs and starts a local model.
+- **Test portability**: Kaggle vLLM setup tests now model the supported Python 3.12 interpreter, so they pass on any developer Python (a new test covers the 3.11/3.12 guard). The yt-dlp cookie round-trip test skips when `yt-dlp` is not installed. Full suite passes locally.
 
 ## [v1.16.15]
 

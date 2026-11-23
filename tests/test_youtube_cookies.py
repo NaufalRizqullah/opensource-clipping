@@ -112,7 +112,7 @@ def test_only_youtube_downloads_receive_upload(client, platform, url):
 
 
 def test_export_loads_as_a_yt_dlp_session_cookie(client):
-    from yt_dlp.cookies import YoutubeDLCookieJar
+    YoutubeDLCookieJar = pytest.importorskip("yt_dlp.cookies").YoutubeDLCookieJar
 
     assert client.put(ENDPOINT, content=FILE + OTHER, headers=HEADERS).is_success
     data = youtube_cookies.for_download("youtube", YOUTUBE_URL, None)
