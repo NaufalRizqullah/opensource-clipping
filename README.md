@@ -727,7 +727,7 @@ We provide a simple bash script to safely clean up all temporary files while pre
 bash cleanup.sh
 ```
 
-## Star History
+## ⭐ Star History
 
 [![Star History Chart](https://api.star-history.com/chart?repos=naufalrizqullah/opensource-clipping&type=date&legend=top-left)](https://www.star-history.com/?repos=naufalrizqullah%2Fopensource-clipping&type=date&legend=top-left)
 
