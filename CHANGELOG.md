@@ -8,7 +8,11 @@ All notable changes to the **OpenSource Clipping** project will be documented in
 - **Patch (x.y.Z)**: Incremented for backward-compatible bug fixes or minor patches.
 
 
-## [v1.17.00]
+## [v1.17.1]
+
+- The Starwish CPU agent accepts one to three source time ranges and returns a video and thumbnail for each, with their absolute timestamps in a shared JSON manifest. Requests that omit ranges retain the original 0.2–59.6 second clip.
+
+## [v1.17.0]
 
 - Added a review-stage Starwish CPU agent package for rendering a fixed portrait clip, with a synthetic MP4 fixture and a testing guide.
 

@@ -2,6 +2,7 @@
 !agent.yaml
 !prompt.md
 !harness.py
+!clip_ranges.py
 !workspace_job.py
 !render.py
 !LICENSE

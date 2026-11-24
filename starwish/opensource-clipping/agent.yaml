@@ -1,7 +1,7 @@
 name: opensource-clipping
 display_name: opensource-clipping
-version: 0.1.0
-description: Render one 720x1280 portrait clip from 0.2 to 59.6 seconds of one video.
+version: 0.2.0
+description: Render one to three 720x1280 portrait clips at selected times in a video.
 price: TODO
 max_response_time: TODO
 harness:
@@ -12,10 +12,10 @@ workspace:
     apt-get install -y --no-install-recommends ffmpeg
     python3 -m pip install 'yt-dlp[default]==2026.10.26'
     install -d /usr/local/lib/opensource-clipping
-    install -m 644 render.py workspace_job.py /usr/local/lib/opensource-clipping/
+    install -m 644 clip_ranges.py render.py workspace_job.py /usr/local/lib/opensource-clipping/
 private: [harness.py, prompt.md]
 inputs:
-  description: Attach one MP4, or provide one public YouTube URL in params.youtube_url. The source must contain the entire interval.
+  description: Attach one MP4 or provide one public YouTube URL in params.youtube_url. The source must cover every requested interval.
   params:
     type: object
     additionalProperties: false
@@ -24,19 +24,52 @@ inputs:
         type: string
         format: uri
         description: A public YouTube video you may process. Omit when attaching an MP4.
+      ranges:
+        type: array
+        minItems: 1
+        maxItems: 3
+        description: Intervals in request order, measured from the beginning of the source. Omit for the default 0.2 to 59.6 seconds.
+        items:
+          type: object
+          additionalProperties: false
+          required: [start, end]
+          properties:
+            start:
+              type: [number, string]
+              minimum: 0
+              pattern: '^[0-9]+:([0-5][0-9]:)?[0-5][0-9]([.][0-9]+)?$'
+              description: Seconds as a number, or a timestamp such as "06:00" or "01:06:00.5".
+            end:
+              type: [number, string]
+              minimum: 0
+              pattern: '^[0-9]+:([0-5][0-9]:)?[0-5][0-9]([.][0-9]+)?$'
+              description: End time in the same formats, strictly after start.
   files:
     - accept: [video/mp4]
       required: false
       min_count: 0
       max_count: 1
 outputs:
-  description: Center-cropped H.264 video with source audio when present, a first-frame JPEG, and measured timing.
+  description: Each interval produces an H.264 portrait video with source audio when present and a first-frame JPEG. The JSON lists files and source times in request order.
   files:
     - {name: clip.mp4, type: video/mp4, required: true}
     - {name: thumbnail.jpg, type: image/jpeg, required: true}
     - {name: metadata.json, type: application/json, required: true}
+    - {name: clip_2.mp4, type: video/mp4, required: false}
+    - {name: thumbnail_2.jpg, type: image/jpeg, required: false}
+    - {name: clip_3.mp4, type: video/mp4, required: false}
+    - {name: thumbnail_3.jpg, type: image/jpeg, required: false}
 tests:
   - name: render-attached-sample
-    request: Render the fixed interval of this synthetic video as a portrait clip.
+    request: Render the default interval of this synthetic video as a portrait clip.
     input: ./fixtures/color-bars.mp4
     must: The three outputs are a playable 720x1280 portrait clip around 59.4 seconds, a matching JPEG thumbnail, and JSON identifying source times 0.2 and 59.6.
+  - name: render-three-intervals
+    request: Render the three intervals in the supplied order.
+    input: ./fixtures/color-bars.mp4
+    params:
+      ranges:
+        - {start: "00:40", end: "00:45"}
+        - {start: 10.5, end: 14}
+        - {start: "00:00:21", end: "00:00:27"}
+    must: The three videos and matching JPEGs exist, and metadata.json lists clips in request order with source intervals 40–45, 10.5–14 and 21–27 seconds and durations close to 5, 3.5 and 6 seconds.

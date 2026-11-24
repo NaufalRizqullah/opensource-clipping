@@ -8,13 +8,15 @@ import sys
 from urllib.parse import parse_qs, urlsplit
 from urllib.request import Request, urlopen
 
+from clip_ranges import normalize_ranges
+
 
 WORKSPACE_COMMAND = "python3 /usr/local/lib/opensource-clipping/workspace_job.py"
 
 
 def requested_video(params):
-    if not isinstance(params, dict) or params.keys() - {"youtube_url"}:
-        raise ValueError("The only supported parameter is youtube_url.")
+    if not isinstance(params, dict) or params.keys() - {"youtube_url", "ranges"}:
+        raise ValueError("Supported parameters are youtube_url and ranges.")
     if "youtube_url" not in params:
         return None
     url = params["youtube_url"]
@@ -78,19 +80,22 @@ class Workspace:
             raise RuntimeError(f"Workspace RPC failed during {method}.")
         return reply["result"]
 
-    def render(self, video_id):
+    def render(self, video_id, ranges=None):
         init = self.rpc("initialize", {
             "protocolVersion": "2025-06-18", "capabilities": {},
-            "clientInfo": {"name": "opensource-clipping", "version": "0.1.0"},
+            "clientInfo": {"name": "opensource-clipping", "version": "0.2.0"},
         })
         self.headers["MCP-Protocol-Version"] = init["protocolVersion"]
         self.rpc("notifications/initialized", {}, notification=True)
         available = self.rpc("tools/list", {})
         if not any(tool["name"] == "run_command" for tool in available["tools"]):
             raise RuntimeError("The workspace does not offer run_command.")
+        payload = {"video_id": video_id}
+        if ranges is not None:
+            payload["ranges"] = ranges
         result = self.rpc("tools/call", {"name": "run_command", "arguments": {
             "command": WORKSPACE_COMMAND, "timeout_seconds": 900,
-            "stdin": json.dumps({"video_id": video_id}),
+            "stdin": json.dumps(payload),
         }})
         text = "\n".join(part["text"] for part in result.get("content", []) if part.get("type") == "text")
         if result.get("isError") or "STARWISH_CPU_CLIP_COMPLETE" not in text:
@@ -101,8 +106,10 @@ def main():
     request_file = Path(os.environ.get("STARWISH_REQUEST_FILE", "/job/request.json"))
     job = json.loads(request_file.read_text(encoding="utf-8"))
     params = job.get("params")
-    video_id = requested_video({} if params is None else params)
-    Workspace().render(video_id)
+    params = {} if params is None else params
+    video_id = requested_video(params)
+    ranges = normalize_ranges(params["ranges"]) if "ranges" in params else None
+    Workspace().render(video_id, ranges)
 
 
 if __name__ == "__main__":

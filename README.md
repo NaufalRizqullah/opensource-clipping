@@ -23,7 +23,7 @@
 
 🟢 **Actively Maintained**: contributions, bug reports, and feature PRs are welcome.
 
-An experimental [Starwish CPU renderer](starwish/README.md) turns a fixed video interval into a portrait clip without a model API key.
+The experimental [Starwish CPU renderer](starwish/README.md) turns one to three selected time ranges from an MP4 or public YouTube video into portrait clips with source audio.
 
 ---
 
