@@ -21,7 +21,25 @@
 
 ---
 
-⚠️ **Mode Pemeliharaan Rendah (Low Maintenance)**: Proyek ini sedang dalam mode pemeliharaan rendah karena penulis sedang fokus pada prioritas lain.
+## 🤝 Sponsor
+
+<div align="center">
+  <p>
+    <sub>Dukung pengembangan OpenSource Clipping.</sub>
+  </p>
+
+  <a href="https://ko-fi.com/naufalrizqullah">
+    <img src="https://img.shields.io/badge/YOUR%20LOGO%20HERE-30363D?style=for-the-badge" alt="Slot sponsor tersedia" width="220">
+  </a>
+
+  <p>
+    <sub>
+      <a href="https://ko-fi.com/naufalrizqullah">Menjadi Sponsor</a>
+    </sub>
+  </p>
+</div>
+
+---
 
 ## ✨ Fitur Utama
 
@@ -461,6 +479,19 @@ python main.py --url "URL_VIDEO" --voiceover --voiceover-lang id --voiceover-voi
 - `--edge-glow`: Terapkan efek ambient edge glow ke **seluruh** video, tidak hanya di intro voice-over.
 - `--edge-glow-mode`: Strategi edge glow (`default`, `smooth` [default], atau `full`). Pilihan `smooth` secara matematis menyesuaikan kecepatan putaran warna agar loop tidak terlihat patah.
 
+## 🎵 Pengaturan BGM (Background Music)
+
+- `--no-bgm`: Matikan fitur BGM sepenuhnya.
+- `--bgm-mode ducking` *(default)*: **Sidechain Ducking** — volume BGM otomatis mengecil saat pembicara berbicara, lalu kembali naik saat jeda. Memberikan efek profesional seperti podcast atau video YouTube premium.
+- `--bgm-mode background`: **Background Konstan** — BGM diputar pada volume rendah yang stabil sepanjang video tanpa penyesuaian dinamis. Paling cocok untuk konten yang memiliki sedikit jeda.
+
+> 📁 **Pengaturan BGM:**
+> Letakkan file `.mp3` bebas royalti ke folder `assets/bgm/<mood>/` (contoh: `assets/bgm/chill/`, `assets/bgm/epic/`, `assets/bgm/sad/`, `assets/bgm/upbeat/`, atau `assets/bgm/suspense/`). Script akan memilih lagu secara acak dari folder mood yang diminta oleh AI. Jika folder kosong, BGM akan dilewati secara otomatis.
+>
+> File BGM yang lebih pendek dari durasi video akan diloop otomatis (`-stream_loop -1`).
+>
+> Lihat `assets/bgm/README.md` untuk sumber yang direkomendasikan guna mengunduh BGM gratis.
+
 ## 🎬 Penjelasan Hook V2 & Segment Trimming
 
 ### Struktur Video Final
@@ -515,6 +546,63 @@ Contoh:
 > - Jika AI menilai seluruh clip sudah padat dan menarik, `keep_segments` hanya berisi 1 segmen yang mencakup seluruh durasi (efeknya sama seperti `--no-segment-trim`).
 
 ---
+
+## 🐍 Rekomendasi Konfigurasi (Notebook/Colab)
+
+Berikut adalah konfigurasi yang telah teruji untuk hasil optimal di berbagai skenario.
+
+### 1. Mode Standar (Standard Clipping)
+Cocok untuk video umum di mana Anda menginginkan akurasi dan fokus terbaik.
+```python
+# Konstanta untuk Clipping Standar
+URL_YOUTUBE = "https://www.youtube.com/watch?v=UXhdIF8kvCI"
+JUMLAH_CLIP = 7
+RASIO = "9:16"
+FONT_STYLE = "DEFAULT"
+GEMINI_MODEL = "gemini-2.0-flash"
+
+!python main.py \
+  --url "{URL_YOUTUBE}" \
+  --clips {JUMLAH_CLIP} \
+  --ratio "{RASIO}" \
+  --font-style "{FONT_STYLE}" \
+  --hook-duration 3 \
+  --words-per-sub 5 \
+  --face-detector yolo \
+  --gemini-model "{GEMINI_MODEL}" \
+  --no-bgm \
+  --no-subs \
+  --no-broll \
+  --use-dlp-subs
+```
+
+### 2. Mode Split-Screen (Podcast)
+Dioptimalkan untuk podcast dengan 2+ speaker menggunakan deteksi YOLO yang stabil.
+```python
+# Konstanta untuk Split-Screen
+URL_YOUTUBE = "https://www.youtube.com/watch?v=UXhdIF8kvCI"
+JUMLAH_CLIP = 3
+RASIO = "9:16"
+FONT_STYLE = "DEFAULT"
+GEMINI_MODEL = "gemini-2.0-flash"
+
+!python main.py \
+  --url "{URL_YOUTUBE}" \
+  --clips {JUMLAH_CLIP} \
+  --ratio "{RASIO}" \
+  --font-style "{FONT_STYLE}" \
+  --hook-duration 3 \
+  --words-per-sub 5 \
+  --gemini-model "{GEMINI_MODEL}" \
+  --no-bgm \
+  --no-subs \
+  --no-broll \
+  --split-screen \
+  --dynamic-split \
+  --split-trigger face \
+  --face-detector yolo \
+  --use-dlp-subs
+```
 
 ## 📂 Struktur Proyek
 
@@ -585,144 +673,6 @@ Untuk setiap klip, pipeline akan membuat folder `outputs/` dan menghasilkan:
 | `CINEMATIC` | Roboto | Bebas Neue | Film / dramatis |
 | `DEFAULT` | Montserrat Black | Montserrat Medium | Serbaguna |
 
-## 🎛️ Penjelasan Parameter Konfigurasi
-
-**▶️ Pengaturan Utama**
-- `--url` : Link video sumber
-- `--source` : Sumber platform video (Pilihan: `youtube`, `tiktok`, `instagram`, `gdrive`). Default: `youtube`.
-- `--clips` : Berapa banyak klip yang ingin dihasilkan
-- `--ratio` : `9:16` untuk TikTok/Reels/Shorts, `16:9` untuk YouTube biasa, `1:1` untuk Instagram Feed, `3:4` untuk Pinterest, `4:5` untuk Instagram/Facebook Feed
-- `--source-height` : Batas resolusi source saat download (`max` = ambil kualitas tertinggi yang tersedia)
-- `--video-cq` : Nilai CQ untuk NVENC (default `23`). [15-20: Ultra HD, 21-25: Standar, 26-50: Buram/Kecil]
-- `--video-crf` : Nilai CRF untuk libx264 (default `20`). [15-20: Ultra HD, 21-25: Standar, 26-50: Buram/Kecil]
-- `--video-preset` : Override preset encoder. (Contoh: `slow`, `faster` untuk x264; `p7`, `p1` untuk NVENC)
-- `--video-scale-algo` : Algoritma scaling render. Gunakan `lanczos` untuk hasil paling tajam.
-
-**🎬 Pengaturan Konten & Hook**
-- `--words-per-sub` : Jumlah maksimal kata yang muncul di layar (karaoke style)
-- `--hook-duration` : Durasi teaser di awal video (detik)
-- `--no-broll` : Matikan fitur B-roll (stock footage otomatis)
-- `--no-hook` : Matikan hook glitch di awal klip
-
-**🎵 Pengaturan BGM (Background Music)**
-- `--no-bgm` : Matikan fitur BGM sepenuhnya (tanpa musik latar)
-- `--bgm-mode ducking` *(default)* : Mode **Sidechain Ducking** — volume BGM otomatis mengecil saat pembicara bicara, lalu kembali naik saat jeda. Memberikan efek profesional seperti video podcast/YouTube premium.
-- `--bgm-mode background` : Mode **Background Konstan** — BGM diputar di volume rendah yang stabil sepanjang video tanpa penyesuaian dinamis. Cocok untuk konten yang tidak banyak jeda.
-
-> 📁 **Setup BGM:**
-> Taruh file `.mp3` royalty-free Anda ke dalam folder `assets/bgm/<mood>/` (contoh: `assets/bgm/chill/`, `assets/bgm/epic/`, `assets/bgm/sad/`, `assets/bgm/upbeat/`, `assets/bgm/suspense/`). Script akan memilih lagu secara **acak** dari folder mood yang diminta oleh AI. Jika folder kosong, BGM akan dilewati otomatis.
->
-> File BGM yang lebih pendek dari video akan **di-loop otomatis** (`-stream_loop -1`).
->
-> Lihat `assets/bgm/README.md` untuk rekomendasi sumber download BGM gratis.
-
-**🎨 Pengaturan Subtitle (ASS)**
-- `--font-style` : Pilih gaya font untuk subtitle
-- `--no-subs` : Matikan semua rendering subtitle (video bersih tanpa teks)
-- `--no-karaoke` : Matikan efek warna kuning per-kata, ganti dengan teks bersih muncul satu per satu
-- `--advanced-text` : Aktifkan efek scaling kata besar-kecil (kinetic typography)
-- `--advanced-text-hook` : Aktifkan efek scaling kata khusus untuk teaser hook di awal video
-
-**⚙️ Pengaturan Engine Pendukung**
-- `--use-dlp-subs` : Aktifkan pengunduhan subtitle bawaan YouTube (jika tersedia) untuk bypass proses AI Whisper (sangat menghemat waktu komputasi).
-
-**🎙️ Pengaturan Split-Screen (Podcast)**
-- `--split-screen` : Aktifkan mode split-screen atas-bawah untuk video podcast. Mendukung **3+ speaker lintas scene**. Menggunakan **Pyannote** untuk mendeteksi siapa yang berbicara.
-- `--dynamic-split` : Aktifkan mode dinamis yang otomatis berpindah antara full-screen (saat 1 orang bicara) dan split-screen (saat 2 orang bicara). Memerlukan flag `--split-screen`.
-- `--split-trigger` : Pemicu splitting: `diarization` (berdasarkan suara, butuh `HF_TOKEN`) atau `face` (berdasarkan jumlah wajah yang terlihat, tanpa token).
-- `--diarization-speakers` : Jumlah speaker yang diharapkan (default: `auto`). Mode `auto` akan melakukan visual scanning otomatis untuk menghitung jumlah wajah terbanyak di satu frame untuk mencegah *over-segmentation*. Memerlukan `HF_TOKEN` di file `.env`.
-
-> ⚠️ **Catatan**: Untuk menggunakan split-screen, Anda perlu:
-> 1. Mendaftarkan akun di [HuggingFace](https://huggingface.co/) dan membuat token
-> 2. Accept [user agreement Pyannote](https://huggingface.co/pyannote/speaker-diarization-3.1)
-> 3. Menambahkan `HF_TOKEN=your-token` di file `.env`
-
-**📹 Pengaturan Camera Switch (Podcast)**
-- `--camera-switch` : Aktifkan mode camera-switch penuh — video 9:16 bergantian mengikuti speaker yang aktif. **Scene-aware**: blurred pillarbox hanya muncul saat speaker di scene yang sama bicara bersamaan; jika speaker dari scene berbeda, tetap fokus ke speaker saat ini. **Mutually exclusive** dengan `--split-screen` (split-screen lebih prioritas jika keduanya diaktifkan).
-- `--switch-hold-duration` : Durasi minimum (detik) sebelum sistem berpindah speaker (default: `2.0`). Berguna agar tidak flickering saat pergantian cepat.
-- `--switch-blend-duration` : Durasi transisi (detik) saat berganti speaker (default: `0.0` / instant snap). Gunakan nilai > 0 (misal: `0.2`) untuk pergerakan kamera *smooth blend* ke posisi speaker.
-
-**🔭 Pengaturan Tracking & Kamera (Auto-Framing)**
-- `--track-step` : Frekuensi pengecekan wajah dalam detik (default: `0.25`). Makin kecil makin responsif tapi makin berat.
-- `--track-deadzone` : Rasio area "aman" di tengah di mana kamera tidak akan bergerak (default: `0.15`).
-- `--track-smooth` : Faktor kecepatan kamera mengejar wajah (default: `0.30`). Makin besar makin cepat menyusul.
-- `--track-jitter` : Ambang batas pixel untuk mengabaikan getaran kecil (default: `5`).
-- `--track-snap` : Ambang batas lompatan wajah untuk memicu hard cut antar pembicara (default: `0.25`).
-- `--track-conf` : Ambang batas keyakinan (*confidence*) deteksi wajah (default: `0.55`). Naikkan jika banyak "deteksi hantu", turunkan jika wajah sering hilang.
-- `--track-smooth-window` : Jumlah frame untuk stabilisasi layout (default: `12`). (12 frame ≈ 0.5 dtk, 24 frame ≈ 1 dtk pada 24fps). Makin besar makin stabil.
-- `--scene-cut-threshold` : Sensitivitas deteksi perpindahan kamera (default: `18`). Mereset history layout secara instan saat kamera pindah. **[Range: 15-20 (Gelap/Studio), 30-45 (Terang)]**
-- `--track-iou-threshold` : Ambang batas penggabungan kotak wajah (default: `0.2`). Semakin rendah semakin agresif dalam menggabungkan kotak deteksi yang nempel. **[Range: 0.1-0.5]**
-- `--track-lines` : Tampilkan garis crosshair kuning untuk kalibrasi visual window 9:16.
-- `--dev-mode` : **[Eksperimental]** Aktifkan mode visualisasi "Director" untuk rasio 9:16. Sangat berguna untuk kalibrasi responsivitas AI tracking.
-- `--dev-mode-with-output` : Menghasilkan **dua** file `mp4` secara bersamaan: video 9:16 standar dan video 1920x1080 "Director's Console" (menghemat waktu proses AI).
-- `--dev-mode-with-output-merge` : Menghasilkan output **side-by-side** (2648x1220) yang menggabungkan video akhir dan "Director's Console" dalam satu layar selebar ultrawide. Sangat cocok untuk verifikasi real-time!
-
-> 💡 **Skenario rendering Camera Switch:**
-> - **Satu speaker aktif** → crop full 9:16 mengikuti wajah speaker tersebut
-> - **Beberapa speaker aktif, scene sama** → **blurred pillarbox** (frame 16:9 asli diletakkan di tengah, sisi diisi blur background)
-> - **Beberapa speaker aktif, scene berbeda** → tetap fokus ke speaker saat ini (tanpa pillarbox)
-> - **Tidak ada yang bicara** → tetap pada speaker terakhir yang aktif
-
-**🌐 Asset Eksternal**
-- Semua asset pendukung (Model AI, Glitch video, Font) akan diunduh **otomatis** saat pertama kali dijalankan
-
-## 🐍 Rekomendasi Konfigurasi (Notebook/Colab)
-
-Berikut adalah konfigurasi yang telah teruji untuk hasil optimal di berbagai skenario.
-
-### 1. Mode Standar (Standard Clipping)
-Cocok untuk video umum di mana Anda menginginkan akurasi dan fokus terbaik.
-```python
-# Konstanta untuk Clipping Standar
-URL_YOUTUBE = "https://www.youtube.com/watch?v=UXhdIF8kvCI"
-JUMLAH_CLIP = 7
-RASIO = "9:16"
-FONT_STYLE = "DEFAULT"
-GEMINI_MODEL = "gemini-2.0-flash"
-
-!python main.py \
-  --url "{URL_YOUTUBE}" \
-  --clips {JUMLAH_CLIP} \
-  --ratio "{RASIO}" \
-  --font-style "{FONT_STYLE}" \
-  --hook-duration 3 \
-  --words-per-sub 5 \
-  --face-detector yolo \
-  --gemini-model "{GEMINI_MODEL}" \
-  --no-bgm \
-  --no-subs \
-  --no-broll \
-  --use-dlp-subs
-```
-
-### 2. Mode Split-Screen (Podcast)
-Dioptimalkan untuk podcast dengan 2+ speaker menggunakan deteksi YOLO yang stabil.
-```python
-# Konstanta untuk Split-Screen
-URL_YOUTUBE = "https://www.youtube.com/watch?v=UXhdIF8kvCI"
-JUMLAH_CLIP = 3
-RASIO = "9:16"
-FONT_STYLE = "DEFAULT"
-GEMINI_MODEL = "gemini-2.0-flash"
-
-!python main.py \
-  --url "{URL_YOUTUBE}" \
-  --clips {JUMLAH_CLIP} \
-  --ratio "{RASIO}" \
-  --font-style "{FONT_STYLE}" \
-  --hook-duration 3 \
-  --words-per-sub 5 \
-  --gemini-model "{GEMINI_MODEL}" \
-  --no-bgm \
-  --no-subs \
-  --no-broll \
-  --split-screen \
-  --dynamic-split \
-  --split-trigger face \
-  --face-detector yolo \
-  --use-dlp-subs
-```
-
 ## 📺 Upload Otomatis ke YouTube
 
 Proyek ini sekarang menyertakan uploader YouTube mandiri (standalone) dengan dukungan penjadwalan (scheduling) otomatis!
@@ -791,11 +741,16 @@ Kami menyediakan script bash sederhana untuk membersihkan semua file *temporary*
 bash cleanup.sh
 ```
 
+## ⭐ Riwayat Bintang
+
+[![Grafik Riwayat Bintang](https://api.star-history.com/chart?repos=naufalrizqullah/opensource-clipping&type=date&legend=top-left)](https://www.star-history.com/?repos=naufalrizqullah%2Fopensource-clipping&type=date&legend=top-left)
+
 ## ❤️ Support & Contributing
 
-Feel free for contributing, support, fork, likes, dll. Dukungan Anda sangat berarti untuk terus mengembangkan proyek open-source ini.
+Anda dipersilakan untuk berkontribusi, mendukung, melakukan fork, memberikan likes, atau memberi masukan apa pun. Dukungan Anda sangat berarti agar proyek open-source ini terus berkembang!
 
-Dukung proyek ini melalui Saweria: [https://saweria.co/NaufalRizqullah17](https://saweria.co/NaufalRizqullah17)
+- **Saweria:** [https://saweria.co/NaufalRizqullah17](https://saweria.co/NaufalRizqullah17)
+- **Ko-fi:** [https://ko-fi.com/naufalrizqullah](https://ko-fi.com/naufalrizqullah)
 
 ## 📄 Lisensi
 
