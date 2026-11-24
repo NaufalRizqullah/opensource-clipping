@@ -1,27 +1,41 @@
-<br />
 <div align="center">
   <a href="https://github.com/NaufalRizqullah/opensource-clipping">
-    <img src="assets/images/opensource-clipping-logo-editable.svg" alt="Logo" width="350">
+    <img src="assets/images/opensource-clipping-logo-editable.svg" alt="OpenSource Clipping" width="300">
   </a>
 
-  <h3 align="center">OpenSource Clipping</h3>
+  <p>
+    <strong>Ultimate AI Auto-Clipper &amp; Teaser Generator</strong><br>
+    Turn long-form videos into cinematic short clips with AI-powered highlights, karaoke subtitles, and auto-thumbnails.
+  </p>
 
-  <p align="center">
-    <strong>Ultimate AI Auto-Clipper & Teaser Generator</strong><br>
-    An open-source content factory that transforms long-form videos into cinematic short-form highlights with hook teasers, karaoke subtitles, and auto-thumbnails.
-    <br />
-    <br />
-    <a href="docs/README_ID.md">🇮🇩 Baca dalam Bahasa Indonesia</a>
-    &middot;
-    <a href="https://github.com/NaufalRizqullah/opensource-clipping/issues/new">Report Bug</a>
-    &middot;
-    <a href="https://github.com/NaufalRizqullah/opensource-clipping/issues/new">Request Feature</a>
+  <p>
+    <sub>
+      <a href="docs/README_ID.md"><img src="https://flagcdn.com/w40/id.png" width="16" alt="ID"> Bahasa Indonesia</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/NaufalRizqullah/opensource-clipping/issues/new">🐛 Report Bug</a>
+      &nbsp;·&nbsp;
+      <a href="https://github.com/NaufalRizqullah/opensource-clipping/issues/new">💡 Request Feature</a>
+    </sub>
   </p>
 </div>
 
----
+## ✨ Sponsors
 
-🟢 **Actively Maintained**: contributions, bug reports, and feature PRs are welcome.
+<div align="center">
+  <p>
+    <sub>Support the development of OpenSource Clipping.</sub>
+  </p>
+
+  <a href="https://ko-fi.com/naufalrizqullah">
+    <img src="https://img.shields.io/badge/YOUR%20LOGO%20HERE-30363D?style=for-the-badge" alt="Available sponsorship slot" width="220">
+  </a>
+
+  <p>
+    <sub>
+      <a href="https://ko-fi.com/naufalrizqullah">Become a Sponsor</a>
+    </sub>
+  </p>
+</div>
 
 ---
 
