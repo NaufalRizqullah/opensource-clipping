@@ -727,6 +727,10 @@ We provide a simple bash script to safely clean up all temporary files while pre
 bash cleanup.sh
 ```
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/chart?repos=naufalrizqullah/opensource-clipping&type=date&legend=top-left)](https://www.star-history.com/?repos=naufalrizqullah%2Fopensource-clipping&type=date&legend=top-left)
+
 ## ❤️ Support & Contributing
 
 Feel free for contributing, support, fork, likes, etc. Any feedback is greatly appreciated to keep this open-source project growing!
