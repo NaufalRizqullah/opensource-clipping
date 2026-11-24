@@ -19,7 +19,7 @@
   </p>
 </div>
 
-## ✨ Sponsors
+## 🤝 Sponsors
 
 <div align="center">
   <p>
