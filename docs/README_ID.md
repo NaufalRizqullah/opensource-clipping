@@ -10,7 +10,6 @@
     <strong>Ultimate AI Auto-Clipper & Teaser Generator</strong><br>
     Proyek open-source yang mengubah video panjang menjadi highlight pendek bergaya sinematik, lengkap dengan hook teaser, subtitle karaoke, dan thumbnail otomatis.
     <br />
-    <br />
     <a href="../README.md">🇬🇧 Read in English</a>
     &middot;
     <a href="https://github.com/NaufalRizqullah/opensource-clipping/issues/new">Laporkan Bug</a>

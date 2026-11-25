@@ -5,10 +5,7 @@
 
   <p>
     <strong>Ultimate AI Auto-Clipper &amp; Teaser Generator</strong><br>
-    Turn long-form videos into cinematic short clips with AI-powered highlights, karaoke subtitles, and auto-thumbnails.
-  </p>
-
-  <p>
+    Turn long-form videos into cinematic short clips with AI-powered highlights, karaoke subtitles, and auto-thumbnails.<br>
     <sub>
       <a href="docs/README_ID.md"><img src="https://flagcdn.com/w40/id.png" width="16" alt="ID"> Bahasa Indonesia</a>
       &nbsp;·&nbsp;
