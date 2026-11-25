@@ -19,23 +19,28 @@
   </p>
 </div>
 
+---
+
 ## 🤝 Sponsors
 
 <div align="center">
   <p>
-    <sub>Support the development of OpenSource Clipping.</sub>
-  </p>
-
-  <a href="https://ko-fi.com/naufalrizqullah">
-    <img src="https://img.shields.io/badge/YOUR%20LOGO%20HERE-30363D?style=for-the-badge" alt="Available sponsorship slot" width="220">
-  </a>
-
-  <p>
-    <sub>
-      <a href="https://ko-fi.com/naufalrizqullah">Become a Sponsor</a>
-    </sub>
+    <sub>Special thanks to our sponsors for supporting the continued development of OpenSource Clipping.</sub>
   </p>
 </div>
+
+  <h3>🌟 Featured Sponsor: Mozhenzhen</h3>
+
+  <a href="https://mozhenzhen.com/">
+    <img src="assets\sponsors\opensource-clippingxMozhenzhen.png" alt="OpenSource Clipping × Mozhenzhen">
+  </a>
+
+- 🐼 **Partner Pick: Stop overpaying for AI! Overpriced APIs? Fake models? Getting ripped off? Check [Mozhenzhen](https://mozhenzhen.com/go/opensource-clipping) before you buy:**
+- 🏷️ **Tired of overpaying for tokens? [Price Check]** 2,000+ models · 350K+ listings. Compare official subscriptions, API relays, and pay-as-you-go rates side-by-side.
+- 🛡️ **Worried about fake or nerfed models? [Verification]** 5,000+ API relays · 100K verification reports. Check real developer reviews and audit model authenticity.
+- 🧭 **Looking for reliable accounts or top-ups? [Account & Top-Up Directory]** 1,200+ sellers · 20K+ products (accounts, top-ups, team seats) with upfront pricing, delivery speed, and warranty terms.
+- 🎁 **Looking for free API credits? [Free Perks]** Daily updated free tiers, promos, and community relay hubs you can claim anytime.
+- ⭐ **Always Free · Mozhenzhen doesn't sell AI services — rankings are purely data-driven** 👉 Check now: [mozhenzhen.com](https://mozhenzhen.com/go/opensource-clipping)
 
 ---
 

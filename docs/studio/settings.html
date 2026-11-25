@@ -53,6 +53,7 @@
                 <a href="index.html" class="sidebar-link"><i data-lucide="layout-dashboard" class="nav-icon"></i> <span data-i18n="nav.dashboard">Dashboard</span></a>
                 <a href="new-job.html" class="sidebar-link"><i data-lucide="plus-circle" class="nav-icon"></i> <span data-i18n="nav.newJob">New Job</span></a>
                 <a href="settings.html" class="sidebar-link active"><i data-lucide="settings" class="nav-icon"></i> <span data-i18n="nav.settings">Settings</span></a>
+                <a href="sponsors.html" class="sidebar-link"><i data-lucide="heart-handshake" class="nav-icon"></i> <span data-i18n="nav.sponsors">Sponsors</span></a>
             </nav>
             <div class="connect-panel">
                 <div class="language-picker">
@@ -265,7 +266,7 @@
                 </form>
 
                 <!-- Not Connected State -->
-                <div id="no-connection-state" class="hidden text-center py-16">
+                <div id="no-connection-state" class="hidden text-center py-10">
                     <div class="text-5xl mb-4">🔌</div>
                     <h3 class="font-display font-semibold text-lg text-slate-900 dark:text-white mb-2"><span data-i18n="settings.notConnected">Not Connected</span></h3>
                     <p class="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-sm mx-auto"><span data-i18n="settings.connectHelp">Connect to your Kaggle/Colab backend to configure settings.</span></p>
@@ -274,11 +275,15 @@
                         <span data-i18n="common.connect">Connect</span>
                     </button>
                 </div>
+
+                <!-- Featured Sponsor (visible both before and after connecting) -->
+                <div id="settings-sponsor-slot" class="mt-8"></div>
             </div>
         </main>
     </div>
 
     <script src="api.js"></script>
+    <script src="sponsors.js"></script>
     <script>
         lucide.createIcons();
 
@@ -468,6 +473,7 @@
             }
         }
 
+        StudioSponsors.renderFeatured('settings-sponsor-slot', { compact: true });
         loadSettings();
         window.addEventListener('studio:connected', loadSettings);
         window.addEventListener('studio:disconnected', loadSettings);

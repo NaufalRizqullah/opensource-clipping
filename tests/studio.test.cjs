@@ -7,6 +7,7 @@ const vm = require('node:vm');
 const studioPath = path.join(__dirname, '..', 'docs', 'studio');
 const i18nSource = fs.readFileSync(path.join(studioPath, 'i18n.js'), 'utf8');
 const apiSource = fs.readFileSync(path.join(studioPath, 'api.js'), 'utf8');
+const sponsorsSource = fs.readFileSync(path.join(studioPath, 'sponsors.js'), 'utf8');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { 'Content-Type': 'application/json' },
@@ -68,6 +69,7 @@ function createHarness(fetchImpl = async () => json({ status: 'ok' }), options =
   });
   vm.runInContext(i18nSource, context, { filename: 'i18n.js' });
   vm.runInContext(apiSource, context, { filename: 'api.js' });
+  vm.runInContext(sponsorsSource, context, { filename: 'sponsors.js' });
   function runPage(filename) {
     const html = fs.readFileSync(path.join(studioPath, filename), 'utf8');
     const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)];
@@ -278,7 +280,8 @@ test('cancellation remains active until the backend reports a terminal state', a
 });
 
 test('all Studio page scripts parse', () => {
-  for (const page of ['index.html', 'job.html', 'settings.html', 'new-job.html']) {
+  new vm.Script(sponsorsSource, { filename: 'sponsors.js' });
+  for (const page of ['index.html', 'job.html', 'settings.html', 'new-job.html', 'sponsors.html']) {
     const html = fs.readFileSync(path.join(studioPath, page), 'utf8');
     for (const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) {
       new vm.Script(match[1], { filename: page });
@@ -462,15 +465,52 @@ test('both catalogs cover every key and placeholder, and all pages load localiza
     const placeholders = value => [...value.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort();
     assert.deepEqual(placeholders(catalog.en[key]), placeholders(catalog.id[key]), key);
   }
-  for (const page of ['index.html', 'new-job.html', 'job.html', 'settings.html']) {
+  for (const page of ['index.html', 'new-job.html', 'job.html', 'settings.html', 'sponsors.html']) {
     const source = fs.readFileSync(path.join(studioPath, page), 'utf8');
     assert(source.indexOf('src="i18n.js"') < source.indexOf('src="api.js"'), page);
     assert.match(source, /<html lang="en">/);
     assert.match(source, /data-language-select/);
     assert.match(source, /value="en" lang="en">EN · English/);
     assert.match(source, /value="id" lang="id">ID · Bahasa Indonesia/);
+    assert.match(source, /href="settings\.html"[\s\S]*?href="sponsors\.html"/, `${page} must include Sponsors tab below Settings`);
     for (const match of source.matchAll(/data-i18n(?:-placeholder|-title|-aria-label|-content)?="([\w.]+)"/g)) {
       assert(Object.hasOwn(catalog.en, match[1]), `${page}: ${match[1]}`);
     }
   }
+  for (const match of sponsorsSource.matchAll(/['"](sponsors\.(?!html\b)[\w.]+)['"]/g)) {
+    assert(Object.hasOwn(catalog.en, match[1]), `sponsors.js: ${match[1]}`);
+  }
+});
+
+test('Settings shows Featured Sponsor both before and after connecting, and Sponsors page renders full view', async () => {
+  const h = createHarness();
+  h.api.fetchSettings = async () => ({ gpu_available: true });
+  h.runPage('settings.html');
+  await flush();
+
+  const settingsSponsorHtml = h.element('settings-sponsor-slot').innerHTML;
+  assert.equal(h.element('no-connection-state').classList.contains('hidden'), false);
+  assert.match(settingsSponsorHtml, /https:\/\/mozhenzhen\.com\/go\/opensource-clipping/);
+  assert.match(settingsSponsorHtml, /\.\.\/assets\/sponsors\/opensource-clippingxMozhenzhen\.png/);
+  assert.match(settingsSponsorHtml, /href="sponsors\.html"/);
+  assert.match(settingsSponsorHtml, /data-i18n="sponsors\.mozh\.cta"/);
+
+  h.api.setBackendUrl('https://tunnel.example');
+  h.event('studio:connected');
+  await flush();
+
+  assert.equal(h.element('no-connection-state').classList.contains('hidden'), true);
+  assert.equal(h.element('settings-form').classList.contains('hidden'), false);
+  assert.equal(h.element('settings-sponsor-slot').innerHTML, settingsSponsorHtml);
+
+  const idHarness = createHarness(undefined, { storage: { osc_studio_language: 'id' } });
+  idHarness.runPage('sponsors.html');
+  const fullSponsorHtml = idHarness.element('sponsors-featured-slot').innerHTML;
+  assert.match(fullSponsorHtml, /Sponsor Unggulan/);
+  assert.match(fullSponsorHtml, /Cek Harga/);
+  assert.match(fullSponsorHtml, /Verifikasi/);
+  assert.match(fullSponsorHtml, /Direktori Akun &amp; Top-Up/);
+  assert.match(fullSponsorHtml, /Benefit Gratis/);
+  assert.match(fullSponsorHtml, /Cek mozhenzhen\.com/);
+  assert.doesNotMatch(fullSponsorHtml, /href="sponsors\.html"/);
 });

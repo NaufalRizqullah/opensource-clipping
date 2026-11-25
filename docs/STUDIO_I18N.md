@@ -8,7 +8,7 @@ This preference controls UI labels, help text, placeholders, accessibility label
 
 ## Adding or editing translations
 
-`studio/i18n.js` contains both catalogs and the shared `StudioI18n` helpers. It loads before `studio/api.js` on all four pages. No build step or translation service is required.
+`studio/i18n.js` contains both catalogs and the shared `StudioI18n` helpers. It loads before `studio/api.js` on all five pages. No build step or translation service is required.
 
 - Add each key to both `en` and `id`, using the same named `{parameters}`.
 - Mark static text with `data-i18n="key"` on a text-only element. Keep an English fallback in the HTML. Wrap only the text when a button or heading also contains an icon or another control.
@@ -28,4 +28,4 @@ Run the dependency-free Studio tests with Node.js 20 or newer:
 node --test tests/studio.test.cjs
 ```
 
-For browser checks, serve `docs/` locally and visit `/studio/`. Check both languages on all four pages, navigation/reload persistence, the connection dialog, mobile menu, light/dark themes, and language changes with unsaved form values or job progress visible. Verify that generated clip titles and raw backend logs remain unchanged.
+For browser checks, serve `docs/` locally and visit `/studio/`. Check both languages on all five pages, navigation/reload persistence, the connection dialog, mobile menu, light/dark themes, and language changes with unsaved form values or job progress visible. Verify that generated clip titles and raw backend logs remain unchanged.

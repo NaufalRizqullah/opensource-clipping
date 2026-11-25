@@ -25,19 +25,22 @@
 
 <div align="center">
   <p>
-    <sub>Dukung pengembangan OpenSource Clipping.</sub>
-  </p>
-
-  <a href="https://ko-fi.com/naufalrizqullah">
-    <img src="https://img.shields.io/badge/YOUR%20LOGO%20HERE-30363D?style=for-the-badge" alt="Slot sponsor tersedia" width="220">
-  </a>
-
-  <p>
-    <sub>
-      <a href="https://ko-fi.com/naufalrizqullah">Menjadi Sponsor</a>
-    </sub>
+    <sub>Terima kasih khusus kepada para sponsor kami yang telah mendukung pengembangan berkelanjutan OpenSource Clipping.</sub>
   </p>
 </div>
+
+  <h3>🌟 Sponsor Unggulan: Mozhenzhen</h3>
+
+  <a href="https://mozhenzhen.com/">
+    <img src="../assets/sponsors/opensource-clippingxMozhenzhen.png" alt="OpenSource Clipping × Mozhenzhen">
+  </a>
+
+🐼 **Pilihan Partner: Jangan bayar kemahalan untuk AI! API kemahalan? Model palsu? Takut ketipu? Cek [Mozhenzhen](https://mozhenzhen.com/go/opensource-clipping) sebelum beli:**
+- 🏷️ **Capek bayar token kemahalan? [Cek Harga]** 2.000+ model · 350K+ listing. Bandingkan langganan resmi, API relay, dan tarif pay-as-you-go secara berdampingan.
+- 🛡️ **Khawatir soal model palsu atau di-nerf? [Verifikasi]** 5.000+ API relay · 100K laporan verifikasi. Cek ulasan developer asli dan audit keaslian model.
+- 🧭 **Cari akun atau top-up yang tepercaya? [Direktori Akun & Top-Up]** 1.200+ penjual · 20K+ produk (akun, top-up, team seat) dengan harga transparan di awal, kecepatan pengiriman, dan ketentuan garansi.
+- 🎁 **Cari kredit API gratis? [Benefit Gratis]** Free tier, promo, dan hub relay komunitas yang diperbarui setiap hari dan bisa diklaim kapan saja.
+- ⭐ **Selalu Gratis · Mozhenzhen tidak menjual layanan AI — peringkat murni berbasis data** 👉 Cek sekarang: [mozhenzhen.com](https://mozhenzhen.com/go/opensource-clipping)
 
 ---
 

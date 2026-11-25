@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <script src="i18n.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="sponsors.title">Sponsors — OSC Studio</title>
+    <meta name="description" content="Featured sponsors and community supporters of OpenSource Clipping Studio" data-i18n-content="sponsors.description">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], display: ['Outfit', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 400: '#a78bfa', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 900: '#312e81' }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="studio.css">
+    <script>if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');</script>
+</head>
+
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans transition-colors duration-300">
+
+    <div id="mobile-overlay" class="mobile-overlay hidden" onclick="closeSidebar()"></div>
+
+    <div class="studio-layout">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="studio-sidebar">
+            <div class="sidebar-brand">
+                <a href="../index.html" class="flex items-center gap-2 group mb-2">
+                    <div class="p-1.5 rounded-lg bg-brand-600 text-white group-hover:scale-105 transition-transform shadow-md shadow-brand-500/20">
+                        <i data-lucide="scissors" class="w-4 h-4"></i>
+                    </div>
+                    <span class="font-display font-bold text-sm bg-gradient-to-r from-brand-600 to-indigo-500 dark:from-brand-400 dark:to-sky-400 bg-clip-text text-transparent">
+                        Opensource Clipping
+                    </span>
+                </a>
+                <h2 class="font-display font-bold text-lg text-slate-900 dark:text-white">🎬 Studio</h2>
+                <p class="text-xs text-slate-400 dark:text-slate-500"><span data-i18n="nav.tagline">AI Auto-Clipper · Remote GPU</span></p>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="index.html" class="sidebar-link"><i data-lucide="layout-dashboard" class="nav-icon"></i> <span data-i18n="nav.dashboard">Dashboard</span></a>
+                <a href="new-job.html" class="sidebar-link"><i data-lucide="plus-circle" class="nav-icon"></i> <span data-i18n="nav.newJob">New Job</span></a>
+                <a href="settings.html" class="sidebar-link"><i data-lucide="settings" class="nav-icon"></i> <span data-i18n="nav.settings">Settings</span></a>
+                <a href="sponsors.html" class="sidebar-link active"><i data-lucide="heart-handshake" class="nav-icon"></i> <span data-i18n="nav.sponsors">Sponsors</span></a>
+            </nav>
+            <div class="connect-panel">
+                <div class="language-picker">
+                    <label for="studio-language" data-i18n="language">Language</label>
+                    <select id="studio-language" data-language-select onchange="StudioI18n.setLanguage(this.value)">
+                        <option value="en" lang="en">EN · English</option>
+                        <option value="id" lang="id">ID · Bahasa Indonesia</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2 mb-2">
+                    <span id="connect-dot" class="connect-dot offline"></span>
+                    <span id="connect-label" class="text-xs text-slate-500 dark:text-slate-400 truncate flex-1"><span data-i18n="connection.offline">Not connected</span></span>
+                </div>
+                <div class="flex gap-2 w-full">
+                    <button id="connect-btn" onclick="showConnectModal()" class="flex-1 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300">
+                        <span data-i18n="common.connect">Connect</span>
+                    </button>
+                    <button id="sidebar-stop-btn" onclick="stopBackendServer()" class="hidden w-10 flex items-center justify-center text-xs font-medium rounded-lg border border-red-500 bg-red-600 hover:bg-red-700 text-white transition-colors" title="Stop Kaggle Server" data-i18n-title="connection.stopKaggle">
+                        <i data-lucide="power" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+                <button onclick="toggleTheme()" class="w-full mt-2 text-xs font-medium px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300 flex items-center justify-center gap-2">
+                    <span class="dark:hidden"><i data-lucide="moon" class="w-3.5 h-3.5"></i></span>
+                    <span class="hidden dark:inline"><i data-lucide="sun" class="w-3.5 h-3.5"></i></span>
+                    <span class="dark:hidden"><span data-i18n="theme.dark">Dark Mode</span></span><span class="hidden dark:inline"><span data-i18n="theme.light">Light Mode</span></span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="studio-main">
+            <div class="md:hidden sticky top-0 z-30 flex items-center gap-3 px-4 h-14 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80">
+                <button onclick="toggleSidebar()" class="mobile-toggle p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Open navigation" data-i18n-aria-label="nav.menu"><i data-lucide="menu" class="w-5 h-5"></i></button>
+                <span class="font-display font-bold text-sm"><span data-i18n="sponsors.mobileTitle">🤝 Sponsors</span></span>
+            </div>
+
+            <div class="max-w-3xl mx-auto px-4 sm:px-6 py-8 fade-in">
+                <!-- Page Header -->
+                <div class="mb-8">
+                    <h1 class="font-display font-bold text-2xl sm:text-3xl text-slate-900 dark:text-white"><span data-i18n="nav.sponsors">Sponsors</span></h1>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm mt-1"><span data-i18n="sponsors.subtitle">Special thanks to our sponsors for supporting the continued development of OpenSource Clipping.</span></p>
+                </div>
+
+                <!-- Featured Sponsor -->
+                <div id="sponsors-featured-slot" class="mb-6"></div>
+
+                <!-- Community Support -->
+                <section class="glass-card p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm" aria-labelledby="support-heading">
+                    <h3 id="support-heading" class="font-display font-semibold text-base text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                        <i data-lucide="heart" class="w-5 h-5 text-rose-500"></i>
+                        <span data-i18n="sponsors.supportTitle">Support OpenSource Clipping</span>
+                    </h3>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mb-5 leading-relaxed">
+                        <span data-i18n="sponsors.supportDesc">Want to sponsor this project or support ongoing open-source development? Contributions help cover testing, maintenance, and new features.</span>
+                    </p>
+                    <div class="flex flex-wrap gap-3">
+                        <a href="https://ko-fi.com/naufalrizqullah" target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 dark:bg-brand-500 dark:hover:bg-brand-600 text-white font-semibold text-xs transition-all shadow-md shadow-brand-500/20">
+                            <i data-lucide="coffee" class="w-4 h-4"></i>
+                            <span data-i18n="sponsors.supportKofi">Sponsor on Ko-fi</span>
+                        </a>
+                        <a href="https://saweria.co/NaufalRizqullah17" target="_blank" rel="noopener noreferrer"
+                           class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-colors">
+                            <i data-lucide="heart-handshake" class="w-4 h-4 text-amber-500"></i>
+                            <span data-i18n="sponsors.supportSaweria">Support on Saweria</span>
+                        </a>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="api.js"></script>
+    <script src="sponsors.js"></script>
+    <script>
+        lucide.createIcons();
+        StudioSponsors.renderFeatured('sponsors-featured-slot', { compact: false });
+    </script>
+</body>
+
+</html>
+
