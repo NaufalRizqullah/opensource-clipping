@@ -6,7 +6,7 @@ const StudioSponsors = (() => {
   const FEATURED_SPONSOR = {
     bannerSrc: '../assets/sponsors/opensource-clippingxMozhenzhen.png',
     bannerAlt: 'OpenSource Clipping × Mozhenzhen',
-    homeUrl: 'https://mozhenzhen.com/',
+    homeUrl: 'https://mozhenzhen.com/go/opensource-clipping',
     ctaUrl: 'https://mozhenzhen.com/go/opensource-clipping',
     features: [
       {

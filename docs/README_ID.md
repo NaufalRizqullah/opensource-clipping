@@ -31,7 +31,7 @@
 
   <h3>🌟 Sponsor Unggulan: Mozhenzhen</h3>
 
-  <a href="https://mozhenzhen.com/">
+  <a href="https://mozhenzhen.com/go/opensource-clipping">
     <img src="../assets/sponsors/opensource-clippingxMozhenzhen.png" alt="OpenSource Clipping × Mozhenzhen">
   </a>
 
